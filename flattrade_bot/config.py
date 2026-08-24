@@ -97,10 +97,10 @@ class Settings:
     CONSECUTIVE_LOSS_LIMIT: int = 8
 
     # ── Paths ──
-    DATA_DIR: Path = Path(os.getenv("AMMU_DIR", "C:/Websites/ammu"))
+    DATA_DIR: Path = Path(os.getenv("AMMU_DIR", str(PROJECT_DIR / "data")))
     OPTS_DIR: Path = DATA_DIR / "nifty_options"
     SPOT_PATH: Path = DATA_DIR / "index" / "NIFTY 50_minute.csv"
-    LOGS_DIR: Path = Path("logs")
+    LOGS_DIR: Path = PROJECT_DIR / "logs"
 
 
 settings = Settings()
