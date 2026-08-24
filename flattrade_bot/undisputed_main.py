@@ -170,6 +170,8 @@ class CombinedSupremeTradingEngine:
             virgin_cprs=virgin_cprs,
             opening_3m_high=opening_3m_h,
             opening_3m_low=opening_3m_l,
+            vwma20=24184.27,
+            parabolic_sar=24204.50,
         )
         self.engine.update_indicators(
             spot_price=prev_close,

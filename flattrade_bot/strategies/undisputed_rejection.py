@@ -108,8 +108,13 @@ class CombinedSupremeEngine:
         virgin_cprs: Optional[List[Tuple[float, float, float, str]]] = None,
         opening_3m_high: Optional[float] = None,
         opening_3m_low: Optional[float] = None,
+        vwma20: Optional[float] = None,
+        parabolic_sar: Optional[float] = None,
     ):
-        """Initializes full 3-Tier S/R Hierarchy."""
+        """Initializes structural levels at session open."""
+        self.levels.clear()
+
+        # Core Mathematical Calculations
         pivot = (prev_high + prev_low + prev_close) / 3.0
         bc = (prev_high + prev_low) / 2.0
         tc = (pivot - bc) + pivot
@@ -125,9 +130,11 @@ class CombinedSupremeEngine:
         fib_h3 = pivot + cam_range * 1.000
         fib_l3 = pivot - cam_range * 1.000
 
-        pd_vwap = prev_vwap_close or initial_vwap
-        e20_5m = ema20_5m or ema20
-        e200_5m = ema200_5m or ema200
+        e20_5m = ema20_5m if ema20_5m is not None else ema20
+        e200_5m = ema200_5m if ema200_5m is not None else ema200
+        pd_vwap = prev_vwap_close if prev_vwap_close is not None else initial_vwap
+        v_vwma = vwma20 if vwma20 is not None else ema20
+        v_psar = parabolic_sar if parabolic_sar is not None else (l3 - 10.0)
 
         self.current_vwap = initial_vwap
         self.current_ema200 = ema200
@@ -168,6 +175,8 @@ class CombinedSupremeEngine:
 
         new_levels.extend([
             SRLevel("EMA 20", round(ema20, 2), priority=2),
+            SRLevel("VWMA 20", round(v_vwma, 2), priority=2),
+            SRLevel("Parabolic SAR", round(v_psar, 2), priority=2),
             SRLevel("Prev Day High", round(prev_high, 2), priority=2),
             SRLevel("Prev Day Low", round(prev_low, 2), priority=2),
         ])
