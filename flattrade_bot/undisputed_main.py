@@ -133,7 +133,7 @@ class CombinedSupremeTradingEngine:
             self._broker_status = "[yellow]SIMULATION MODE[/yellow]"
             logger.warning("Running in simulation mode (No live broker token).")
 
-        # Real Nifty 50 Spot Reference Anchors (Matching TradingView Exactly)
+        # Official Previous Day Nifty 50 Spot Session Anchors (Matching TradingView Exactly)
         prev_close = 24252.00
         prev_high = 24291.09
         prev_low = 24212.91
@@ -147,19 +147,15 @@ class CombinedSupremeTradingEngine:
         opening_3m_l = 24220.00
         virgin_cprs = [(24150.0, 24162.0, 24138.0, "20-Aug")]
 
-        # Dynamic override if live broker quote available
+        # Query live broker quote for latest spot price and official previous close
         if self.client.auth_token:
             try:
                 q = await self.client.get_quotes(exchange="NSE", token="26000")
                 if q.get("stat") == "Ok":
                     if float(q.get("c", 0)) > 0:
                         prev_close = float(q["c"])
-                    if float(q.get("h", 0)) > 0 and float(q.get("l", 0)) > 0:
-                        # Dynamic live high/low from exchange
-                        prev_high = float(q["h"])
-                        prev_low = float(q["l"])
             except Exception as e:
-                logger.warning(f"Error fetching live OHLC anchors: {e}")
+                logger.warning(f"Error fetching live broker quote: {e}")
 
         self.engine.initialize_daily_levels(
             prev_high=prev_high,
