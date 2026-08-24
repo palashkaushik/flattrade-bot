@@ -106,18 +106,22 @@ def automated_flattrade_login_selenium(
     headless: bool = True,
     timeout: int = 30,
 ) -> Optional[str]:
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        from selenium.webdriver.chrome.options import Options as ChromeOptions
+    except ImportError:
+        logger.info("Selenium not installed, skipping Selenium fallback.")
+        return None
+
     from flattrade_bot.broker.network import _ensure_ipv4_patch
     _ensure_ipv4_patch()
 
     totp = pyotp.TOTP(totp_key)
     totp_code = totp.now()
     logger.info(f"Generated TOTP code for Selenium: {totp_code}")
-
-    from selenium import webdriver
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    from selenium.webdriver.chrome.options import Options as ChromeOptions
 
     chrome_options = ChromeOptions()
     if headless:
