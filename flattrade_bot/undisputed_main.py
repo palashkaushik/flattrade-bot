@@ -79,8 +79,8 @@ class CombinedSupremeTradingEngine:
         )
         self.discord = DiscordNotifier()
         self.auth = FlattradeAuth()
-        self.client = FlattradeClient(self.auth)
-        self.history = FlattradeHistoryFetcher(self.client)
+        self.client = FlattradeClient()
+        self.history = FlattradeHistoryFetcher()
         self.risk = RiskManager(quantity=settings.LOT_SIZE)
         self.executor = TradeExecutor(self.client, self.risk, self.discord, quantity=settings.LOT_SIZE, live_orders=live_orders) if live_orders else None
 
@@ -89,11 +89,49 @@ class CombinedSupremeTradingEngine:
         self.trades_today: List[Dict[str, Any]] = []
         self._wins_today: int = 0
         self._warm_ready: bool = False
-        self._broker_status: str = "CONNECTED"
+        self._broker_status: str = "INITIALIZING..."
 
     async def initialize(self):
-        """Initializes real S/R Levels (3-Tier Combined Supreme Hierarchy) from Nifty Spot."""
+        """Initializes broker session and real S/R Levels (3-Tier Combined Supreme Hierarchy)."""
         logger.info("Initializing Combined Supreme Strategy with 3-Tier S/R Hierarchy...")
+
+        # 1. Authenticate with Flattrade Broker
+        token = os.getenv("FLATTRADE_TOKEN", "")
+        if not token and settings.FLATTRADE_USER_ID and settings.FLATTRADE_API_KEY:
+            try:
+                token = await self.auth.login()
+            except Exception as e:
+                logger.warning(f"REST broker login attempt: {e}")
+
+            if not token and settings.FLATTRADE_TOTP_KEY:
+                try:
+                    from flattrade_bot.broker.auto_login import automated_flattrade_login
+                    token = automated_flattrade_login(
+                        user_id=settings.FLATTRADE_USER_ID,
+                        password=settings.FLATTRADE_PASSWORD,
+                        totp_key=settings.FLATTRADE_TOTP_KEY,
+                        api_key=settings.FLATTRADE_API_KEY,
+                        api_secret=settings.FLATTRADE_API_SECRET,
+                        headless=True,
+                    )
+                except Exception as e:
+                    logger.warning(f"Headless broker login attempt: {e}")
+
+        if token:
+            self.client.set_token(token)
+            self.history.set_token(token)
+            self._broker_status = "[bold green]LIVE AUTHENTICATED[/bold green]"
+            logger.info("✅ Flattrade Live Broker Session Authenticated.")
+            # Fetch initial spot quote
+            q = await self.client.get_quotes(exchange="NSE", token="26000")
+            if q.get("stat") == "Ok" and "lp" in q:
+                try:
+                    self.latest_spot_price = float(q["lp"])
+                except (ValueError, TypeError):
+                    pass
+        else:
+            self._broker_status = "[yellow]SIMULATION MODE[/yellow]"
+            logger.warning("Running in simulation mode (No live broker token).")
 
         # Real Nifty 50 Spot Reference Anchors (Matching TradingView)
         prev_high = 24268.0
