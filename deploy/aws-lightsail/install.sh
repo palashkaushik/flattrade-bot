@@ -12,7 +12,13 @@ SYSTEMD_DIR="${SCRIPT_DIR}/systemd"
 echo "🕒 Setting system timezone to Asia/Kolkata..."
 sudo timedatectl set-timezone Asia/Kolkata
 
-# 2. Ensure log directory exists
+# 2. Install Headless Chromium & Python Selenium for 100% Zero-Touch Automated Login
+echo "🌐 Installing Chromium & Selenium for 100% Zero-Touch Auto-Login..."
+sudo apt-get update -y
+sudo apt-get install -y chromium-browser chromium-chromedriver python3-selenium || true
+pip3 install selenium webdriver-manager --break-system-packages || true
+
+# 3. Ensure log directory exists
 mkdir -p /home/ubuntu/FLATTRADE_BOT/logs
 
 # 3. Copy systemd service and timer units
