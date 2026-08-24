@@ -26,14 +26,34 @@ from flattrade_bot.broker.client import FlattradeClient
 from flattrade_bot.config import settings
 
 
+def sanitize_request_code(raw: str) -> str:
+    raw = raw.strip()
+    if "code=" in raw:
+        import urllib.parse
+        parsed = urllib.parse.urlparse(raw)
+        qs = urllib.parse.parse_qs(parsed.query or raw)
+        if "code" in qs:
+            return qs["code"][0]
+        if "request_code" in qs:
+            return qs["request_code"][0]
+    if "&" in raw:
+        raw = raw.split("&")[0]
+    if "?" in raw:
+        raw = raw.split("?")[-1]
+    if "=" in raw:
+        raw = raw.split("=")[-1]
+    return raw.strip()
+
+
 async def get_token_from_request_code(api_key: str, api_secret: str, request_code: str) -> str | None:
+    code = sanitize_request_code(request_code)
     url = "https://authapi.flattrade.in/trade/apitoken"
-    hash_input = f"{api_key}{request_code}{api_secret}"
+    hash_input = f"{api_key}{code}{api_secret}"
     secret_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
 
     payload = {
         "api_key": api_key,
-        "request_code": request_code,
+        "request_code": code,
         "api_secret": secret_hash,
     }
 
