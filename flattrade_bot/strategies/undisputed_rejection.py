@@ -63,6 +63,8 @@ class CombinedSupremeEngine:
         max_sl_pts: float = 15.0,
         trail_trigger_pts: float = 6.0,
         trail_step_pts: float = 2.0,
+        enable_chop_filter: bool = True,
+        all_day_session: bool = True,
     ):
         self.min_score = min_score
         self.sl_mult = sl_mult
@@ -71,12 +73,15 @@ class CombinedSupremeEngine:
         self.max_sl_pts = max_sl_pts
         self.trail_trigger_pts = trail_trigger_pts
         self.trail_step_pts = trail_step_pts
+        self.enable_chop_filter = enable_chop_filter
+        self.all_day_session = all_day_session
 
         self.levels: List[SRLevel] = []
         self.pending_setup: Optional[RejectionSetup] = None
         self.current_15m_bullish: bool = True
         self.current_15m_ema20: float = 0.0
         self.current_vwap: float = 0.0
+        self.current_supertrend: float = 0.0
         self.current_ema20: float = 0.0
         self.current_ema200: float = 0.0
         self.current_5m_ema20: float = 0.0
@@ -137,9 +142,10 @@ class CombinedSupremeEngine:
         # ── 1. SUPREME TIER 1+ PRIORITY: VIRGIN (UNTOUCHED) CPRs ──
         if virgin_cprs:
             for v_p, v_tc, v_bc, o_day in virgin_cprs[-3:]:
-                new_levels.append(SRLevel(f"Virgin CPR Pivot ({o_day[-5:]})", round(v_p, 2), priority=1, is_virgin=True, origin_day=o_day))
-                new_levels.append(SRLevel(f"Virgin CPR Top ({o_day[-5:]})", round(v_tc, 2), priority=1, is_virgin=True, origin_day=o_day))
-                new_levels.append(SRLevel(f"Virgin CPR Bot ({o_day[-5:]})", round(v_bc, 2), priority=1, is_virgin=True, origin_day=o_day))
+                tag = o_day[-5:] if len(o_day) > 6 else o_day
+                new_levels.append(SRLevel(f"Virgin CPR Pivot ({tag})", round(v_p, 2), priority=1, is_virgin=True, origin_day=o_day))
+                new_levels.append(SRLevel(f"Virgin CPR Top ({tag})", round(v_tc, 2), priority=1, is_virgin=True, origin_day=o_day))
+                new_levels.append(SRLevel(f"Virgin CPR Bot ({tag})", round(v_bc, 2), priority=1, is_virgin=True, origin_day=o_day))
 
         # ── 2. TIER 1 CORE STRUCTURAL ANCHORS ──
         new_levels.extend([
@@ -196,9 +202,12 @@ class CombinedSupremeEngine:
         ema20_5m: Optional[float] = None,
         ema200_5m: Optional[float] = None,
         atr: float = 14.0,
+        supertrend: Optional[float] = None,
     ):
         """Updates dynamic rolling indicators on every incoming 3m candle."""
         self.current_vwap = vwap
+        if supertrend is not None:
+            self.current_supertrend = supertrend
         self.current_ema20 = ema20
         self.current_ema200 = ema200
         if ema20_5m is not None:
@@ -223,8 +232,10 @@ class CombinedSupremeEngine:
                 lvl.price = round(ema200_5m, 2)
 
     def is_session_active(self, now: Optional[datetime] = None) -> bool:
-        """Operating Sessions: 09:15-11:00 (Morning) & 13:30-15:00 (Afternoon)."""
+        """Operating Sessions: Full All-Day (09:18-15:00) or Dual Windows."""
         t = (now or datetime.now()).time()
+        if self.all_day_session:
+            return (dtime(9, 18) <= t <= dtime(15, 0))
         morning = (dtime(9, 15) <= t <= dtime(11, 0))
         afternoon = (dtime(13, 30) <= t <= dtime(15, 0))
         return morning or afternoon
@@ -235,9 +246,17 @@ class CombinedSupremeEngine:
         bar_2: Dict[str, Any],
         now: Optional[datetime] = None,
     ) -> Optional[RejectionSetup]:
-        """Evaluates Two-Bar Structure Confirmation between Bar 1 and Bar 2."""
+        """Evaluates Two-Bar Structure Confirmation between Bar 1 and Bar 2 with Chop Corridor Filter."""
         if not self.is_session_active(now):
             return None
+
+        # --- SUPERTREND VS VWAP CHOP CORRIDOR FILTER ---
+        if self.enable_chop_filter and self.current_supertrend > 0 and self.current_vwap > 0:
+            chop_upper = max(self.current_supertrend, self.current_vwap)
+            chop_lower = min(self.current_supertrend, self.current_vwap)
+            b1_close = bar_1.get("close", 0.0)
+            if chop_lower <= b1_close <= chop_upper:
+                return None  # Price is stuck inside the SuperTrend vs VWAP chop corridor!
 
         # Check pending Bar 1 rejection if waiting for Bar 2 confirmation
         if self.pending_setup is not None:
@@ -258,7 +277,6 @@ class CombinedSupremeEngine:
                 return setup
 
         # Step 1: Scan S/R Levels for Bar 1 Touch & Rejection Stall
-        # Priority sorted: Virgin CPRs (Priority 1 + is_virgin=True) evaluated first, then Tier 1, 2, 3
         sorted_levels = sorted(self.levels, key=lambda l: (not l.is_virgin, l.priority))
 
         for lvl in sorted_levels:
@@ -268,7 +286,11 @@ class CombinedSupremeEngine:
             if bar_1["low"] <= lvl.price <= bar_1["high"]:
                 # --- SUPPORT BOUNCE (LONG) ---
                 if self.current_15m_bullish:
-                    # Confluence Score calculation (Tier 1 gets +20, Virgin +25, Tier 2 +10, Tier 3 +5)
+                    # Clean breakout above chop corridor for Long
+                    if self.enable_chop_filter and self.current_supertrend > 0:
+                        if bar_1["close"] < max(self.current_supertrend, self.current_vwap):
+                            continue
+
                     score = 40 + (25 if lvl.is_virgin else 20 if lvl.priority == 1 else 10 if lvl.priority == 2 else 5)
                     if bar_1["close"] > lvl.price:
                         score += 15
@@ -302,6 +324,11 @@ class CombinedSupremeEngine:
 
                 # --- RESISTANCE REJECTION (SHORT) ---
                 elif not self.current_15m_bullish:
+                    # Clean breakdown below chop corridor for Short
+                    if self.enable_chop_filter and self.current_supertrend > 0:
+                        if bar_1["close"] > min(self.current_supertrend, self.current_vwap):
+                            continue
+
                     score = 40 + (25 if lvl.is_virgin else 20 if lvl.priority == 1 else 10 if lvl.priority == 2 else 5)
                     if bar_1["close"] < lvl.price:
                         score += 15

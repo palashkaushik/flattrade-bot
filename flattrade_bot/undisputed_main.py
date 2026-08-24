@@ -145,7 +145,7 @@ class CombinedSupremeTradingEngine:
         ema200_5m = 24190.00
         opening_3m_h = 24280.00
         opening_3m_l = 24220.00
-        virgin_cprs = [(24150.0, 24162.0, 24138.0, "20-Aug")]
+        virgin_cprs = [(24098.00, 24111.00, 24085.00, "20-Aug")]
 
         # Query live broker quote for latest spot price and official previous close
         if self.client.auth_token:
