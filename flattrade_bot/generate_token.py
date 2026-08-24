@@ -96,19 +96,34 @@ async def test_quote(token: str):
         print(f"  [WARN] Quote response: {quote}")
 
 
-async def main():
-    print("=" * 70)
-    print(" 🔑 FLATTRADE DAILY BROKER TOKEN GENERATOR")
-    print("=" * 70)
+async def get_public_ip() -> str:
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get("https://api.ipify.org")
+            return res.text.strip()
+    except Exception:
+        return "Unknown"
 
+
+async def main():
+    print("=" * 75)
+    print(" 🔑 FLATTRADE DAILY BROKER TOKEN GENERATOR (API v2)")
+    print("=" * 75)
+
+    pub_ip = await get_public_ip()
     user_id = settings.FLATTRADE_USER_ID
     api_key = settings.FLATTRADE_API_KEY
     api_secret = settings.FLATTRADE_API_SECRET
     totp_key = settings.FLATTRADE_TOTP_KEY
 
-    print(f"• User ID:    {user_id or '[MISSING]'}")
-    print(f"• API Key:    {api_key[:8] + '...' if api_key else '[MISSING]'}")
-    print(f"• API Secret: {'[CONFIGURED]' if api_secret else '[MISSING]'}")
+    print(f"• Server Public IP: {pub_ip} 🌐")
+    print(f"• User ID:          {user_id or '[MISSING]'}")
+    print(f"• API Key:          {api_key[:8] + '...' if api_key else '[MISSING]'}")
+    print(f"• API Secret:       {'[CONFIGURED]' if api_secret else '[MISSING]'}")
+    print("-" * 75)
+    print(f"⚠️  IMPORTANT: In Flattrade Wall (wall.flattrade.in -> Pi -> API Keys),")
+    print(f"   ensure the 'Static IP' for your API Key is set to: {pub_ip}")
+    print("=" * 75)
 
     if not (user_id and api_key and api_secret):
         print("\n❌ Error: FLATTRADE_USER_ID, FLATTRADE_API_KEY, or FLATTRADE_API_SECRET missing in .env")
