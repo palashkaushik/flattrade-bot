@@ -15,6 +15,9 @@ import os
 import sys
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 import httpx
 import pyotp
 
@@ -23,7 +26,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from flattrade_bot.broker.client import FlattradeClient
+from flattrade_bot.broker.network import _ensure_ipv4_patch
 from flattrade_bot.config import settings
+
+# Force IPv4 resolution to match registered IPv4 on Flattrade Wall
+_ensure_ipv4_patch()
 
 
 def sanitize_request_code(raw: str) -> str:
@@ -46,6 +53,7 @@ def sanitize_request_code(raw: str) -> str:
 
 
 async def get_token_from_request_code(api_key: str, api_secret: str, request_code: str) -> str | None:
+    _ensure_ipv4_patch()
     code = sanitize_request_code(request_code)
     url = "https://authapi.flattrade.in/trade/apitoken"
     hash_input = f"{api_key}{code}{api_secret}"
