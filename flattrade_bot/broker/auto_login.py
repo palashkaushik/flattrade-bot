@@ -250,3 +250,57 @@ def automated_flattrade_login(
 
     logger.error("❌ Both Playwright and Selenium headless login attempts failed.")
     return None
+
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
+    from flattrade_bot.config import settings
+
+    print("=" * 70)
+    print(" 🤖 FLATTRADE 100% ZERO-TOUCH HEADLESS AUTO-LOGIN")
+    print("=" * 70)
+    print(f"• User ID:     {settings.FLATTRADE_USER_ID}")
+    print(f"• API Key:     {settings.FLATTRADE_API_KEY[:8]}...")
+    print(f"• TOTP Secret: {'[CONFIGURED]' if settings.FLATTRADE_TOTP_KEY else '[MISSING]'}")
+    print(f"• Password:    {'[CONFIGURED]' if settings.FLATTRADE_PASSWORD else '[MISSING]'}")
+    print("-" * 70)
+
+    if not (settings.FLATTRADE_USER_ID and settings.FLATTRADE_PASSWORD and settings.FLATTRADE_TOTP_KEY):
+        print("❌ Error: FLATTRADE_USER_ID, FLATTRADE_PASSWORD, or FLATTRADE_TOTP_KEY missing in .env")
+        sys.exit(1)
+
+    print("🚀 Launching Headless Chromium to perform automated OAuth login...")
+    token = automated_flattrade_login(
+        user_id=settings.FLATTRADE_USER_ID,
+        password=settings.FLATTRADE_PASSWORD,
+        totp_key=settings.FLATTRADE_TOTP_KEY,
+        api_key=settings.FLATTRADE_API_KEY,
+        api_secret=settings.FLATTRADE_API_SECRET,
+        headless=True,
+    )
+
+    if token:
+        print(f"\n🎉 SUCCESS: Live 24-Hour Session Token Acquired: {token[:12]}...")
+        # Verify quote
+        import asyncio
+        from flattrade_bot.broker.client import FlattradeClient
+
+        async def test_q():
+            c = FlattradeClient(token)
+            q = await c.get_quotes(exchange="NSE", token="26000")
+            if q.get("stat") == "Ok" and "lp" in q:
+                print(f"✅ Verified Live Nifty Spot LTP: Rs {q.get('lp')}")
+                print("🏆 100% FULLY AUTOMATED SYSTEM READY FOR LIVE MARKET!")
+            else:
+                print(f"Quote response: {q}")
+
+        asyncio.run(test_q())
+    else:
+        print("\n❌ Failed to obtain token automatically. Check credentials or logs.")
+
