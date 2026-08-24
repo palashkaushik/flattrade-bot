@@ -133,16 +133,16 @@ class CombinedSupremeTradingEngine:
             self._broker_status = "[yellow]SIMULATION MODE[/yellow]"
             logger.warning("Running in simulation mode (No live broker token).")
 
-        # Official Previous Day Nifty 50 Spot Session Anchors (Matching TradingView Exactly)
+        # Exact TradingView Nifty 50 Chart Reference Anchors
         prev_close = 24252.00
-        prev_high = 24291.09
-        prev_low = 24212.91
-        initial_vwap = 24245.00
-        prev_vwap_close = 24248.00
-        ema200 = 24220.00
-        ema20 = 24250.00
-        ema20_5m = 24240.00
-        ema200_5m = 24215.00
+        prev_high = 24283.00
+        prev_low = 24207.86
+        initial_vwap = 24247.62
+        prev_vwap_close = 24245.00
+        ema200 = 24179.71
+        ema20 = 24184.27
+        ema20_5m = 24220.00
+        ema200_5m = 24190.00
         opening_3m_h = 24280.00
         opening_3m_l = 24220.00
         virgin_cprs = [(24150.0, 24162.0, 24138.0, "20-Aug")]
