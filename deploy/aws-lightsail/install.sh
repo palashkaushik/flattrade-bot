@@ -12,10 +12,10 @@ SYSTEMD_DIR="${SCRIPT_DIR}/systemd"
 echo "🕒 Setting system timezone to Asia/Kolkata..."
 sudo timedatectl set-timezone Asia/Kolkata
 
-# 2. Install Lightweight Bot Dependencies (Pure Python REST - Ultra Fast & 0% CPU Load)
-echo "⚡ Installing Core Python Dependencies (httpx, pyotp, rich, discord.py)..."
-sudo apt-get remove --purge -y chromium-browser snapd || true
-pip3 install httpx pyotp rich discord.py python-dotenv --break-system-packages || true
+# 2. Install Headless Automation Engines (Playwright & Core Dependencies)
+echo "⚡ Installing Playwright & Core Dependencies for 100% Autonomous Zero-Touch Auto-Login..."
+pip3 install httpx pyotp rich discord.py python-dotenv playwright --break-system-packages || true
+playwright install chromium --with-deps || true
 
 # 3. Ensure log directory exists
 mkdir -p /home/ubuntu/FLATTRADE_BOT/logs

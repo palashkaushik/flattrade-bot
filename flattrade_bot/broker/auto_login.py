@@ -30,7 +30,79 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 logger = logging.getLogger("auto_login")
 
 
-def automated_flattrade_login(
+def automated_flattrade_login_playwright(
+    user_id: str,
+    password: str,
+    totp_key: str,
+    api_key: str,
+    api_secret: str,
+    timeout: int = 30,
+) -> Optional[str]:
+    """100% Autonomous zero-touch headless login via Playwright."""
+    from flattrade_bot.broker.network import _ensure_ipv4_patch
+    _ensure_ipv4_patch()
+
+    totp = pyotp.TOTP(totp_key)
+    totp_code = totp.now()
+    logger.info(f"Generated TOTP for Playwright auto-login: {totp_code}")
+
+    auth_url = f"https://auth.flattrade.in/?app_key={api_key}"
+    request_code = None
+
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+
+            page.goto(auth_url, timeout=timeout * 1000)
+            page.wait_for_timeout(2000)
+
+            # Step 1: User ID
+            page.fill('input[placeholder="User ID"]', user_id)
+            # Step 2: Password
+            page.fill('input[placeholder="Password"]', password)
+            # Step 3: TOTP
+            page.fill('input[placeholder="OTP / TOTP"]', totp_code)
+            # Step 4: Submit
+            page.click("button.shine-button")
+
+            # Step 5: Capture redirect code
+            for _ in range(timeout * 2):
+                curr = page.url
+                if "code=" in curr:
+                    parsed = urlparse(curr)
+                    c_vals = parse_qs(parsed.query).get("code", [])
+                    if c_vals:
+                        request_code = c_vals[0]
+                        logger.info(f"Playwright captured request_code: {request_code}")
+                        break
+                page.wait_for_timeout(500)
+
+            browser.close()
+
+        if request_code:
+            # Exchange for live token
+            url = "https://authapi.flattrade.in/trade/apitoken"
+            hash_input = f"{api_key}{request_code}{api_secret}"
+            secret_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
+            payload = {
+                "api_key": api_key,
+                "request_code": request_code,
+                "api_secret": secret_hash,
+            }
+            res = httpx.post(url, json=payload, timeout=10.0)
+            data = res.json()
+            if data.get("stat") == "Ok" or data.get("status") == "Ok":
+                token = data.get("token")
+                logger.info(f"✅ Playwright Live Session Token Acquired: {token[:8]}...")
+                return token
+            else:
+                logger.error(f"❌ Token exchange failed: {data}")
+    except Exception as e:
+        logger.warning(f"Playwright auto-login attempt failed: {e}")
+
+def automated_flattrade_login_selenium(
     user_id: str,
     password: str,
     totp_key: str,
@@ -39,30 +111,19 @@ def automated_flattrade_login(
     headless: bool = True,
     timeout: int = 30,
 ) -> Optional[str]:
-    """Performs fully automated Flattrade login and returns session token.
-
-    Args:
-        user_id: Flattrade User ID (e.g. FZ52739)
-        password: Flattrade login password (plain text)
-        totp_key: Base32 TOTP secret key for 2FA
-        api_key: Flattrade API Key (app_key)
-        api_secret: Flattrade API Secret
-        headless: Run Chrome in headless mode (no visible window)
-        timeout: Max seconds to wait for each page transition
-
-    Returns:
-        Session token string, or None on failure.
-    """
-    # Force IPv4 socket resolution globally to match Flattrade Wall registered IPv4 address
     from flattrade_bot.broker.network import _ensure_ipv4_patch
     _ensure_ipv4_patch()
 
-    # Generate current TOTP code
     totp = pyotp.TOTP(totp_key)
     totp_code = totp.now()
-    logger.info(f"Generated TOTP code: {totp_code}")
+    logger.info(f"Generated TOTP code for Selenium: {totp_code}")
 
-    # Setup Chrome with forced IPv4 networking
+    from selenium import webdriver
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.chrome.options import Options as ChromeOptions
+
     chrome_options = ChromeOptions()
     if headless:
         chrome_options.add_argument("--headless=new")
@@ -81,142 +142,116 @@ def automated_flattrade_login(
         auth_url = f"https://auth.flattrade.in/?app_key={api_key}"
         logger.info(f"Navigating to: {auth_url}")
         driver.get(auth_url)
-
-        # Wait for Vue.js SPA to render
         time.sleep(3)
 
-        # ─── Step 1: Enter User ID ───
-        logger.info("Filling User ID...")
         uid_field = wait.until(
             EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder="User ID"]'))
         )
         uid_field.clear()
         uid_field.send_keys(user_id)
-        logger.info(f"Entered User ID: {user_id}")
 
-        # ─── Step 2: Enter Password ───
-        logger.info("Filling Password...")
         pwd_field = driver.find_element(By.CSS_SELECTOR, 'input[placeholder="Password"]')
         pwd_field.clear()
         pwd_field.send_keys(password)
-        logger.info("Entered Password")
 
-        # ─── Step 3: Enter TOTP ───
-        logger.info("Filling TOTP...")
         totp_field = driver.find_element(By.CSS_SELECTOR, 'input[placeholder="OTP / TOTP"]')
         totp_field.clear()
         totp_field.send_keys(totp_code)
-        logger.info(f"Entered TOTP code: {totp_code}")
 
-        # ─── Step 4: Click "Log In" button ───
-        logger.info("Clicking Log In button...")
         login_btn = driver.find_element(By.CSS_SELECTOR, "button.shine-button")
         login_btn.click()
-        logger.info("Clicked Log In")
 
-        # ─── Step 5: Wait for redirect to capture request_code ───
-        logger.info("Waiting for redirect with request_code...")
         request_code = None
-
-        for attempt in range(timeout * 2):  # Poll every 0.5s
-            current_url = driver.current_url
-            if "code=" in current_url:
-                parsed = urlparse(current_url)
+        for _ in range(timeout * 2):
+            curr_url = driver.current_url
+            if "code=" in curr_url:
+                parsed = urlparse(curr_url)
                 code_vals = parse_qs(parsed.query).get("code", [])
                 if code_vals:
                     request_code = code_vals[0]
-                    logger.info(f"Captured request_code: {request_code}")
+                    logger.info(f"Selenium captured request_code: {request_code}")
                     break
-
-            if attempt > 0 and attempt % 10 == 0:
-                try:
-                    snack = driver.find_element(By.CSS_SELECTOR, ".v-snack__content p")
-                    if snack.text.strip():
-                        logger.warning(f"Page message: {snack.text.strip()}")
-                except Exception:
-                    pass
-
             time.sleep(0.5)
 
         if not request_code:
-            try:
-                body_text = driver.find_element(By.TAG_NAME, "body").text
-                logger.error(f"No request_code captured. Page text: {body_text[:300]}")
-            except Exception:
-                pass
-            driver.save_screenshot("auto_login_error.png")
-            logger.info("Saved error screenshot to auto_login_error.png")
             return None
 
-        # ─── Step 6: Exchange request_code for session token over IPv4 ───
-        logger.info("Exchanging request_code for session token over forced IPv4...")
+        url = "https://authapi.flattrade.in/trade/apitoken"
         hash_input = f"{api_key}{request_code}{api_secret}"
         secret_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
-
         token_payload = {
             "api_key": api_key,
             "request_code": request_code,
             "api_secret": secret_hash,
         }
-
-        # Send via httpx with forced IPv4 socket
-        res = httpx.post(
-            "https://authapi.flattrade.in/trade/apitoken",
-            json=token_payload,
-            timeout=15.0,
-        )
+        res = httpx.post(url, json=token_payload, timeout=15.0)
         data = res.json()
-        logger.info(f"Flattrade token response: {res.text[:200]}")
-
         if (data.get("stat") == "Ok" or data.get("status") == "Ok") and data.get("token"):
-            token = data["token"]
-            logger.info(f"🎉 Session token acquired via IPv4: {token[:12]}...")
-            return token
-        else:
-            emsg = data.get("emsg", str(data))
-            logger.error(f"Token exchange failed: {emsg}")
-            return None
+            return data["token"]
+        return None
 
     except Exception as e:
-        logger.error(f"Auto-login error: {e}")
-        if driver:
-            try:
-                driver.save_screenshot("auto_login_error.png")
-                logger.info("Saved error screenshot to auto_login_error.png")
-            except Exception:
-                pass
+        logger.warning(f"Selenium auto-login attempt: {e}")
         return None
     finally:
         if driver:
             driver.quit()
 
 
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-    )
-    sys.stdout.reconfigure(encoding="utf-8")
+def save_token_to_env(token: str):
+    from flattrade_bot.config import settings
+    env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+    lines = []
+    found = False
+    if env_file.exists():
+        lines = env_file.read_text(encoding="utf-8").splitlines()
+        for i, line in enumerate(lines):
+            if line.startswith("FLATTRADE_TOKEN="):
+                lines[i] = f"FLATTRADE_TOKEN={token}"
+                found = True
+                break
+    if not found:
+        lines.append(f"FLATTRADE_TOKEN={token}")
+    env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    logger.info(f"✅ Saved live session token to {env_file}")
 
-    from dotenv import load_dotenv
-    from pathlib import Path
-    load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
-    password = os.getenv("FLATTRADE_PASSWORD", "")
-    if not password:
-        print("ERROR: Set FLATTRADE_PASSWORD in .env for fully automated login.")
-        sys.exit(1)
-
-    token = automated_flattrade_login(
-        user_id=os.getenv("FLATTRADE_USER_ID", ""),
+def automated_flattrade_login(
+    user_id: str,
+    password: str,
+    totp_key: str,
+    api_key: str,
+    api_secret: str,
+    headless: bool = True,
+    timeout: int = 30,
+) -> Optional[str]:
+    """100% Zero-Touch Automated Login: Tries Playwright first, then Selenium."""
+    # 1. Try Playwright
+    token = automated_flattrade_login_playwright(
+        user_id=user_id,
         password=password,
-        totp_key=os.getenv("FLATTRADE_TOTP_KEY", ""),
-        api_key=os.getenv("FLATTRADE_API_KEY", ""),
-        api_secret=os.getenv("FLATTRADE_API_SECRET", ""),
-        headless=False,
+        totp_key=totp_key,
+        api_key=api_key,
+        api_secret=api_secret,
+        timeout=timeout,
     )
-
     if token:
-        print(f"\nSUCCESS: Token = {token[:16]}...")
-    else:
-        print("\nFAILED: Could not obtain token.")
+        save_token_to_env(token)
+        return token
+
+    # 2. Try Selenium
+    token = automated_flattrade_login_selenium(
+        user_id=user_id,
+        password=password,
+        totp_key=totp_key,
+        api_key=api_key,
+        api_secret=api_secret,
+        headless=headless,
+        timeout=timeout,
+    )
+    if token:
+        save_token_to_env(token)
+        return token
+
+    logger.error("❌ Both Playwright and Selenium headless login attempts failed.")
+    return None
