@@ -12,16 +12,10 @@ SYSTEMD_DIR="${SCRIPT_DIR}/systemd"
 echo "🕒 Setting system timezone to Asia/Kolkata..."
 sudo timedatectl set-timezone Asia/Kolkata
 
-# 2. Install Headless Google Chrome & Selenium for 100% Zero-Touch Auto-Login (Fast .deb bypasses Snap)
-echo "🌐 Installing Native Google Chrome & Selenium..."
-if ! command -v google-chrome &> /dev/null && ! command -v chromium-browser &> /dev/null; then
-    wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O /tmp/chrome.deb || true
-    if [ -f /tmp/chrome.deb ]; then
-        sudo apt-get install -y /tmp/chrome.deb || sudo apt-get -f install -y
-        rm -f /tmp/chrome.deb
-    fi
-fi
-pip3 install selenium webdriver-manager --break-system-packages || true
+# 2. Install Lightweight Bot Dependencies (Pure Python REST - Ultra Fast & 0% CPU Load)
+echo "⚡ Installing Core Python Dependencies (httpx, pyotp, rich, discord.py)..."
+sudo apt-get remove --purge -y chromium-browser snapd || true
+pip3 install httpx pyotp rich discord.py python-dotenv --break-system-packages || true
 
 # 3. Ensure log directory exists
 mkdir -p /home/ubuntu/FLATTRADE_BOT/logs
