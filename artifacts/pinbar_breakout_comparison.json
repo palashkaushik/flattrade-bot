@@ -1,0 +1,964 @@
+{
+  "2026-08-12": {
+    "legacy_high_break": {
+      "signal_count": 55,
+      "trades": [
+        {
+          "entry_time": "12-08-2026 09:20:00",
+          "side": "CE24300",
+          "timeframe": "1m",
+          "signal": "super",
+          "entry": 239.25,
+          "exit_time": "12-08-2026 09:57:00",
+          "exit": 215.85,
+          "reason": "SL",
+          "points": -23.4,
+          "pnl": -1521.0
+        },
+        {
+          "entry_time": "12-08-2026 10:10:00",
+          "side": "CE24250",
+          "timeframe": "2m",
+          "signal": "super",
+          "entry": 235.9,
+          "exit_time": "12-08-2026 10:58:00",
+          "exit": 212.17,
+          "reason": "SL",
+          "points": -23.73,
+          "pnl": -1542.45
+        },
+        {
+          "entry_time": "12-08-2026 11:07:00",
+          "side": "CE24200",
+          "timeframe": "1m",
+          "signal": "super",
+          "entry": 234.6,
+          "exit_time": "12-08-2026 12:13:00",
+          "exit": 217.92,
+          "reason": "SL",
+          "points": -16.68,
+          "pnl": -1084.2
+        },
+        {
+          "entry_time": "12-08-2026 12:15:00",
+          "side": "CE24150",
+          "timeframe": "1m",
+          "signal": "super",
+          "entry": 254.8,
+          "exit_time": "12-08-2026 14:30:00",
+          "exit": 277.06,
+          "reason": "TP",
+          "points": 22.26,
+          "pnl": 1446.9
+        },
+        {
+          "entry_time": "12-08-2026 14:36:00",
+          "side": "PE24400",
+          "timeframe": "2m",
+          "signal": "super",
+          "entry": 134.25,
+          "exit_time": "12-08-2026 14:54:00",
+          "exit": 116.38,
+          "reason": "SL",
+          "points": -17.87,
+          "pnl": -1161.55
+        },
+        {
+          "entry_time": "12-08-2026 14:56:00",
+          "side": "CE24250",
+          "timeframe": "1m",
+          "signal": "super",
+          "entry": 133.75,
+          "exit_time": "12-08-2026 14:57:00",
+          "exit": 173.05,
+          "reason": "TP",
+          "points": 39.3,
+          "pnl": 2554.5
+        }
+      ],
+      "blocked_count": 49,
+      "blocked": [
+        {
+          "time": "12-08-2026 09:23:00",
+          "side": "CE24300",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 09:24:00",
+          "side": "CE24300",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 09:51:00",
+          "side": "CE24300",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 09:56:00",
+          "side": "CE24300",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:11:00",
+          "side": "CE24250",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:12:00",
+          "side": "CE24250",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:14:00",
+          "side": "CE24250",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:18:00",
+          "side": "PE24450",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 10:18:00",
+          "side": "CE24250",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:18:00",
+          "side": "CE24250",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:21:00",
+          "side": "CE24300",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:22:00",
+          "side": "PE24500",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 10:25:00",
+          "side": "PE24500",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 10:27:00",
+          "side": "CE24250",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:32:00",
+          "side": "PE24500",
+          "timeframe": "2m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 10:33:00",
+          "side": "CE24300",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:39:00",
+          "side": "PE24500",
+          "timeframe": "3m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 11:08:00",
+          "side": "CE24200",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:09:00",
+          "side": "CE24200",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:10:00",
+          "side": "CE24200",
+          "timeframe": "5m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:12:00",
+          "side": "CE24200",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:15:00",
+          "side": "CE24200",
+          "timeframe": "5m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:20:00",
+          "side": "PE24400",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:20:00",
+          "side": "CE24200",
+          "timeframe": "5m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:21:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:24:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:25:00",
+          "side": "CE24200",
+          "timeframe": "5m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:27:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:31:00",
+          "side": "PE24400",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:41:00",
+          "side": "PE24400",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:48:00",
+          "side": "PE24400",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 11:50:00",
+          "side": "PE24400",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 12:09:00",
+          "side": "PE24350",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 12:16:00",
+          "side": "PE24350",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 12:18:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 12:20:00",
+          "side": "PE24400",
+          "timeframe": "5m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 12:30:00",
+          "side": "PE24400",
+          "timeframe": "2m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 12:33:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 12:39:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 13:30:00",
+          "side": "CE24200",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 13:30:00",
+          "side": "PE24400",
+          "timeframe": "5m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 13:54:00",
+          "side": "PE24400",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:09:00",
+          "side": "CE24200",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:37:00",
+          "side": "PE24400",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:38:00",
+          "side": "PE24400",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:44:00",
+          "side": "PE24450",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:48:00",
+          "side": "PE24400",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:48:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:51:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "super"
+        }
+      ],
+      "net_points": -20.12,
+      "net_rupees": -1307.8
+    },
+    "first_break_high": {
+      "signal_count": 42,
+      "trades": [
+        {
+          "entry_time": "12-08-2026 09:20:00",
+          "side": "CE24300",
+          "timeframe": "1m",
+          "signal": "super",
+          "entry": 239.25,
+          "exit_time": "12-08-2026 09:57:00",
+          "exit": 215.85,
+          "reason": "SL",
+          "points": -23.4,
+          "pnl": -1521.0
+        },
+        {
+          "entry_time": "12-08-2026 10:10:00",
+          "side": "CE24250",
+          "timeframe": "2m",
+          "signal": "super",
+          "entry": 235.9,
+          "exit_time": "12-08-2026 10:58:00",
+          "exit": 212.17,
+          "reason": "SL",
+          "points": -23.73,
+          "pnl": -1542.45
+        },
+        {
+          "entry_time": "12-08-2026 11:07:00",
+          "side": "CE24200",
+          "timeframe": "1m",
+          "signal": "super",
+          "entry": 234.6,
+          "exit_time": "12-08-2026 12:13:00",
+          "exit": 217.92,
+          "reason": "SL",
+          "points": -16.68,
+          "pnl": -1084.2
+        },
+        {
+          "entry_time": "12-08-2026 12:15:00",
+          "side": "CE24150",
+          "timeframe": "1m",
+          "signal": "super",
+          "entry": 254.8,
+          "exit_time": "12-08-2026 14:30:00",
+          "exit": 277.06,
+          "reason": "TP",
+          "points": 22.26,
+          "pnl": 1446.9
+        },
+        {
+          "entry_time": "12-08-2026 14:36:00",
+          "side": "PE24400",
+          "timeframe": "2m",
+          "signal": "super",
+          "entry": 134.25,
+          "exit_time": "12-08-2026 14:54:00",
+          "exit": 116.38,
+          "reason": "SL",
+          "points": -17.87,
+          "pnl": -1161.55
+        },
+        {
+          "entry_time": "12-08-2026 14:56:00",
+          "side": "CE24250",
+          "timeframe": "1m",
+          "signal": "super",
+          "entry": 133.75,
+          "exit_time": "12-08-2026 14:57:00",
+          "exit": 173.05,
+          "reason": "TP",
+          "points": 39.3,
+          "pnl": 2554.5
+        }
+      ],
+      "blocked_count": 36,
+      "blocked": [
+        {
+          "time": "12-08-2026 09:27:00",
+          "side": "CE24350",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 09:51:00",
+          "side": "CE24300",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:11:00",
+          "side": "CE24250",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:18:00",
+          "side": "PE24450",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 10:18:00",
+          "side": "CE24250",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:22:00",
+          "side": "PE24500",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 10:25:00",
+          "side": "PE24500",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 10:27:00",
+          "side": "CE24250",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 10:32:00",
+          "side": "PE24500",
+          "timeframe": "2m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 10:39:00",
+          "side": "PE24500",
+          "timeframe": "3m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 11:10:00",
+          "side": "CE24200",
+          "timeframe": "5m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:12:00",
+          "side": "CE24200",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:19:00",
+          "side": "PE24400",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:20:00",
+          "side": "PE24400",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:21:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:25:00",
+          "side": "CE24200",
+          "timeframe": "5m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:31:00",
+          "side": "PE24400",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:41:00",
+          "side": "PE24400",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 11:48:00",
+          "side": "PE24400",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 11:50:00",
+          "side": "PE24400",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 12:09:00",
+          "side": "PE24350",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 12:16:00",
+          "side": "PE24350",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 12:18:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 12:20:00",
+          "side": "PE24400",
+          "timeframe": "5m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 12:30:00",
+          "side": "PE24400",
+          "timeframe": "2m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 12:33:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 12:39:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 13:30:00",
+          "side": "CE24200",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 13:30:00",
+          "side": "PE24400",
+          "timeframe": "5m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "12-08-2026 13:54:00",
+          "side": "PE24400",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:09:00",
+          "side": "CE24200",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:37:00",
+          "side": "PE24400",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:44:00",
+          "side": "PE24450",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:48:00",
+          "side": "PE24400",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:48:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "12-08-2026 14:51:00",
+          "side": "PE24400",
+          "timeframe": "3m",
+          "signal": "super"
+        }
+      ],
+      "net_points": -20.12,
+      "net_rupees": -1307.8
+    }
+  },
+  "2026-08-13": {
+    "legacy_high_break": {
+      "signal_count": 22,
+      "trades": [
+        {
+          "entry_time": "13-08-2026 09:30:00",
+          "side": "CE24250",
+          "timeframe": "1m",
+          "signal": "super",
+          "entry": 186.75,
+          "exit_time": "13-08-2026 12:00:00",
+          "exit": 233.39,
+          "reason": "TP",
+          "points": 46.64,
+          "pnl": 3031.6
+        },
+        {
+          "entry_time": "13-08-2026 12:08:00",
+          "side": "PE24500",
+          "timeframe": "2m",
+          "signal": "super",
+          "entry": 125.4,
+          "exit_time": "13-08-2026 15:00:00",
+          "exit": 138.05,
+          "reason": "EOD",
+          "points": 12.65,
+          "pnl": 822.25
+        }
+      ],
+      "blocked_count": 20,
+      "blocked": [
+        {
+          "time": "13-08-2026 09:36:00",
+          "side": "CE24250",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 09:40:00",
+          "side": "PE24450",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "13-08-2026 10:37:00",
+          "side": "CE24250",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:10:00",
+          "side": "CE24250",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:15:00",
+          "side": "CE24200",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:16:00",
+          "side": "CE24200",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:18:00",
+          "side": "CE24200",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:18:00",
+          "side": "CE24200",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:20:00",
+          "side": "CE24200",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:22:00",
+          "side": "CE24250",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:25:00",
+          "side": "CE24250",
+          "timeframe": "5m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:41:00",
+          "side": "PE24450",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 12:11:00",
+          "side": "PE24500",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 12:13:00",
+          "side": "CE24300",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "13-08-2026 12:58:00",
+          "side": "CE24250",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 13:51:00",
+          "side": "PE24500",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 13:58:00",
+          "side": "PE24500",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 14:03:00",
+          "side": "CE24300",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "13-08-2026 14:03:00",
+          "side": "PE24500",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 14:33:00",
+          "side": "PE24450",
+          "timeframe": "3m",
+          "signal": "super"
+        }
+      ],
+      "net_points": 59.29,
+      "net_rupees": 3853.85
+    },
+    "first_break_high": {
+      "signal_count": 18,
+      "trades": [
+        {
+          "entry_time": "13-08-2026 09:36:00",
+          "side": "CE24250",
+          "timeframe": "1m",
+          "signal": "super",
+          "entry": 183.75,
+          "exit_time": "13-08-2026 11:57:00",
+          "exit": 219.85,
+          "reason": "TP",
+          "points": 36.1,
+          "pnl": 2346.5
+        },
+        {
+          "entry_time": "13-08-2026 12:08:00",
+          "side": "PE24500",
+          "timeframe": "2m",
+          "signal": "super",
+          "entry": 125.4,
+          "exit_time": "13-08-2026 15:00:00",
+          "exit": 138.05,
+          "reason": "EOD",
+          "points": 12.65,
+          "pnl": 822.25
+        }
+      ],
+      "blocked_count": 16,
+      "blocked": [
+        {
+          "time": "13-08-2026 09:40:00",
+          "side": "PE24450",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "13-08-2026 10:37:00",
+          "side": "CE24250",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:10:00",
+          "side": "CE24250",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:15:00",
+          "side": "CE24200",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:18:00",
+          "side": "CE24200",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:22:00",
+          "side": "CE24250",
+          "timeframe": "2m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:25:00",
+          "side": "CE24250",
+          "timeframe": "5m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 11:41:00",
+          "side": "PE24450",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 12:11:00",
+          "side": "PE24500",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 12:13:00",
+          "side": "CE24300",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "13-08-2026 12:59:00",
+          "side": "CE24250",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 13:51:00",
+          "side": "PE24500",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 13:58:00",
+          "side": "PE24500",
+          "timeframe": "1m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 14:03:00",
+          "side": "CE24300",
+          "timeframe": "1m",
+          "signal": "flag_nodiv"
+        },
+        {
+          "time": "13-08-2026 14:03:00",
+          "side": "PE24500",
+          "timeframe": "3m",
+          "signal": "super"
+        },
+        {
+          "time": "13-08-2026 14:33:00",
+          "side": "PE24450",
+          "timeframe": "3m",
+          "signal": "super"
+        }
+      ],
+      "net_points": 48.75,
+      "net_rupees": 3168.75
+    }
+  }
+}

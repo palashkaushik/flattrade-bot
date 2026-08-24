@@ -1,0 +1,95 @@
+Initializing Flattrade Bot...
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\main.py", line 646, in <module>
+    asyncio.run(main())
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\base_events.py", line 654, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\main.py", line 639, in main
+    await engine.run(request_code=args.request_code)
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\main.py", line 558, in run
+    await self.initialize(request_code)
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\main.py", line 154, in initialize
+    console.print(f"[bold green]\u2705 Live Flattrade connection established. Token: {token[:8]}...[/bold green]")
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\rich\console.py", line 1697, in print
+    with self:
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\rich\console.py", line 870, in __exit__
+    self._exit_buffer()
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\rich\console.py", line 826, in _exit_buffer
+    self._check_buffer()
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\rich\console.py", line 2042, in _check_buffer
+    self._write_buffer()
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\rich\console.py", line 2078, in _write_buffer
+    legacy_windows_render(buffer, LegacyWindowsTerm(self.file))
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\rich\_windows_renderer.py", line 17, in legacy_windows_render
+    term.write_styled(text, style)
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\rich\_win32_console.py", line 441, in write_styled
+    self.write_text(text)
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\rich\_win32_console.py", line 402, in write_text
+    self.write(text)
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2705' in position 0: character maps to <undefined>
+Initializing Flattrade Bot...
+✅ Live Flattrade connection established. Token: 21621cc8...
+✅ Pre-warmed CE & PE option stochastics independently
+📍 Spot: ₹24,570.65 | CE: NIFTY 11AUG26 24450 CE (T:41009) | PE: NIFTY 11AUG26 
+24650 PE (T:41019)
+🚀 Starting live trading cycle loop...
+
+Initializing Flattrade Bot...
+✅ Live Flattrade connection established. Token: 6b42009f...
+✅ Pre-warmed CE & PE option stochastics independently
+📍 Spot: ₹24,581.25 | CE: NIFTY 11AUG26 24500 CE (T:41011) | PE: NIFTY 11AUG26 
+24700 PE (T:41024)
+🚀 Starting live trading cycle loop...
+
+Initializing Flattrade Bot...
+✅ Live Flattrade connection established. Token: e507c40c...
+✅ Pre-warmed CE & PE option stochastics independently
+📍 Spot: ₹24,575.10 | CE: NIFTY 11AUG26 24500 CE (T:41011) | PE: NIFTY 11AUG26 
+24700 PE (T:41024)
+🚀 Starting live trading cycle loop...
+
+Initializing Flattrade Bot...
+✅ Live Flattrade connection established. Token: ab82c289...
+✅ Pre-warmed CE & PE option stochastics independently
+📍 Spot: ₹24,472.45 | CE: NIFTY 18AUG26 24350 CE (T:45104) | PE: NIFTY 18AUG26 
+24550 PE (T:45115)
+🚀 Starting live trading cycle loop...
+
+Initializing Flattrade Bot...
+✅ Live Flattrade connection established. Token: c495ee58...
+✅ Pre-warmed CE & PE option stochastics independently
+📍 Spot: ₹24,411.10 | CE: NIFTY 18AUG26 24300 CE (T:45102) | PE: NIFTY 18AUG26 
+24500 PE (T:45111)
+🚀 Starting live trading cycle loop...
+
+Initializing Flattrade Bot...
+✅ Live Flattrade connection established. Token: 90b9c0c2...
+✅ Pre-warmed B07 3m Engine | S1: 22.3 | S4: 22.3 | ATR: 14.67
+📍 Spot: ₹24,244.35 | ATM CE: NIFTY 18AUG26 24250 CE (T:45100) | ATM PE: NIFTY 
+18AUG26 24250 PE (T:45101)
+🚀 Starting live trading cycle loop...
+
+Initializing Flattrade Bot...
+✅ Live Flattrade connection established. Token: 87d42bf2...
+✅ Pre-warmed B07 3m Engine | S1: 32.3 | S4: 32.3 | ATR: 15.23
+📍 Spot: ₹24,245.10 | ATM CE: NIFTY 18AUG26 24250 CE (T:45100) | ATM PE: NIFTY 
+18AUG26 24250 PE (T:45101)
+🚀 Starting live trading cycle loop...
+
+Initializing Flattrade Bot...
+✅ Live Flattrade connection established. Token: 84ac6c12...
+📍 Spot: ₹24,222.70
+🚀 Starting live trading cycle loop...
+

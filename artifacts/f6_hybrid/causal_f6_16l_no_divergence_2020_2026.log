@@ -1,0 +1,25 @@
+multiprocessing.pool.RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\pool.py", line 125, in worker
+    result = (True, func(*args, **kwds))
+                    ^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\causal_live_parity_research.py", line 305, in process_day
+    entry_bar = bar_at(actual[1], minute)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\causal_live_parity_research.py", line 249, in bar_at
+    index = np.searchsorted(group["min"], minute)
+                            ~~~~~^^^^^^^
+TypeError: 'NoneType' object is not subscriptable
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\causal_live_parity_research.py", line 360, in <module>
+    main()
+  File "C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\causal_live_parity_research.py", line 344, in main
+    for result in pool.imap(process_day, tasks):
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\pool.py", line 873, in next
+    raise value
+TypeError: 'NoneType' object is not subscriptable

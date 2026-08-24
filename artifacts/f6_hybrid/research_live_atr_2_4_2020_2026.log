@@ -1,0 +1,3 @@
+RAW BACKTEST | costs=False | days=1574 | workers=8 | params={'s1_k': 12, 's1_d': 3, 's4_k': 50, 'atr_period': 10, 'atr_sl_mult': 2.0, 'atr_tp_mult': 4.0, 'f6_s4_thresh': 79.5, 'f6_s1_thresh': 20.5, 'consec_loss': 8, 'use_divergence': True}
+{'trades': 7978, 'wr': 35.87365254449737, 'pts': np.float64(-607.94), 'rs': -39516, 'pf': np.float64(0.9902094246486932)}
+JSON: artifacts\f6_hybrid\research_live_atr_2_4_2020_2026.json

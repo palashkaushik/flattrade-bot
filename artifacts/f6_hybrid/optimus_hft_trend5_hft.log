@@ -1,0 +1,25 @@
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+  1574 days ╫ 375 bars in 2.5s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  288 tensors cached in 0.1s
+  [HALF] STOCH_CACHE recast to float16 (prices/ATR/exits stay fp32)
+Components loaded: 15 (proven+HFT-fast)  (days=1574, min_trades=12592)
+Consistency: 7 yrs, 77 months
+
+=== HFT STUDY [5m HA UT Bot]: 2500 trials (NW) ===
+C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\optuna\_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\optuna\_experimental.py:33: ExperimentalWarning: Argument ``constant_liar`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+NW study done in 78s; HFT-passing candidates: 0
+Consistency pool: 0; checking EVERY MONTH...
+  candidates positive EVERY month: 0/0
+
+======  TOP 5  [5m HA UT Bot]  (max net / least DD / all months +)  ======
+
+Saved: C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\optimus_hft_trend5.json

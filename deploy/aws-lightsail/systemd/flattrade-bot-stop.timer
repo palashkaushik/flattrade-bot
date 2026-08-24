@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Autonomous Stop Timer for Flattrade Bot (15:15 PM IST Mon-Fri)
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 15:15:00 Asia/Kolkata
+Persistent=false
+Unit=flattrade-bot-stop.service
+
+[Install]
+WantedBy=timers.target

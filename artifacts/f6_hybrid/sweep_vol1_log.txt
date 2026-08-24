@@ -1,0 +1,21 @@
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+  1574 days × 375 bars in 2.5s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  288 tensors cached in 0.1s
+Components loaded: 15 (proven+HFT-fast)  (days=1574, min_trades=7870)
+Consistency: 7 yrs, 77 months
+
+=== HFT STUDY [15m HA UT Bot]: 2500 trials (NW) ===
+NW study done in 97s; HFT-passing candidates: 0
+Consistency pool: 0; checking EVERY MONTH...
+  candidates positive EVERY month: 0/0
+  Saved pool OOS consistency: C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\optimus_pool_oos_trend15_vol1.csv
+
+======  TOP 5  [15m HA UT Bot]  (max net / least DD / all months +)  ======
+
+Saved: C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\optimus_hft_trend15_vol1_f5_wr55.0.json

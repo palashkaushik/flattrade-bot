@@ -1,0 +1,81 @@
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+  1574 days × 375 bars in 2.1s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  288 tensors cached in 0.1s
+
+============================================================================================================================================
+PHASE 5d: FUSED 3D-BATCH GPU | 7×3000×2 = 42,000 trials
+Position Lock [Y] | Slippage 1pt [Y] | Daily Cap [Y] | Cached Indicators [Y] | Batch=100
+============================================================================================================================================
+
+[01/7] B01: 1m CE-Only (Baseline)
+  NW 149s: Rs +852,781 WR=99.8% PF=151606.54 DD=Rs 6 T=516 CE=516 PE=0
+  WF 149s: IS=Rs +247,462 -> OOS=Rs +0 PF=0.00 WR=0.0% DD=Rs 0 WFE=0.0
+  Params NW: {'daily_loss_pts': 3, 'max_trade_loss_rs': 9999, 'sess_start_off': 30, 'sess_end_off': 30, 's1_k': 5, 's4_k': 100, 's1_os': 32.5, 's4_ob': 65.0, 'atr_p': 26, 'sl_m': 2.9000000000000004, 'tp_m': 6.75}
+  Params WF: {'daily_loss_pts': 3, 'max_trade_loss_rs': 500, 'sess_start_off': 25, 'sess_end_off': 30, 's1_k': 9, 's4_k': 100, 's1_os': 25.0, 's4_ob': 65.0, 'atr_p': 19, 'sl_m': 1.9, 'tp_m': 5.5}
+
+[02/7] B02: 1m CE+PE Bidirectional
+  NW 151s: Rs +3,418,186 WR=95.6% PF=0.00 DD=Rs 189 T=1404 CE=688 PE=716
+  WF 166s: IS=Rs +1,665,734 -> OOS=Rs +0 PF=0.00 WR=0.0% DD=Rs 0 WFE=0.0
+  Params NW: {'daily_loss_pts': 3, 'max_trade_loss_rs': 9999, 'sess_start_off': 0, 'sess_end_off': 30, 's1_k': 5, 's4_k': 25, 's1_os': 40.0, 's4_ob': 65.0, 'atr_p': 30, 'sl_m': 4.800000000000001, 'tp_m': 10.0}
+  Params WF: {'daily_loss_pts': 3, 'max_trade_loss_rs': 9999, 'sess_start_off': 0, 'sess_end_off': 45, 's1_k': 7, 's4_k': 50, 's1_os': 40.0, 's4_ob': 67.5, 'atr_p': 27, 'sl_m': 4.9, 'tp_m': 7.75}
+
+[03/7] B03: 2m CE+PE Bidirectional
+  NW 171s: Rs +2,853,500 WR=93.7% PF=0.00 DD=Rs 194 T=1376 CE=725 PE=651
+  WF 169s: IS=Rs +1,629,584 -> OOS=Rs +0 PF=0.00 WR=0.0% DD=Rs 0 WFE=0.0
+  Params NW: {'daily_loss_pts': 3, 'max_trade_loss_rs': 9999, 'sess_start_off': 0, 'sess_end_off': 30, 's1_k': 5, 's4_k': 30, 's1_os': 37.5, 's4_ob': 70.0, 'atr_p': 30, 'sl_m': 5.0, 'tp_m': 9.75}
+  Params WF: {'daily_loss_pts': 3, 'max_trade_loss_rs': 9999, 'sess_start_off': 0, 'sess_end_off': 30, 's1_k': 5, 's4_k': 45, 's1_os': 40.0, 's4_ob': 67.5, 'atr_p': 31, 'sl_m': 4.300000000000001, 'tp_m': 10.0}
+
+[04/7] B04: 3m CE+PE Bidirectional
+  NW 153s: Rs +2,413,872 WR=93.1% PF=0.00 DD=Rs 189 T=1268 CE=655 PE=613
+  WF 146s: IS=Rs +1,505,776 -> OOS=Rs +0 PF=0.00 WR=0.0% DD=Rs 0 WFE=0.0
+  Params NW: {'daily_loss_pts': 3, 'max_trade_loss_rs': 9999, 'sess_start_off': 15, 'sess_end_off': 30, 's1_k': 6, 's4_k': 40, 's1_os': 40.0, 's4_ob': 65.0, 'atr_p': 13, 'sl_m': 4.800000000000001, 'tp_m': 10.0}
+  Params WF: {'daily_loss_pts': 3, 'max_trade_loss_rs': 9999, 'sess_start_off': 0, 'sess_end_off': 30, 's1_k': 6, 's4_k': 25, 's1_os': 40.0, 's4_ob': 65.0, 'atr_p': 35, 'sl_m': 4.800000000000001, 'tp_m': 10.0}
+
+[05/7] B05: 5m CE+PE Bidirectional
+  NW 141s: Rs +1,367,692 WR=91.1% PF=0.00 DD=Rs 192 T=863 CE=460 PE=403
+  WF 154s: IS=Rs +1,093,426 -> OOS=Rs +0 PF=0.00 WR=0.0% DD=Rs 0 WFE=0.0
+  Params NW: {'daily_loss_pts': 3, 'max_trade_loss_rs': 9999, 'sess_start_off': 0, 'sess_end_off': 60, 's1_k': 6, 's4_k': 20, 's1_os': 37.5, 's4_ob': 65.0, 'atr_p': 17, 'sl_m': 2.3, 'tp_m': 6.75}
+  Params WF: {'daily_loss_pts': 3, 'max_trade_loss_rs': 9999, 'sess_start_off': 10, 'sess_end_off': 30, 's1_k': 5, 's4_k': 30, 's1_os': 40.0, 's4_ob': 65.0, 'atr_p': 35, 'sl_m': 2.6, 'tp_m': 9.5}
+
+[06/7] B06: 1m CE+PE Tight DD
+  NW 159s: Rs +3,418,186 WR=95.6% PF=0.00 DD=Rs 189 T=1404 CE=688 PE=716
+  WF 149s: IS=Rs +1,665,734 -> OOS=Rs +0 PF=0.00 WR=0.0% DD=Rs 0 WFE=0.0
+  Params NW: {'daily_loss_pts': 3, 'max_trade_loss_rs': 9999, 'sess_start_off': 0, 'sess_end_off': 30, 's1_k': 5, 's4_k': 25, 's1_os': 40.0, 's4_ob': 65.0, 'atr_p': 30, 'sl_m': 4.800000000000001, 'tp_m': 10.0}
+  Params WF: {'daily_loss_pts': 3, 'max_trade_loss_rs': 9999, 'sess_start_off': 0, 'sess_end_off': 45, 's1_k': 7, 's4_k': 50, 's1_os': 40.0, 's4_ob': 67.5, 'atr_p': 27, 'sl_m': 4.9, 'tp_m': 7.75}
+
+[07/7] B07: Best-TF CE+PE DD Target
+  NW 155s: Rs +3,067 WR=28.6% PF=3.54 DD=Rs 6,827 T=35 CE=29 PE=6
+  WF 154s: IS=Rs +1,740,296 -> OOS=Rs +0 PF=0.00 WR=0.0% DD=Rs 0 WFE=0.0
+  Params NW: {'daily_loss_pts': 10, 'max_trade_loss_rs': 9999, 'sess_start_off': 20, 'sess_end_off': 45, 'timeframe': 1, 's1_k': 13, 's4_k': 90, 's1_os': 17.5, 's4_ob': 90.0, 'atr_p': 29, 'sl_m': 1.9, 'tp_m': 8.75}
+  Params WF: {'daily_loss_pts': 3, 'max_trade_loss_rs': 5000, 'sess_start_off': 0, 'sess_end_off': 30, 'timeframe': 1, 's1_k': 5, 's4_k': 20, 's1_os': 35.0, 's4_ob': 67.5, 'atr_p': 27, 'sl_m': 4.9, 'tp_m': 9.0}
+
+================================================================================================================================================================
+PHASE 5d LEADERBOARD (42,000 TRIALS IN 2165.3s = 19 t/s) — FUSED 3D-BATCH CAUSAL
+================================================================================================================================================================
+
+NW#  OOS#  Strategy                                           NW PnL     PF     WR         DD        OOS PnL     PF     WR         DD   WFE      CE/PE
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+[ 1] [ 2]  B02: 1m CE+PE Bidirectional                Rs  +3,418,186  0.00 95.6% Rs     189 Rs          +0  0.00  0.0% Rs       0 0.00        0/0 ***
+[ 2] [ 6]  B06: 1m CE+PE Tight DD                     Rs  +3,418,186  0.00 95.6% Rs     189 Rs          +0  0.00  0.0% Rs       0 0.00        0/0
+[ 3] [ 3]  B03: 2m CE+PE Bidirectional                Rs  +2,853,500  0.00 93.7% Rs     194 Rs          +0  0.00  0.0% Rs       0 0.00        0/0
+[ 4] [ 4]  B04: 3m CE+PE Bidirectional                Rs  +2,413,872  0.00 93.1% Rs     189 Rs          +0  0.00  0.0% Rs       0 0.00        0/0
+[ 5] [ 5]  B05: 5m CE+PE Bidirectional                Rs  +1,367,692  0.00 91.1% Rs     192 Rs          +0  0.00  0.0% Rs       0 0.00        0/0
+[ 6] [ 1]  B01: 1m CE-Only (Baseline)                 Rs    +852,781 151606.54 99.8% Rs       6 Rs          +0  0.00  0.0% Rs       0 0.00        0/0 ***
+[ 7] [ 7]  B07: Best-TF CE+PE DD Target               Rs      +3,067  3.54 28.6% Rs   6,827 Rs          +0  0.00  0.0% Rs       0 0.00        0/0
+
+DD COMPARISON:
+  B01: 1m CE-Only (Baseline)                : DD=Rs       0 (999%) CE=Rs         +0 PE=Rs         +0 Max Trade SL=Rs500
+  B02: 1m CE+PE Bidirectional               : DD=Rs       0 (999%) CE=Rs         +0 PE=Rs         +0 Max Trade SL=Rs9999
+  B03: 2m CE+PE Bidirectional               : DD=Rs       0 (999%) CE=Rs         +0 PE=Rs         +0 Max Trade SL=Rs9999
+  B04: 3m CE+PE Bidirectional               : DD=Rs       0 (999%) CE=Rs         +0 PE=Rs         +0 Max Trade SL=Rs9999
+  B05: 5m CE+PE Bidirectional               : DD=Rs       0 (999%) CE=Rs         +0 PE=Rs         +0 Max Trade SL=Rs9999
+  B06: 1m CE+PE Tight DD                    : DD=Rs       0 (999%) CE=Rs         +0 PE=Rs         +0 Max Trade SL=Rs9999
+  B07: Best-TF CE+PE DD Target              : DD=Rs       0 (999%) CE=Rs         +0 PE=Rs         +0 Max Trade SL=Rs5000
+
+Saved: C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\master_phase5d_causal_fused.json

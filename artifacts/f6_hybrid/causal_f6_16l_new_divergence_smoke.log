@@ -1,0 +1,42 @@
+{
+  "start": "2020-01-01",
+  "end": "2024-12-31",
+  "days": 5,
+  "smoke": true,
+  "mode": "new_divergence",
+  "params": {
+    "s1_k": 12,
+    "s1_d": 3,
+    "s4_k": 50,
+    "atr_period": 10,
+    "atr_sl_mult": 3.0,
+    "atr_tp_mult": 6.0,
+    "f6_s4_thresh": 79.5,
+    "f6_s1_thresh": 25.0,
+    "consec_loss": 8
+  },
+  "engine": "causal clock-aligned live parity",
+  "costs": {
+    "slippage_points_per_side": 1.0,
+    "brokerage_per_order": 0.0
+  },
+  "stats": {
+    "trades": 15,
+    "win_rate": 40.0,
+    "net_rs": -82,
+    "net_points": -1.26,
+    "fees": 171.01,
+    "pf": 0.9897
+  },
+  "yearly": {
+    "2020": {
+      "trades": 15,
+      "win_rate": 40.0,
+      "net_rs": -82,
+      "net_points": -1.26,
+      "fees": 171.01,
+      "pf": 0.9897
+    }
+  }
+}
+JSON: artifacts\f6_hybrid\causal_f6_16l_new_divergence_2020_2024_smoke.json

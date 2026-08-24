@@ -1,0 +1,2211 @@
+{
+  "target": "2026-08-13 09:37:00",
+  "tokens": {
+    "spot": "26000",
+    "ce": "45100",
+    "pe": "45109"
+  },
+  "spot_at_target": {
+    "time": "13-08-2026 09:37:00",
+    "close": 24325.85
+  },
+  "ce": {
+    "side": "CE",
+    "processed_rows": 796,
+    "api_first": "11-08-2026 09:15:00",
+    "api_last": "13-08-2026 15:29:00",
+    "triggers_to_target": [
+      {
+        "time": "2026-08-13 09:15:00",
+        "timeframe": "1m",
+        "signal": "super",
+        "reverse": false,
+        "entry": 207.7,
+        "sl_points": 32.19,
+        "tp_points": 64.38
+      }
+    ],
+    "watch_window_14_18_to_target": [
+      {
+        "time": "2026-08-13 09:17:00",
+        "open": 213.4,
+        "high": 213.4,
+        "low": 198.15,
+        "close": 203.85,
+        "s1": 13.970938257382251,
+        "s2": 13.970938257382251,
+        "s3": 23.184093449547053,
+        "s4": 48.20218622679988,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          243.6,
+          68.37779156327538
+        ],
+        "trough_2": [
+          203.1,
+          55.6548989671931
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:18:00",
+        "open": 203.35,
+        "high": 205.45,
+        "low": 200.0,
+        "close": 203.0,
+        "s1": 13.864082680974429,
+        "s2": 13.805994210837094,
+        "s3": 9.309743984930202,
+        "s4": 42.31081643312752,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          243.6,
+          68.37779156327538
+        ],
+        "trough_2": [
+          198.15,
+          13.970938257382251
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:19:00",
+        "open": 201.75,
+        "high": 203.95,
+        "low": 198.8,
+        "close": 199.8,
+        "s1": 8.130655807516229,
+        "s2": 8.052805280528046,
+        "s3": 8.106259097525463,
+        "s4": 35.98693120545021,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          243.6,
+          68.37779156327538
+        ],
+        "trough_2": [
+          198.15,
+          13.970938257382251
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:20:00",
+        "open": 198.9,
+        "high": 204.5,
+        "low": 196.6,
+        "close": 204.1,
+        "s1": 9.255865102639296,
+        "s2": 9.178014575651114,
+        "s3": 7.944265328055063,
+        "s4": 30.590320574295742,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          243.6,
+          68.37779156327538
+        ],
+        "trough_2": [
+          198.15,
+          13.970938257382251
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:21:00",
+        "open": 203.1,
+        "high": 210.4,
+        "low": 200.45,
+        "close": 200.9,
+        "s1": 8.834740328871609,
+        "s2": 8.778910149079435,
+        "s3": 7.8793753145873335,
+        "s4": 24.996097423082766,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          13.970938257382251
+        ],
+        "trough_2": [
+          196.6,
+          9.255865102639296
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:22:00",
+        "open": 200.15,
+        "high": 207.7,
+        "low": 196.7,
+        "close": 204.85,
+        "s1": 13.182218567478875,
+        "s2": 13.066145324209847,
+        "s3": 9.969595559727388,
+        "s4": 19.80607498313428,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          13.970938257382251
+        ],
+        "trough_2": [
+          196.6,
+          9.255865102639296
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:23:00",
+        "open": 204.0,
+        "high": 204.8,
+        "low": 197.0,
+        "close": 199.2,
+        "s1": 10.014209754308768,
+        "s2": 9.894731408624736,
+        "s3": 10.61795811001284,
+        "s4": 13.647684335373693,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          13.970938257382251
+        ],
+        "trough_2": [
+          196.7,
+          13.182218567478875
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:24:00",
+        "open": 198.3,
+        "high": 202.5,
+        "low": 197.3,
+        "close": 202.3,
+        "s1": 10.945767195767203,
+        "s2": 10.862356973024498,
+        "s3": 9.851037374199871,
+        "s4": 7.999659455073266,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          13.970938257382251
+        ],
+        "trough_2": [
+          196.7,
+          13.182218567478875
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:25:00",
+        "open": 201.6,
+        "high": 202.4,
+        "low": 196.7,
+        "close": 200.6,
+        "s1": 8.134920634920642,
+        "s2": 8.131515532505638,
+        "s3": 9.76292116674298,
+        "s4": 7.84748584541588,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          13.970938257382251
+        ],
+        "trough_2": [
+          196.7,
+          13.182218567478875
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:26:00",
+        "open": 200.0,
+        "high": 201.2,
+        "low": 194.0,
+        "close": 195.7,
+        "s1": 7.621017674209167,
+        "s2": 7.484526305281026,
+        "s3": 6.685457100595615,
+        "s4": 6.614175390142488,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          13.970938257382251
+        ],
+        "trough_2": [
+          196.7,
+          13.182218567478875
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:27:00",
+        "open": 195.85,
+        "high": 195.85,
+        "low": 188.4,
+        "close": 190.35,
+        "s1": 6.062060758109369,
+        "s2": 4.823900052504585,
+        "s3": 6.2457864997928425,
+        "s4": 6.033047032581559,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          13.970938257382251
+        ],
+        "trough_2": [
+          196.7,
+          13.182218567478875
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:28:00",
+        "open": 189.8,
+        "high": 190.3,
+        "low": 185.8,
+        "close": 187.9,
+        "s1": 5.952789996664689,
+        "s2": 3.4465133490309223,
+        "s3": 4.343356534113605,
+        "s4": 5.586178377277762,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          13.970938257382251
+        ],
+        "trough_2": [
+          196.7,
+          13.182218567478875
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:29:00",
+        "open": 187.25,
+        "high": 195.45,
+        "low": 185.35,
+        "close": 195.0,
+        "s1": 17.588100935071573,
+        "s2": 12.290017142966448,
+        "s3": 6.23334337687781,
+        "s4": 6.530052784543281,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          13.970938257382251
+        ],
+        "trough_2": [
+          196.7,
+          13.182218567478875
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:30:00",
+        "open": 194.0,
+        "high": 194.6,
+        "low": 186.75,
+        "close": 186.75,
+        "s1": 17.24015736642657,
+        "s2": 12.844497907244453,
+        "s3": 6.008589846946574,
+        "s4": 5.678653342396507,
+        "bullish_divergence": true,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          196.7,
+          13.182218567478875
+        ],
+        "trough_2": [
+          185.35,
+          17.588100935071573
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:31:00",
+        "open": 186.45,
+        "high": 188.9,
+        "low": 183.2,
+        "close": 183.2,
+        "s1": 14.703925482368604,
+        "s2": 11.57638196521547,
+        "s3": 5.199461216241184,
+        "s4": 5.066553698268392,
+        "bullish_divergence": true,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          196.7,
+          13.182218567478875
+        ],
+        "trough_2": [
+          185.35,
+          17.588100935071573
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:32:00",
+        "open": 184.1,
+        "high": 186.7,
+        "low": 181.5,
+        "close": 185.35,
+        "s1": 6.303540554415965,
+        "s2": 6.104295550662331,
+        "s3": 5.7974971739250645,
+        "s4": 4.453400963865024,
+        "bullish_divergence": true,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          196.7,
+          13.182218567478875
+        ],
+        "trough_2": [
+          185.35,
+          17.588100935071573
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:33:00",
+        "open": 185.45,
+        "high": 186.1,
+        "low": 181.55,
+        "close": 182.45,
+        "s1": 5.649251168810565,
+        "s2": 5.536332179930774,
+        "s3": 2.3399665223339277,
+        "s4": 4.22476851354267,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          185.35,
+          17.588100935071573
+        ],
+        "trough_2": [
+          181.5,
+          6.303540554415965
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:34:00",
+        "open": 182.1,
+        "high": 185.45,
+        "low": 181.85,
+        "close": 184.0,
+        "s1": 9.225789080112422,
+        "s2": 8.41983852364473,
+        "s3": 2.7177959791511475,
+        "s4": 3.785681432248598,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          185.35,
+          17.588100935071573
+        ],
+        "trough_2": [
+          181.5,
+          6.303540554415965
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:35:00",
+        "open": 184.25,
+        "high": 185.5,
+        "low": 182.5,
+        "close": 184.8,
+        "s1": 10.023284548888194,
+        "s2": 8.177712036768009,
+        "s3": 3.946388682055098,
+        "s4": 3.7077234956165848,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          185.35,
+          17.588100935071573
+        ],
+        "trough_2": [
+          181.5,
+          6.303540554415965
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:36:00",
+        "open": 184.55,
+        "high": 186.9,
+        "low": 183.75,
+        "close": 183.75,
+        "s1": 12.403149895808596,
+        "s2": 10.30086374632839,
+        "s3": 3.3507073715562172,
+        "s4": 3.8094380213789343,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          185.35,
+          17.588100935071573
+        ],
+        "trough_2": [
+          181.5,
+          6.303540554415965
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:37:00",
+        "open": 184.15,
+        "high": 185.25,
+        "low": 182.8,
+        "close": 184.65,
+        "s1": 14.156561223085431,
+        "s2": 12.417357402614444,
+        "s3": 4.169769173492187,
+        "s4": 4.0299710878136334,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          185.35,
+          17.588100935071573
+        ],
+        "trough_2": [
+          181.5,
+          6.303540554415965
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:17:00",
+        "open": 213.4,
+        "high": 213.4,
+        "low": 198.15,
+        "close": 203.85,
+        "s1": 44.5378151260504,
+        "s2": 44.5378151260504,
+        "s3": 30.770662695457915,
+        "s4": 14.209772516601571,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          181.5,
+          6.303540554415965
+        ],
+        "trough_2": [
+          182.8,
+          14.156561223085431
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:18:00",
+        "open": 203.35,
+        "high": 205.45,
+        "low": 200.0,
+        "close": 203.0,
+        "s1": 41.90476190476189,
+        "s2": 41.90476190476189,
+        "s3": 37.60238272524198,
+        "s4": 17.41155956053307,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          182.8,
+          14.156561223085431
+        ],
+        "trough_2": [
+          198.15,
+          44.5378151260504
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:19:00",
+        "open": 201.75,
+        "high": 203.95,
+        "low": 198.8,
+        "close": 199.8,
+        "s1": 34.81792717086835,
+        "s2": 34.81792717086835,
+        "s3": 34.661206254653756,
+        "s4": 19.575577066269542,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          182.8,
+          14.156561223085431
+        ],
+        "trough_2": [
+          198.15,
+          44.5378151260504
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:20:00",
+        "open": 198.9,
+        "high": 204.5,
+        "low": 196.6,
+        "close": 204.1,
+        "s1": 34.957983193277315,
+        "s2": 34.957983193277315,
+        "s3": 31.55249441548771,
+        "s4": 22.799702159344747,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          182.8,
+          14.156561223085431
+        ],
+        "trough_2": [
+          198.15,
+          44.5378151260504
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:21:00",
+        "open": 203.1,
+        "high": 210.4,
+        "low": 200.45,
+        "close": 200.9,
+        "s1": 33.76261858822588,
+        "s2": 33.781512605042025,
+        "s3": 30.454206999255398,
+        "s4": 25.316455696202528,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          44.5378151260504
+        ],
+        "trough_2": [
+          196.6,
+          34.957983193277315
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:22:00",
+        "open": 200.15,
+        "high": 207.7,
+        "low": 196.7,
+        "close": 204.85,
+        "s1": 36.471915324671926,
+        "s2": 36.61064425770308,
+        "s3": 31.142963514519728,
+        "s4": 28.30230826507818,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          44.5378151260504
+        ],
+        "trough_2": [
+          196.6,
+          34.957983193277315
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:23:00",
+        "open": 204.0,
+        "high": 204.8,
+        "low": 197.0,
+        "close": 199.2,
+        "s1": 33.32652041457113,
+        "s2": 33.84585120843963,
+        "s3": 31.009103808707614,
+        "s4": 30.60312732688011,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          44.5378151260504
+        ],
+        "trough_2": [
+          196.7,
+          36.471915324671926
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:24:00",
+        "open": 198.3,
+        "high": 202.5,
+        "low": 197.3,
+        "close": 202.3,
+        "s1": 33.645451972176794,
+        "s2": 34.50187693233866,
+        "s3": 30.444161901684488,
+        "s4": 33.23157110945643,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          44.5378151260504
+        ],
+        "trough_2": [
+          196.7,
+          36.471915324671926
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:25:00",
+        "open": 201.6,
+        "high": 202.4,
+        "low": 196.7,
+        "close": 200.6,
+        "s1": 30.878785208682103,
+        "s2": 31.734034752731777,
+        "s3": 30.429073181696843,
+        "s4": 32.17423678332092,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          44.5378151260504
+        ],
+        "trough_2": [
+          196.7,
+          36.471915324671926
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:26:00",
+        "open": 200.0,
+        "high": 201.2,
+        "low": 194.0,
+        "close": 195.7,
+        "s1": 22.568789451877834,
+        "s2": 29.226079527427657,
+        "s3": 27.14743442245743,
+        "s4": 29.67982129560685,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          44.5378151260504
+        ],
+        "trough_2": [
+          196.7,
+          36.471915324671926
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:27:00",
+        "open": 195.85,
+        "high": 195.85,
+        "low": 188.4,
+        "close": 190.35,
+        "s1": 13.611288925894229,
+        "s2": 22.025875994948137,
+        "s3": 23.84605173485841,
+        "s4": 27.669396872673115,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          44.5378151260504
+        ],
+        "trough_2": [
+          196.7,
+          36.471915324671926
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:28:00",
+        "open": 189.8,
+        "high": 190.3,
+        "low": 185.8,
+        "close": 187.9,
+        "s1": 5.952789996664689,
+        "s2": 12.980601623586807,
+        "s3": 18.439743222687873,
+        "s4": 25.420699925539832,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          44.5378151260504
+        ],
+        "trough_2": [
+          196.7,
+          36.471915324671926
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:29:00",
+        "open": 187.25,
+        "high": 195.45,
+        "low": 185.35,
+        "close": 195.0,
+        "s1": 17.588100935071573,
+        "s2": 15.504971656256695,
+        "s3": 16.384867808601747,
+        "s4": 24.70588235294117,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          198.15,
+          44.5378151260504
+        ],
+        "trough_2": [
+          196.7,
+          36.471915324671926
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:30:00",
+        "open": 194.0,
+        "high": 194.6,
+        "low": 186.75,
+        "close": 186.75,
+        "s1": 17.24015736642657,
+        "s2": 12.844497907244453,
+        "s3": 12.97709923664122,
+        "s4": 22.122114668652266,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          196.7,
+          36.471915324671926
+        ],
+        "trough_2": [
+          185.35,
+          17.588100935071573
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:31:00",
+        "open": 186.45,
+        "high": 188.9,
+        "low": 183.2,
+        "close": 183.2,
+        "s1": 14.703925482368604,
+        "s2": 11.57638196521547,
+        "s3": 10.313522355507086,
+        "s4": 19.486224869694702,
+        "bullish_divergence": true,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          196.7,
+          36.471915324671926
+        ],
+        "trough_2": [
+          185.35,
+          17.588100935071573
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:32:00",
+        "open": 184.1,
+        "high": 186.7,
+        "low": 181.5,
+        "close": 185.35,
+        "s1": 6.303540554415965,
+        "s2": 6.104295550662331,
+        "s3": 9.488421322727557,
+        "s4": 16.58227848101265,
+        "bullish_divergence": true,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          196.7,
+          36.471915324671926
+        ],
+        "trough_2": [
+          185.35,
+          17.588100935071573
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:33:00",
+        "open": 185.45,
+        "high": 186.1,
+        "low": 181.55,
+        "close": 182.45,
+        "s1": 5.649251168810565,
+        "s2": 5.536332179930774,
+        "s3": 4.734909230867908,
+        "s4": 14.089784908470188,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          185.35,
+          17.588100935071573
+        ],
+        "trough_2": [
+          181.5,
+          6.303540554415965
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:34:00",
+        "open": 182.1,
+        "high": 185.45,
+        "low": 181.85,
+        "close": 184.0,
+        "s1": 9.225789080112422,
+        "s2": 8.41983852364473,
+        "s3": 3.781512605042005,
+        "s4": 11.369600584442033,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          185.35,
+          17.588100935071573
+        ],
+        "trough_2": [
+          181.5,
+          6.303540554415965
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:35:00",
+        "open": 184.25,
+        "high": 185.5,
+        "low": 182.5,
+        "close": 184.8,
+        "s1": 10.023284548888194,
+        "s2": 8.177712036768009,
+        "s3": 4.4537815126050395,
+        "s4": 9.023335534357038,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          185.35,
+          17.588100935071573
+        ],
+        "trough_2": [
+          181.5,
+          6.303540554415965
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:36:00",
+        "open": 184.55,
+        "high": 186.9,
+        "low": 183.75,
+        "close": 183.75,
+        "s1": 12.403149895808596,
+        "s2": 10.30086374632839,
+        "s3": 3.7815126050420167,
+        "s4": 7.251654686964057,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          185.35,
+          17.588100935071573
+        ],
+        "trough_2": [
+          181.5,
+          6.303540554415965
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:37:00",
+        "open": 184.15,
+        "high": 185.25,
+        "low": 182.8,
+        "close": 184.65,
+        "s1": 14.156561223085431,
+        "s2": 12.417357402614444,
+        "s3": 4.705882352941184,
+        "s4": 6.414625818019628,
+        "bullish_divergence": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "trough_1": [
+          185.35,
+          17.588100935071573
+        ],
+        "trough_2": [
+          181.5,
+          6.303540554415965
+        ],
+        "triggers": []
+      }
+    ],
+    "summary": {
+      "1m": {
+        "s1": 14.156561223085431,
+        "s2": 12.417357402614444,
+        "s3": 4.705882352941184,
+        "s4": 6.414625818019628,
+        "atr": 5.966247159110755,
+        "f6_ready": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "s4_embedded": false
+      },
+      "2m": {
+        "s1": 4.817927170868344,
+        "s2": 4.817927170868344,
+        "s3": 4.05682483889865,
+        "s4": 14.376098418277675,
+        "atr": 10.158267924848776,
+        "f6_ready": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "s4_embedded": false
+      },
+      "3m": {
+        "s1": 4.733893557422963,
+        "s2": 4.733893557422963,
+        "s3": 5.380147626957068,
+        "s4": 14.94292237442922,
+        "atr": 13.293180047663606,
+        "f6_ready": false,
+        "super_ready": true,
+        "super_setup_active": true,
+        "setup_type": "super",
+        "s4_embedded": false
+      },
+      "5m": {
+        "s1": 13.725490196078434,
+        "s2": 13.52508453652709,
+        "s3": 16.90924657534246,
+        "s4": 20.0228310502283,
+        "atr": 17.059673894250327,
+        "f6_ready": false,
+        "super_ready": true,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "s4_embedded": false
+      }
+    }
+  },
+  "pe": {
+    "side": "PE",
+    "processed_rows": 796,
+    "api_first": "11-08-2026 09:15:00",
+    "api_last": "13-08-2026 15:29:00",
+    "triggers_to_target": [
+      {
+        "time": "2026-08-13 09:15:00",
+        "timeframe": "1m",
+        "signal": "super",
+        "reverse": true,
+        "entry": 144.15,
+        "sl_points": 17.04,
+        "tp_points": 34.08
+      },
+      {
+        "time": "2026-08-13 09:15:00",
+        "timeframe": "5m",
+        "signal": "super",
+        "reverse": false,
+        "entry": 144.15,
+        "sl_points": 34.98,
+        "tp_points": 69.97
+      },
+      {
+        "time": "2026-08-13 09:27:00",
+        "timeframe": "3m",
+        "signal": "super",
+        "reverse": false,
+        "entry": 156.05,
+        "sl_points": 32.66,
+        "tp_points": 65.32
+      },
+      {
+        "time": "2026-08-13 09:36:00",
+        "timeframe": "2m",
+        "signal": "super",
+        "reverse": false,
+        "entry": 161.15,
+        "sl_points": 24.33,
+        "tp_points": 48.66
+      }
+    ],
+    "watch_window_14_18_to_target": [
+      {
+        "time": "2026-08-13 09:17:00",
+        "open": 143.25,
+        "high": 157.2,
+        "low": 143.25,
+        "close": 151.4,
+        "s1": 79.32596685082876,
+        "s2": 79.32596685082876,
+        "s3": 55.4884002968548,
+        "s4": 25.001094788112187,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          123.85,
+          32.437275985663085
+        ],
+        "trough_2": [
+          121.0,
+          35.19404993966402
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:18:00",
+        "open": 151.45,
+        "high": 154.8,
+        "low": 148.0,
+        "close": 148.25,
+        "s1": 78.69582565991409,
+        "s2": 78.69582565991409,
+        "s3": 73.44415171781748,
+        "s4": 31.939870298316265,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          123.85,
+          32.437275985663085
+        ],
+        "trough_2": [
+          121.0,
+          35.19404993966402
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:19:00",
+        "open": 149.4,
+        "high": 150.55,
+        "low": 144.6,
+        "close": 147.25,
+        "s1": 77.25598526703503,
+        "s2": 77.25598526703503,
+        "s3": 75.24679375508107,
+        "s4": 38.24023659868257,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          123.85,
+          32.437275985663085
+        ],
+        "trough_2": [
+          121.0,
+          35.19404993966402
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:20:00",
+        "open": 148.1,
+        "high": 149.4,
+        "low": 142.3,
+        "close": 142.3,
+        "s1": 68.87661141804791,
+        "s2": 68.87661141804791,
+        "s3": 72.6519337016575,
+        "s4": 43.14482407469862,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          123.85,
+          32.437275985663085
+        ],
+        "trough_2": [
+          121.0,
+          35.19404993966402
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:21:00",
+        "open": 143.35,
+        "high": 147.3,
+        "low": 136.95,
+        "close": 147.3,
+        "s1": 68.0018416206262,
+        "s2": 68.0018416206262,
+        "s3": 69.82044198895032,
+        "s4": 49.42216578061176,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          123.85,
+          32.437275985663085
+        ],
+        "trough_2": [
+          121.0,
+          35.19404993966402
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:22:00",
+        "open": 147.05,
+        "high": 149.7,
+        "low": 140.25,
+        "close": 143.3,
+        "s1": 64.36464088397796,
+        "s2": 64.36464088397796,
+        "s3": 66.40193370165751,
+        "s4": 54.67234912532511,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          121.0,
+          35.19404993966402
+        ],
+        "trough_2": [
+          136.95,
+          68.0018416206262
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:23:00",
+        "open": 143.65,
+        "high": 150.8,
+        "low": 142.55,
+        "close": 148.5,
+        "s1": 70.07366482504608,
+        "s2": 70.07366482504608,
+        "s3": 67.26519337016579,
+        "s4": 61.97492995147,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          121.0,
+          35.19404993966402
+        ],
+        "trough_2": [
+          136.95,
+          68.0018416206262
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:24:00",
+        "open": 148.4,
+        "high": 151.0,
+        "low": 144.7,
+        "close": 145.0,
+        "s1": 67.95580110497241,
+        "s2": 67.95580110497241,
+        "s3": 69.12983425414367,
+        "s4": 68.29548585509819,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          121.0,
+          35.19404993966402
+        ],
+        "trough_2": [
+          136.95,
+          68.0018416206262
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:25:00",
+        "open": 144.8,
+        "high": 149.9,
+        "low": 144.7,
+        "close": 146.05,
+        "s1": 70.48802946593004,
+        "s2": 70.48802946593004,
+        "s3": 68.2665745856354,
+        "s4": 69.15516593377686,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          121.0,
+          35.19404993966402
+        ],
+        "trough_2": [
+          136.95,
+          68.0018416206262
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:26:00",
+        "open": 146.5,
+        "high": 151.05,
+        "low": 145.55,
+        "close": 150.2,
+        "s1": 72.0534069981584,
+        "s2": 72.0534069981584,
+        "s3": 73.03176795580112,
+        "s4": 70.94935543278088,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          136.95,
+          68.0018416206262
+        ],
+        "trough_2": [
+          144.7,
+          70.48802946593004
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:27:00",
+        "open": 150.0,
+        "high": 158.3,
+        "low": 150.0,
+        "close": 156.05,
+        "s1": 79.77441225561869,
+        "s2": 81.27656895708976,
+        "s3": 77.53201235317644,
+        "s4": 72.07402943106652,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          136.95,
+          68.0018416206262
+        ],
+        "trough_2": [
+          144.7,
+          70.48802946593004
+        ],
+        "triggers": [
+          [
+            "3m",
+            false,
+            "super",
+            156.05,
+            32.66,
+            65.32
+          ]
+        ]
+      },
+      {
+        "time": "2026-08-13 09:28:00",
+        "open": 156.4,
+        "high": 160.75,
+        "low": 156.1,
+        "close": 157.9,
+        "s1": 86.0498506077551,
+        "s2": 89.15366684096341,
+        "s3": 84.16497388762865,
+        "s4": 73.94208231259647,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          136.95,
+          68.0018416206262
+        ],
+        "trough_2": [
+          144.7,
+          70.48802946593004
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:29:00",
+        "open": 158.5,
+        "high": 161.0,
+        "low": 150.1,
+        "close": 150.1,
+        "s1": 77.38810769186856,
+        "s2": 80.49192392507685,
+        "s3": 85.05275013072256,
+        "s4": 74.07422516973934,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          136.95,
+          68.0018416206262
+        ],
+        "trough_2": [
+          144.7,
+          70.48802946593004
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:30:00",
+        "open": 151.05,
+        "high": 159.55,
+        "low": 150.65,
+        "close": 159.55,
+        "s1": 78.89128624422746,
+        "s2": 80.49294577596467,
+        "s3": 88.98075427436896,
+        "s4": 77.9158068023924,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          70.48802946593004
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:31:00",
+        "open": 159.2,
+        "high": 163.0,
+        "low": 157.4,
+        "close": 162.05,
+        "s1": 81.66727187840435,
+        "s2": 81.66727187840435,
+        "s3": 89.92332097933516,
+        "s4": 80.53315374116791,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          70.48802946593004
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:32:00",
+        "open": 162.0,
+        "high": 164.4,
+        "low": 158.5,
+        "close": 158.7,
+        "s1": 89.85301121168465,
+        "s2": 89.85301121168465,
+        "s3": 88.43236367127497,
+        "s4": 83.151762474984,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          70.48802946593004
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:33:00",
+        "open": 159.8,
+        "high": 164.0,
+        "low": 159.0,
+        "close": 163.25,
+        "s1": 90.27541163408505,
+        "s2": 90.46623477572787,
+        "s3": 94.5824212749616,
+        "s4": 85.40379231917976,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          70.48802946593004
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:34:00",
+        "open": 163.7,
+        "high": 164.5,
+        "low": 159.75,
+        "close": 160.7,
+        "s1": 85.72033167425074,
+        "s2": 87.08414463078111,
+        "s3": 93.30476322898457,
+        "s4": 87.9003948466453,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          70.48802946593004
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:35:00",
+        "open": 161.0,
+        "high": 163.0,
+        "low": 159.65,
+        "close": 160.0,
+        "s1": 85.06624987262798,
+        "s2": 87.82025339460664,
+        "s3": 91.28403252290903,
+        "s4": 89.94602258526217,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          70.48802946593004
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:36:00",
+        "open": 160.5,
+        "high": 161.85,
+        "low": 158.1,
+        "close": 161.15,
+        "s1": 81.01382082019894,
+        "s2": 84.12941217435807,
+        "s3": 92.64215530483605,
+        "s4": 91.109609300192,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          70.48802946593004
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": [
+          [
+            "2m",
+            false,
+            "super",
+            161.15,
+            24.33,
+            48.66
+          ]
+        ]
+      },
+      {
+        "time": "2026-08-13 09:37:00",
+        "open": 160.55,
+        "high": 161.95,
+        "low": 159.4,
+        "close": 159.5,
+        "s1": 77.98943702637634,
+        "s2": 80.30960490627496,
+        "s3": 90.43103448275863,
+        "s4": 90.56340117101263,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          150.1,
+          77.38810769186856
+        ],
+        "trough_2": [
+          158.1,
+          81.01382082019894
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:17:00",
+        "open": 143.25,
+        "high": 157.2,
+        "low": 143.25,
+        "close": 151.4,
+        "s1": 58.69731800766285,
+        "s2": 58.69731800766285,
+        "s3": 66.14942528735634,
+        "s4": 81.97707770538695,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          150.1,
+          77.38810769186856
+        ],
+        "trough_2": [
+          121.0,
+          69.97132487033316
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:18:00",
+        "open": 151.45,
+        "high": 154.8,
+        "low": 148.0,
+        "close": 148.25,
+        "s1": 61.83908045977012,
+        "s2": 61.83908045977012,
+        "s3": 59.68390804597702,
+        "s4": 78.46763599766936,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          150.1,
+          77.38810769186856
+        ],
+        "trough_2": [
+          121.0,
+          69.97132487033316
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:19:00",
+        "open": 149.4,
+        "high": 150.55,
+        "low": 144.6,
+        "close": 147.25,
+        "s1": 64.2911877394636,
+        "s2": 64.2911877394636,
+        "s3": 61.46551724137932,
+        "s4": 75.8154828115896,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          150.1,
+          77.38810769186856
+        ],
+        "trough_2": [
+          121.0,
+          69.97132487033316
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:20:00",
+        "open": 148.1,
+        "high": 149.4,
+        "low": 142.3,
+        "close": 142.3,
+        "s1": 57.31800766283525,
+        "s2": 57.31800766283525,
+        "s3": 60.45977011494253,
+        "s4": 70.97701149425288,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          150.1,
+          77.38810769186856
+        ],
+        "trough_2": [
+          121.0,
+          69.97132487033316
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:21:00",
+        "open": 143.35,
+        "high": 147.3,
+        "low": 136.95,
+        "close": 147.3,
+        "s1": 56.59003831417626,
+        "s2": 56.59003831417626,
+        "s3": 58.10344827586208,
+        "s4": 67.89655172413794,
+        "bullish_divergence": true,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          150.1,
+          77.38810769186856
+        ],
+        "trough_2": [
+          121.0,
+          69.97132487033316
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:22:00",
+        "open": 147.05,
+        "high": 149.7,
+        "low": 140.25,
+        "close": 143.3,
+        "s1": 53.56321839080462,
+        "s2": 53.56321839080462,
+        "s3": 55.25862068965519,
+        "s4": 64.05747126436782,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          121.0,
+          69.97132487033316
+        ],
+        "trough_2": [
+          136.95,
+          56.59003831417626
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:23:00",
+        "open": 143.65,
+        "high": 150.8,
+        "low": 142.55,
+        "close": 148.5,
+        "s1": 59.06677613574167,
+        "s2": 58.314176245210746,
+        "s3": 55.97701149425289,
+        "s4": 61.14942528735634,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          121.0,
+          69.97132487033316
+        ],
+        "trough_2": [
+          136.95,
+          56.59003831417626
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:24:00",
+        "open": 148.4,
+        "high": 151.0,
+        "low": 144.7,
+        "close": 145.0,
+        "s1": 58.44953896678036,
+        "s2": 56.551724137931046,
+        "s3": 57.528735632183924,
+        "s4": 57.81609195402301,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          121.0,
+          69.97132487033316
+        ],
+        "trough_2": [
+          136.95,
+          56.59003831417626
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:25:00",
+        "open": 144.8,
+        "high": 149.9,
+        "low": 144.7,
+        "close": 146.05,
+        "s1": 61.75213675213678,
+        "s2": 59.34455391351944,
+        "s3": 56.81034482758622,
+        "s4": 58.25287356321841,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          121.0,
+          69.97132487033316
+        ],
+        "trough_2": [
+          136.95,
+          56.59003831417626
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:26:00",
+        "open": 146.5,
+        "high": 151.05,
+        "low": 145.55,
+        "close": 150.2,
+        "s1": 66.81440106854474,
+        "s2": 62.040580747477314,
+        "s3": 60.77586206896552,
+        "s4": 59.66666666666667,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          136.95,
+          56.59003831417626
+        ],
+        "trough_2": [
+          144.7,
+          61.75213675213678
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:27:00",
+        "open": 150.0,
+        "high": 158.3,
+        "low": 150.0,
+        "close": 156.05,
+        "s1": 77.09883430379763,
+        "s2": 72.18050468050471,
+        "s3": 65.11494252873564,
+        "s4": 60.735632183908045,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          136.95,
+          56.59003831417626
+        ],
+        "trough_2": [
+          144.7,
+          61.75213675213678
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:28:00",
+        "open": 156.4,
+        "high": 160.75,
+        "low": 156.1,
+        "close": 157.9,
+        "s1": 86.0498506077551,
+        "s2": 83.2429485259674,
+        "s3": 72.52873563218392,
+        "s4": 62.95402298850577,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          136.95,
+          56.59003831417626
+        ],
+        "trough_2": [
+          144.7,
+          61.75213675213678
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:29:00",
+        "open": 158.5,
+        "high": 161.0,
+        "low": 150.1,
+        "close": 150.1,
+        "s1": 77.38810769186856,
+        "s2": 77.70004298306188,
+        "s3": 74.85632183908046,
+        "s4": 63.60919540229886,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          136.95,
+          56.59003831417626
+        ],
+        "trough_2": [
+          144.7,
+          61.75213675213678
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:30:00",
+        "open": 151.05,
+        "high": 159.55,
+        "low": 150.65,
+        "close": 159.55,
+        "s1": 78.89128624422746,
+        "s2": 80.49294577596467,
+        "s3": 80.22988505747128,
+        "s4": 67.57471264367817,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          61.75213675213678
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:31:00",
+        "open": 159.2,
+        "high": 163.0,
+        "low": 157.4,
+        "close": 162.05,
+        "s1": 81.66727187840435,
+        "s2": 81.66727187840435,
+        "s3": 83.67816091954025,
+        "s4": 70.96551724137933,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          61.75213675213678
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:32:00",
+        "open": 162.0,
+        "high": 164.4,
+        "low": 158.5,
+        "close": 158.7,
+        "s1": 89.85301121168465,
+        "s2": 89.85301121168465,
+        "s3": 84.13793103448276,
+        "s4": 74.50574712643679,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          61.75213675213678
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:33:00",
+        "open": 159.8,
+        "high": 164.0,
+        "low": 159.0,
+        "close": 163.25,
+        "s1": 90.27541163408505,
+        "s2": 90.46623477572787,
+        "s3": 91.69540229885058,
+        "s4": 77.89655172413794,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          61.75213675213678
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:34:00",
+        "open": 163.7,
+        "high": 164.5,
+        "low": 159.75,
+        "close": 160.7,
+        "s1": 85.72033167425074,
+        "s2": 87.08414463078111,
+        "s3": 92.35632183908045,
+        "s4": 81.50574712643679,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          61.75213675213678
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:35:00",
+        "open": 161.0,
+        "high": 163.0,
+        "low": 159.65,
+        "close": 160.0,
+        "s1": 85.06624987262798,
+        "s2": 87.82025339460664,
+        "s3": 91.1781609195402,
+        "s4": 84.71264367816093,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          61.75213675213678
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:36:00",
+        "open": 160.5,
+        "high": 161.85,
+        "low": 158.1,
+        "close": 161.15,
+        "s1": 81.01382082019894,
+        "s2": 84.12941217435807,
+        "s3": 92.58620689655172,
+        "s4": 87.22988505747128,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          144.7,
+          61.75213675213678
+        ],
+        "trough_2": [
+          150.1,
+          77.38810769186856
+        ],
+        "triggers": []
+      },
+      {
+        "time": "2026-08-13 09:37:00",
+        "open": 160.55,
+        "high": 161.95,
+        "low": 159.4,
+        "close": 159.5,
+        "s1": 77.98943702637634,
+        "s2": 80.30960490627496,
+        "s3": 90.43103448275863,
+        "s4": 88.02298850574712,
+        "bullish_divergence": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "trough_1": [
+          150.1,
+          77.38810769186856
+        ],
+        "trough_2": [
+          158.1,
+          81.01382082019894
+        ],
+        "triggers": []
+      }
+    ],
+    "summary": {
+      "1m": {
+        "s1": 77.98943702637634,
+        "s2": 80.30960490627496,
+        "s3": 90.43103448275863,
+        "s4": 88.02298850574712,
+        "atr": 6.1023990377113675,
+        "f6_ready": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "s4_embedded": false
+      },
+      "2m": {
+        "s1": 90.0766283524904,
+        "s2": 90.0766283524904,
+        "s3": 89.71264367816092,
+        "s4": 56.08122292106756,
+        "atr": 9.353222678100304,
+        "f6_ready": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "s4_embedded": false
+      },
+      "3m": {
+        "s1": 92.68199233716477,
+        "s2": 92.68199233716477,
+        "s3": 54.92961914565107,
+        "s4": 46.29351535836178,
+        "atr": 11.923473384350299,
+        "f6_ready": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "s4_embedded": false
+      },
+      "5m": {
+        "s1": 78.62068965517243,
+        "s2": 78.62068965517243,
+        "s3": 39.813624678663246,
+        "s4": 35.931582162492376,
+        "atr": 14.424784399664578,
+        "f6_ready": false,
+        "super_ready": false,
+        "super_setup_active": false,
+        "setup_type": "super",
+        "s4_embedded": false
+      }
+    }
+  }
+}

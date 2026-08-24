@@ -1,0 +1,71 @@
+{
+  "start": "2020-01-01",
+  "end": "2026-05-05",
+  "days": 5,
+  "workers": 8,
+  "smoke": true,
+  "starting_capital_rs": 20000.0,
+  "cost_model": {
+    "slippage_points_per_side": 1.0,
+    "brokerage_per_order": 0.0
+  },
+  "params": {
+    "s1_k": 12,
+    "s1_d": 3,
+    "s4_k": 50,
+    "atr_period": 10,
+    "atr_sl_mult": 3.0,
+    "atr_tp_mult": 6.0,
+    "f6_s4_thresh": 79.5,
+    "f6_s1_thresh": 25.0,
+    "consec_loss": 8
+  },
+  "gross": {
+    "trades": 15,
+    "stats": {
+      "trades": 15,
+      "wr": 33.33333333333333,
+      "pts": -51.78,
+      "rs": -3366,
+      "pf": 0.48636048011110017
+    },
+    "yearly": [
+      {
+        "year": "2020",
+        "trades": 15,
+        "win_rate": 33.33,
+        "points": -51.78,
+        "pnl_rs": -3366,
+        "profit_factor": 0.4864,
+        "fees_rs": 0.0,
+        "end_one_lot_equity_rs": 16634.0
+      }
+    ],
+    "final_one_lot_equity_rs": 16634.0
+  },
+  "cost_adjusted": {
+    "trades": 15,
+    "stats": {
+      "trades": 15,
+      "wr": 26.666666666666668,
+      "pts": -81.78,
+      "rs": -5478,
+      "pf": 0.3135872391346569,
+      "fees": 162.32
+    },
+    "yearly": [
+      {
+        "year": "2020",
+        "trades": 15,
+        "win_rate": 26.67,
+        "points": -81.78,
+        "pnl_rs": -5478,
+        "profit_factor": 0.3136,
+        "fees_rs": 162.32,
+        "end_one_lot_equity_rs": 14522.0
+      }
+    ],
+    "final_one_lot_equity_rs": 14522.0
+  }
+}
+JSON: artifacts\f6_hybrid\research_f6_16l_champion_portfolio_report_smoke.json

@@ -1,0 +1,3 @@
+RAW BACKTEST | costs=False | days=1574 | workers=8 | params={'s1_k': 12, 's1_d': 3, 's4_k': 50, 'atr_period': 10, 'atr_sl_mult': 3.0, 'atr_tp_mult': 6.0, 'f6_s4_thresh': 79.5, 'f6_s1_thresh': 25.0, 'consec_loss': 8, 'fixed_sl_points': 10.0, 'fixed_tp_points': 15.0, 'timeframes': ['1m', '2m'], 'use_divergence': False}
+{'trades': 13577, 'wr': 40.03830006628857, 'pts': np.float64(-5296.1), 'rs': -344246, 'pf': np.float64(0.9282977536608631)}
+JSON: artifacts\f6_hybrid\research_f6_champion_12_50_fixed_10_15_1m_2m_no_divergence_2020_2026.json

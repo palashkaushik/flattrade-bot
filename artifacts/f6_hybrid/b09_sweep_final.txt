@@ -1,0 +1,180 @@
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+  1574 days ╫ 375 bars in 2.5s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  288 tensors cached in 0.1s
+[B09 sweep] 2592 combos | GPU cuda | N=1574 T=375
+  batch 20/2592  (0.6s)
+  batch 40/2592  (0.9s)
+  batch 60/2592  (1.3s)
+  batch 80/2592  (1.7s)
+  batch 100/2592  (2.1s)
+  batch 120/2592  (2.6s)
+  batch 140/2592  (2.9s)
+  batch 160/2592  (3.3s)
+  batch 180/2592  (3.8s)
+  batch 200/2592  (4.2s)
+  batch 220/2592  (4.6s)
+  batch 240/2592  (5.1s)
+  batch 260/2592  (5.5s)
+  batch 280/2592  (6.0s)
+  batch 300/2592  (6.4s)
+  batch 320/2592  (6.7s)
+  batch 340/2592  (7.3s)
+  batch 360/2592  (7.7s)
+  batch 380/2592  (8.0s)
+  batch 400/2592  (8.6s)
+  batch 420/2592  (8.9s)
+  batch 440/2592  (9.4s)
+  batch 460/2592  (9.9s)
+  batch 480/2592  (10.3s)
+  batch 500/2592  (10.8s)
+  batch 520/2592  (11.3s)
+  batch 540/2592  (11.7s)
+  batch 560/2592  (12.2s)
+  batch 580/2592  (12.5s)
+  batch 600/2592  (12.9s)
+  batch 620/2592  (13.4s)
+  batch 640/2592  (13.7s)
+  batch 660/2592  (14.2s)
+  batch 680/2592  (14.6s)
+  batch 700/2592  (15.0s)
+  batch 720/2592  (15.5s)
+  batch 740/2592  (15.8s)
+  batch 760/2592  (16.2s)
+  batch 780/2592  (16.7s)
+  batch 800/2592  (17.0s)
+  batch 820/2592  (17.5s)
+  batch 840/2592  (17.8s)
+  batch 860/2592  (18.2s)
+  batch 880/2592  (18.7s)
+  batch 900/2592  (19.0s)
+  batch 920/2592  (19.4s)
+  batch 940/2592  (19.9s)
+  batch 960/2592  (20.3s)
+  batch 980/2592  (20.7s)
+  batch 1000/2592  (21.3s)
+  batch 1020/2592  (21.7s)
+  batch 1040/2592  (22.3s)
+  batch 1060/2592  (22.7s)
+  batch 1080/2592  (23.1s)
+  batch 1100/2592  (23.7s)
+  batch 1120/2592  (24.1s)
+  batch 1140/2592  (24.6s)
+  batch 1160/2592  (25.1s)
+  batch 1180/2592  (25.5s)
+  batch 1200/2592  (26.0s)
+  batch 1220/2592  (26.4s)
+  batch 1240/2592  (26.8s)
+  batch 1260/2592  (27.4s)
+  batch 1280/2592  (27.7s)
+  batch 1300/2592  (28.2s)
+  batch 1320/2592  (28.7s)
+  batch 1340/2592  (29.0s)
+  batch 1360/2592  (29.5s)
+  batch 1380/2592  (29.9s)
+  batch 1400/2592  (30.3s)
+  batch 1420/2592  (30.9s)
+  batch 1440/2592  (31.3s)
+  batch 1460/2592  (31.7s)
+  batch 1480/2592  (32.2s)
+  batch 1500/2592  (32.5s)
+  batch 1520/2592  (33.0s)
+  batch 1540/2592  (33.4s)
+  batch 1560/2592  (33.8s)
+  batch 1580/2592  (34.2s)
+  batch 1600/2592  (34.6s)
+  batch 1620/2592  (34.9s)
+  batch 1640/2592  (35.4s)
+  batch 1660/2592  (35.7s)
+  batch 1680/2592  (36.1s)
+  batch 1700/2592  (36.6s)
+  batch 1720/2592  (36.9s)
+  batch 1740/2592  (37.4s)
+  batch 1760/2592  (37.8s)
+  batch 1780/2592  (38.1s)
+  batch 1800/2592  (38.5s)
+  batch 1820/2592  (38.9s)
+  batch 1840/2592  (39.2s)
+  batch 1860/2592  (39.8s)
+  batch 1880/2592  (40.1s)
+  batch 1900/2592  (40.6s)
+  batch 1920/2592  (41.1s)
+  batch 1940/2592  (41.5s)
+  batch 1960/2592  (42.1s)
+  batch 1980/2592  (42.5s)
+  batch 2000/2592  (42.9s)
+  batch 2020/2592  (43.4s)
+  batch 2040/2592  (43.8s)
+  batch 2060/2592  (44.2s)
+  batch 2080/2592  (44.7s)
+  batch 2100/2592  (45.1s)
+  batch 2120/2592  (45.6s)
+  batch 2140/2592  (46.0s)
+  batch 2160/2592  (46.4s)
+  batch 2180/2592  (46.9s)
+  batch 2200/2592  (47.2s)
+  batch 2220/2592  (47.6s)
+  batch 2240/2592  (48.1s)
+  batch 2260/2592  (48.5s)
+  batch 2280/2592  (49.0s)
+  batch 2300/2592  (49.4s)
+  batch 2320/2592  (49.8s)
+  batch 2340/2592  (50.3s)
+  batch 2360/2592  (50.6s)
+  batch 2380/2592  (51.0s)
+  batch 2400/2592  (51.5s)
+  batch 2420/2592  (51.9s)
+  batch 2440/2592  (52.3s)
+  batch 2460/2592  (52.7s)
+  batch 2480/2592  (53.0s)
+  batch 2500/2592  (53.6s)
+  batch 2520/2592  (54.0s)
+  batch 2540/2592  (54.4s)
+  batch 2560/2592  (54.8s)
+  batch 2580/2592  (55.2s)
+  batch 2592/2592  (55.4s)
+
+Pool: 2016 combos with >=30 trades | OOS-positive: 621 (30.8%)
+
+Saved b09_marni_core_results.csv (2592 rows) in 55.4s
+
+=== NON-WALK-FORWARD (full 7y) TOP 15 by net ===
+       net    PF    WR    tr |    IS_net   OOS_net OOS_PF | params
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl20 dp30
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl20 dp50
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl20 dp80
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl30 dp30
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl30 dp50
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl30 dp80
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl50 dp30
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl50 dp50
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl50 dp80
+     14411  1.20  61.8   123 |      2532     11879   1.50 | WFE=0.82 key0.6 ap10 sl1.115 tp0.29 b fFalse dl20 dp30
+     14411  1.20  61.8   123 |      2532     11879   1.50 | WFE=0.82 key0.6 ap10 sl1.115 tp0.29 b fFalse dl20 dp50
+     14411  1.20  61.8   123 |      2532     11879   1.50 | WFE=0.82 key0.6 ap10 sl1.115 tp0.29 b fFalse dl20 dp80
+     14411  1.20  61.8   123 |      2532     11879   1.50 | WFE=0.82 key0.6 ap10 sl1.115 tp0.29 b fFalse dl30 dp30
+     14411  1.20  61.8   123 |      2532     11879   1.50 | WFE=0.82 key0.6 ap10 sl1.115 tp0.29 b fFalse dl30 dp50
+     14411  1.20  61.8   123 |      2532     11879   1.50 | WFE=0.82 key0.6 ap10 sl1.115 tp0.29 b fFalse dl30 dp80
+
+=== WALK-FORWARD (OOS / forward) TOP 15 by OOS net ===
+  OOS_net OOS_PF OOS_WR OOS_tr |   full_net    IS_net | params
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl20 dp30
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl20 dp50
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl20 dp80
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl30 dp30
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl30 dp50
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl30 dp80
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl50 dp30
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl50 dp50
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl50 dp80
+    14512   4.09   63.2     19 |       6791     -7721 | key0.7 ap10 sl1.115 tp0.29 b fTrue dl20 dp30
+    14512   4.09   63.2     19 |       6791     -7721 | key0.7 ap10 sl1.115 tp0.29 b fTrue dl20 dp50
+    14512   4.09   63.2     19 |       6791     -7721 | key0.7 ap10 sl1.115 tp0.29 b fTrue dl20 dp80
+    14512   4.09   63.2     19 |       6791     -7721 | key0.7 ap10 sl1.115 tp0.29 b fTrue dl30 dp30
+    14512   4.09   63.2     19 |       6791     -7721 | key0.7 ap10 sl1.115 tp0.29 b fTrue dl30 dp50
+    14512   4.09   63.2     19 |       6791     -7721 | key0.7 ap10 sl1.115 tp0.29 b fTrue dl30 dp80

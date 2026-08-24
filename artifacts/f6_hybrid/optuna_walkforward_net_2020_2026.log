@@ -1,0 +1,9 @@
+C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\optuna\_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[I 2026-08-12 03:27:55,073] A new study created in memory with name: no-name-261f10a7-f16a-458f-9c1f-0c24939fc137
+OOS 2023 | best={'s1_k': 12, 's4_k': 50, 'atr_period': 14, 'atr_sl_mult': 1.5, 'atr_tp_mult': 6.0, 'f6_s4_thresh': 79.5, 'f6_s1_thresh': 20.5, 'consec_loss': 8, 's1_d': 3} | trades 1,341 | WR  23.6% | pts_net   -1548.50 | Rs_net      -118,174 | PF  0.82 | fees +17,521.98
+OOS 2024 | best={'s1_k': 12, 's4_k': 75, 'atr_period': 10, 'atr_sl_mult': 1.5, 'atr_tp_mult': 6.0, 'f6_s4_thresh': 79.5, 'f6_s1_thresh': 20.5, 'consec_loss': 4, 's1_d': 3} | trades   962 | WR  26.1% | pts_net     +93.41 | Rs_net        -9,892 | PF  0.98 | fees +15,964.09
+OOS 2025 | best={'s1_k': 9, 's4_k': 50, 'atr_period': 10, 'atr_sl_mult': 2.0, 'atr_tp_mult': 6.0, 'f6_s4_thresh': 79.5, 'f6_s1_thresh': 20.5, 'consec_loss': 8, 's1_d': 3} | trades   902 | WR  25.8% | pts_net   -2273.30 | Rs_net      -162,042 | PF  0.76 | fees +14,277.28
+OOS 2026 | best={'s1_k': 9, 's4_k': 50, 'atr_period': 10, 'atr_sl_mult': 2.0, 'atr_tp_mult': 6.0, 'f6_s4_thresh': 79.5, 'f6_s1_thresh': 20.5, 'consec_loss': 8, 's1_d': 3} | trades   263 | WR  28.1% | pts_net   -1009.64 | Rs_net       -70,760 | PF  0.70 | fees +5,133.85
+STITCHED NET: {'trades': 3468, 'pts': np.float64(-4738.03), 'rs': -360868, 'fees': np.float64(52897.2)}
+JSON: artifacts\f6_hybrid\optuna_walkforward_net_2020_2026.json

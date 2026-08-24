@@ -1,0 +1,55 @@
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+  1574 days ╫ 375 bars in 2.2s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  288 tensors cached in 0.1s
+  [HALF] STOCH_CACHE recast to float16 (prices/ATR/exits stay fp32)
+Components loaded: 15 (proven+HFT-fast)  (days=1574, min_trades=1574)
+Consistency: 7 yrs, 77 months
+
+=== HFT STUDY [NO FILTER (baseline)]: 2500 trials (NW) ===
+C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\optuna\_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\optuna\_experimental.py:33: ExperimentalWarning: Argument ``constant_liar`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+NW study done in 77s; HFT-passing candidates: 936
+Consistency pool: 507; checking EVERY MONTH...
+  candidates positive EVERY month: 507/507
+
+======  TOP 5  [NO FILTER (baseline)]  (max net / least DD / all months +)  ======
+
+#1  [ALL-MONTHS +]
+   NW net=Rs+2,027,996  DD=Rs3,718  PF=2.90  T=3281 (2.08/day)  WR=67.0%
+   params: ck=1 sl=4.0 tp=6.0 atr=9 dl=5 mn=0.6 relax=7 sess=[+15,-30]
+   per-year net: 2020:Rs294,747  2021:Rs313,763  2022:Rs347,719  2023:Rs280,734  2024:Rs344,901  2025:Rs322,291  2026:Rs123,841
+   OOS(2024-26): net=Rs+791,034  WR=67.4%  PF=3.02  DD=Rs3,718  T=1013 (1.7/day)
+
+#2  [ALL-MONTHS +]
+   NW net=Rs+2,012,428  DD=Rs3,509  PF=3.76  T=2771 (1.76/day)  WR=69.3%
+   params: ck=1 sl=4.0 tp=6.0 atr=29 dl=5 mn=0.6 relax=15 sess=[+40,-60]
+   per-year net: 2020:Rs274,360  2021:Rs322,878  2022:Rs326,277  2023:Rs301,059  2024:Rs321,171  2025:Rs348,602  2026:Rs118,081
+   OOS(2024-26): net=Rs+787,855  WR=70.5%  PF=4.00  DD=Rs3,509  T=858 (1.4/day)
+
+#3  [ALL-MONTHS +]
+   NW net=Rs+2,012,428  DD=Rs3,509  PF=3.76  T=2771 (1.76/day)  WR=69.3%
+   params: ck=1 sl=4.0 tp=6.0 atr=29 dl=5 mn=0.6 relax=12 sess=[+40,-60]
+   per-year net: 2020:Rs274,360  2021:Rs322,878  2022:Rs326,277  2023:Rs301,059  2024:Rs321,171  2025:Rs348,602  2026:Rs118,081
+   OOS(2024-26): net=Rs+787,855  WR=70.5%  PF=4.00  DD=Rs3,509  T=858 (1.4/day)
+
+#4  [ALL-MONTHS +]
+   NW net=Rs+2,010,609  DD=Rs3,403  PF=3.23  T=2975 (1.89/day)  WR=67.6%
+   params: ck=1 sl=3.9 tp=6.0 atr=18 dl=5 mn=0.6 relax=3 sess=[+20,-30]
+   per-year net: 2020:Rs290,753  2021:Rs318,864  2022:Rs325,629  2023:Rs302,247  2024:Rs342,346  2025:Rs318,089  2026:Rs112,681
+   OOS(2024-26): net=Rs+773,116  WR=69.2%  PF=3.54  DD=Rs3,343  T=893 (1.5/day)
+
+#5  [ALL-MONTHS +]
+   NW net=Rs+2,009,130  DD=Rs4,003  PF=2.95  T=3241 (2.06/day)  WR=66.8%
+   params: ck=1 sl=4.0 tp=6.0 atr=11 dl=5 mn=0.6 relax=4 sess=[+20,-45]
+   per-year net: 2020:Rs285,805  2021:Rs326,840  2022:Rs341,528  2023:Rs284,085  2024:Rs335,809  2025:Rs317,270  2026:Rs117,793
+   OOS(2024-26): net=Rs+770,872  WR=66.7%  PF=3.03  DD=Rs4,003  T=995 (1.6/day)
+
+Saved: C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\optimus_hft_trend0.json

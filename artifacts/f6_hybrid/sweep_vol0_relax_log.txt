@@ -1,0 +1,51 @@
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+  1574 days × 375 bars in 2.2s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  288 tensors cached in 0.1s
+Components loaded: 15 (proven+HFT-fast)  (days=1574, min_trades=3148)
+Consistency: 7 yrs, 77 months
+
+=== HFT STUDY [15m HA UT Bot]: 2500 trials (NW) ===
+NW study done in 81s; HFT-passing candidates: 241
+Consistency pool: 241; checking EVERY MONTH...
+  candidates positive EVERY month: 0/241
+  Saved pool OOS consistency: C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\optimus_pool_oos_trend15_vol0.csv
+
+======  TOP 5  [15m HA UT Bot]  (max net / least DD / all months +)  ======
+
+#1  [12 NEG MONTHS]
+   NW net=Rs+547,934  DD=Rs255,915  PF=1.29  T=3561 (2.26/day)  WR=47.0%
+   params: ck=1 sl=3.4 tp=6.8 atr=20 dl=25 mn=0.5 relax=1 sess=[+30,-45]
+   per-year net: 2020:Rs107,902  2021:Rs93,641  2022:Rs103,191  2023:Rs64,335  2024:Rs-120,007  2025:Rs61,864  2026:Rs75,854
+   OOS(2024-26): net=Rs+17,711  WR=46.9%  PF=1.02  DD=Rs263,763  T=930 (1.5/day)
+
+#2  [12 NEG MONTHS]
+   NW net=Rs+315,551  DD=Rs172,697  PF=1.21  T=3283 (2.09/day)  WR=50.6%
+   params: ck=1 sl=3.0 tp=5.0 atr=29 dl=20 mn=0.6 relax=5 sess=[+45,-45]
+   per-year net: 2020:Rs94,360  2021:Rs88,935  2022:Rs82,066  2023:Rs47,629  2024:Rs-38,089  2025:Rs68,606  2026:Rs42,461
+   OOS(2024-26): net=Rs+72,978  WR=51.3%  PF=1.10  DD=Rs172,664  T=1154 (1.9/day)
+
+#3  [13 NEG MONTHS]
+   NW net=Rs+591,004  DD=Rs145,194  PF=1.25  T=6009 (3.82/day)  WR=50.4%
+   params: ck=1 sl=2.8 tp=4.2 atr=28 dl=25 mn=0.5 relax=22 sess=[+45,-30]
+   per-year net: 2020:Rs82,361  2021:Rs77,514  2022:Rs50,514  2023:Rs39,540  2024:Rs-27,524  2025:Rs79,974  2026:Rs61,197
+   OOS(2024-26): net=Rs+113,647  WR=50.9%  PF=1.15  DD=Rs153,737  T=1355 (2.2/day)
+
+#4  [13 NEG MONTHS]
+   NW net=Rs+457,195  DD=Rs192,556  PF=1.25  T=3521 (2.24/day)  WR=49.0%
+   params: ck=1 sl=3.5 tp=6.2 atr=30 dl=30 mn=0.6 relax=3 sess=[+30,-45]
+   per-year net: 2020:Rs96,482  2021:Rs95,440  2022:Rs96,969  2023:Rs66,098  2024:Rs-54,652  2025:Rs61,452  2026:Rs55,432
+   OOS(2024-26): net=Rs+62,233  WR=49.4%  PF=1.08  DD=Rs189,566  T=1007 (1.6/day)
+
+#5  [13 NEG MONTHS]
+   NW net=Rs+438,776  DD=Rs176,990  PF=1.24  T=4214 (2.68/day)  WR=52.4%
+   params: ck=1 sl=3.1 tp=4.8 atr=29 dl=20 mn=0.6 relax=4 sess=[+45,-45]
+   per-year net: 2020:Rs102,963  2021:Rs94,760  2022:Rs91,277  2023:Rs46,371  2024:Rs-44,971  2025:Rs61,820  2026:Rs43,019
+   OOS(2024-26): net=Rs+59,868  WR=52.5%  PF=1.08  DD=Rs173,142  T=1184 (1.9/day)
+
+Saved: C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\optimus_hft_trend15_vol0_f2_wr45.0.json

@@ -1,0 +1,191 @@
+{
+  "start": "2020-01-01",
+  "end": "2026-05-05",
+  "days": 1574,
+  "workers": 8,
+  "smoke": false,
+  "starting_capital_rs": 20000.0,
+  "cost_model": {
+    "slippage_points_per_side": 1.0,
+    "brokerage_per_order": 0.0
+  },
+  "params": {
+    "s1_k": 12,
+    "s1_d": 3,
+    "s4_k": 50,
+    "atr_period": 10,
+    "atr_sl_mult": 3.0,
+    "atr_tp_mult": 6.0,
+    "f6_s4_thresh": 79.5,
+    "f6_s1_thresh": 25.0,
+    "consec_loss": 8
+  },
+  "gross": {
+    "trades": 5209,
+    "stats": {
+      "trades": 5209,
+      "wr": 37.53119600691112,
+      "pts": 2662.54,
+      "rs": 173065,
+      "pf": 1.049730033014642
+    },
+    "yearly": [
+      {
+        "year": "2020",
+        "trades": 930,
+        "win_rate": 40.0,
+        "points": 1643.74,
+        "pnl_rs": 106843,
+        "profit_factor": 1.2073,
+        "fees_rs": 0.0,
+        "end_one_lot_equity_rs": 126843.0
+      },
+      {
+        "year": "2021",
+        "trades": 829,
+        "win_rate": 35.34,
+        "points": -1169.72,
+        "pnl_rs": -76032,
+        "profit_factor": 0.8563,
+        "fees_rs": 0.0,
+        "end_one_lot_equity_rs": 50811.0
+      },
+      {
+        "year": "2022",
+        "trades": 778,
+        "win_rate": 33.93,
+        "points": -430.94,
+        "pnl_rs": -28011,
+        "profit_factor": 0.9503,
+        "fees_rs": 0.0,
+        "end_one_lot_equity_rs": 22800.0
+      },
+      {
+        "year": "2023",
+        "trades": 936,
+        "win_rate": 39.64,
+        "points": 1310.03,
+        "pnl_rs": 85152,
+        "profit_factor": 1.1733,
+        "fees_rs": 0.0,
+        "end_one_lot_equity_rs": 107952.0
+      },
+      {
+        "year": "2024",
+        "trades": 739,
+        "win_rate": 38.29,
+        "points": 1018.39,
+        "pnl_rs": 66195,
+        "profit_factor": 1.1091,
+        "fees_rs": 0.0,
+        "end_one_lot_equity_rs": 174147.0
+      },
+      {
+        "year": "2025",
+        "trades": 758,
+        "win_rate": 36.54,
+        "points": 368.13,
+        "pnl_rs": 23928,
+        "profit_factor": 1.0423,
+        "fees_rs": 0.0,
+        "end_one_lot_equity_rs": 198075.0
+      },
+      {
+        "year": "2026",
+        "trades": 239,
+        "win_rate": 39.75,
+        "points": -77.09,
+        "pnl_rs": -5011,
+        "profit_factor": 0.9759,
+        "fees_rs": 0.0,
+        "end_one_lot_equity_rs": 193064.0
+      }
+    ],
+    "final_one_lot_equity_rs": 193064.0
+  },
+  "cost_adjusted": {
+    "trades": 5209,
+    "stats": {
+      "trades": 5209,
+      "wr": 32.80860049913611,
+      "pts": -7755.46,
+      "rs": -582473,
+      "pf": 0.853201229666636,
+      "fees": 78368.6
+    },
+    "yearly": [
+      {
+        "year": "2020",
+        "trades": 930,
+        "win_rate": 33.66,
+        "points": -216.26,
+        "pnl_rs": -27131,
+        "profit_factor": 0.9548,
+        "fees_rs": 13074.1,
+        "end_one_lot_equity_rs": -7131.0
+      },
+      {
+        "year": "2021",
+        "trades": 829,
+        "win_rate": 30.16,
+        "points": -2827.72,
+        "pnl_rs": -195441,
+        "profit_factor": 0.6792,
+        "fees_rs": 11639.37,
+        "end_one_lot_equity_rs": -202572.0
+      },
+      {
+        "year": "2022",
+        "trades": 778,
+        "win_rate": 30.46,
+        "points": -1986.94,
+        "pnl_rs": -141595,
+        "profit_factor": 0.779,
+        "fees_rs": 12444.39,
+        "end_one_lot_equity_rs": -344167.0
+      },
+      {
+        "year": "2023",
+        "trades": 936,
+        "win_rate": 34.08,
+        "points": -561.97,
+        "pnl_rs": -48902,
+        "profit_factor": 0.9151,
+        "fees_rs": 12373.67,
+        "end_one_lot_equity_rs": -393069.0
+      },
+      {
+        "year": "2024",
+        "trades": 739,
+        "win_rate": 34.51,
+        "points": -459.61,
+        "pnl_rs": -42037,
+        "profit_factor": 0.9378,
+        "fees_rs": 12162.62,
+        "end_one_lot_equity_rs": -435106.0
+      },
+      {
+        "year": "2025",
+        "trades": 758,
+        "win_rate": 32.98,
+        "points": -1147.87,
+        "pnl_rs": -86602,
+        "profit_factor": 0.864,
+        "fees_rs": 11990.41,
+        "end_one_lot_equity_rs": -521708.0
+      },
+      {
+        "year": "2026",
+        "trades": 239,
+        "win_rate": 35.56,
+        "points": -555.09,
+        "pnl_rs": -40765,
+        "profit_factor": 0.8229,
+        "fees_rs": 4684.04,
+        "end_one_lot_equity_rs": -562473.0
+      }
+    ],
+    "final_one_lot_equity_rs": -562473.0
+  }
+}
+JSON: artifacts\f6_hybrid\research_f6_16l_champion_portfolio_report_2020_2026.json

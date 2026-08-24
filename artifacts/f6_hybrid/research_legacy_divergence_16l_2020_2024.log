@@ -1,0 +1,64 @@
+{
+  "runner": "backtest_monthly_ramp with legacy rolling-close divergence",
+  "start": "2020-01-01",
+  "end": "2024-12-31",
+  "days": 1243,
+  "smoke": false,
+  "params": {
+    "s1_k": 12,
+    "s1_d": 3,
+    "s4_k": 50,
+    "atr_period": 10,
+    "atr_sl_mult": 3.0,
+    "atr_tp_mult": 6.0,
+    "f6_s4_thresh": 79.5,
+    "f6_s1_thresh": 25.0,
+    "consec_loss": 8,
+    "use_divergence": true
+  },
+  "stats": {
+    "trades": 4283,
+    "wr": 54.00420266168573,
+    "pts": 22673.51,
+    "rs": 1473778,
+    "pf": 2.0234762743286243
+  },
+  "yearly": {
+    "2020": {
+      "trades": 846,
+      "wr": 53.30969267139481,
+      "pts": 4450.92,
+      "rs": 289310,
+      "pf": 2.087470772628767
+    },
+    "2021": {
+      "trades": 907,
+      "wr": 54.5755237045204,
+      "pts": 4354.81,
+      "rs": 283063,
+      "pf": 2.02655002852307
+    },
+    "2022": {
+      "trades": 891,
+      "wr": 53.198653198653204,
+      "pts": 4989.69,
+      "rs": 324330,
+      "pf": 2.011672465390139
+    },
+    "2023": {
+      "trades": 872,
+      "wr": 54.357798165137616,
+      "pts": 4044.82,
+      "rs": 262913,
+      "pf": 1.9422927737255191
+    },
+    "2024": {
+      "trades": 767,
+      "wr": 54.628422425032596,
+      "pts": 4833.27,
+      "rs": 314163,
+      "pf": 2.052154150584824
+    }
+  }
+}
+JSON: artifacts\f6_hybrid\research_legacy_divergence_16l_2020_2024.json

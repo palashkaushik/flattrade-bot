@@ -1,0 +1,7 @@
+CHAMPION WALK-FORWARD | 2020-01-01..2026-05-05 | workers=8 | smoke=False | params={'s1_k': 12, 's1_d': 3, 's4_k': 50, 'atr_period': 10, 'atr_sl_mult': 3.0, 'atr_tp_mult': 6.0, 'f6_s4_thresh': 79.5, 'f6_s1_thresh': 25.0, 'consec_loss': 8}
+OOS 2023 | days=246 | trades   907 | WR  34.8% | pts_net    -568.72 | Rs_net       -49,016 | PF  0.91 | fees +12,049.41 | 77.1s
+OOS 2024 | days=249 | trades   713 | WR  34.6% | pts_net     -84.83 | Rs_net       -17,352 | PF  0.97 | fees +11,837.73 | 78.4s
+OOS 2025 | days=249 | trades   723 | WR  32.1% | pts_net   -1317.08 | Rs_net       -97,147 | PF  0.84 | fees +11,536.72 | 81.7s
+OOS 2026 | days=82 | trades   238 | WR  35.3% | pts_net    -458.14 | Rs_net       -34,464 | PF  0.85 | fees +4,684.60 | 29.3s
+JSON: artifacts\f6_hybrid\backtest_champion_walkforward_2020_2026.json
+STITCHED NET | trades=2581 | pts=-2428.77 | Rs=-197,979 | fees=+40,108.46

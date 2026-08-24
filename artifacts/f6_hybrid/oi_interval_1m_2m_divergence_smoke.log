@@ -1,0 +1,75 @@
+{
+  "start": "2020-01-01",
+  "end": "2026-05-05",
+  "days": 5,
+  "workers": 8,
+  "timeframes": [
+    "1m",
+    "2m"
+  ],
+  "oi_threshold": 3000000.0,
+  "use_divergence": true,
+  "params": {
+    "s1_k": 9,
+    "s1_d": 3,
+    "s4_k": 60,
+    "atr_period": 14,
+    "atr_sl_mult": 2.0,
+    "atr_tp_mult": 6.0,
+    "fixed_sl_points": 10.0,
+    "fixed_tp_points": 15.0,
+    "timeframes": [
+      "1m",
+      "2m"
+    ],
+    "f6_s4_thresh": 79.5,
+    "f6_s1_thresh": 20.5,
+    "consec_loss": 4,
+    "use_divergence": true
+  },
+  "results": {
+    "0": {
+      "trades": 17,
+      "wr": 47.05882352941176,
+      "pts": -34.4,
+      "rs": -2236,
+      "pf": 0.59434
+    },
+    "1": {
+      "trades": 4,
+      "wr": 50.0,
+      "pts": 10.0,
+      "rs": 650,
+      "pf": 1.5
+    },
+    "2": {
+      "trades": 1,
+      "wr": 0.0,
+      "pts": -10.0,
+      "rs": -650,
+      "pf": 0.0
+    },
+    "3": {
+      "trades": 1,
+      "wr": 100.0,
+      "pts": 1.85,
+      "rs": 120,
+      "pf": Infinity
+    },
+    "5": {
+      "trades": 2,
+      "wr": 100.0,
+      "pts": 16.85,
+      "rs": 1095,
+      "pf": Infinity
+    },
+    "15": {
+      "trades": 1,
+      "wr": 100.0,
+      "pts": 15.0,
+      "rs": 975,
+      "pf": Infinity
+    }
+  }
+}
+JSON: artifacts\f6_hybrid\oi_interval_1m_2m_divergence_2020_2026_smoke.json

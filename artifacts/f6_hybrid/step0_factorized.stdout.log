@@ -1,0 +1,48 @@
+completed trials: 91 | distinct param sets: 33
+window 2020-01-01..2022-12-31: 748 days
+incremental runtime 2335.8s | signal builds 20944 | parity ok 33
+{
+  "window": [
+    "2020-01-01",
+    "2022-12-31"
+  ],
+  "days": 748,
+  "n_configs_evaluated": 33,
+  "n_reported_trials": 91,
+  "workers": 8,
+  "runtime_seconds": 2335.8,
+  "base_builds": 14212,
+  "signal_builds": 20944,
+  "parity_ok": 33,
+  "parity_mismatches": [],
+  "winner": {
+    "trial": 128,
+    "score": 829794.0,
+    "params": {
+      "s1_k": 7,
+      "s4_k": 50,
+      "atr_period": 10,
+      "atr_sl_mult": 3.0,
+      "atr_tp_mult": 6.0,
+      "f6_s4_thresh": 75.0,
+      "f6_s1_thresh": 20.5,
+      "consec_loss": 6,
+      "s1_d": 3
+    },
+    "daily_sr": 0.3594835505869134
+  },
+  "trials_sr_std": 0.04305975747906271,
+  "expected_max_sharpe": {
+    "actual": 0.09095948462142814,
+    "reported": 0.1075305982585959,
+    "worst": 0.17083164051570643
+  },
+  "deflated_sharpe": {
+    "actual_distinct": 1.0,
+    "reported_200": 0.9999999999999998,
+    "worst_case_15552": 0.9999999995404456
+  },
+  "pbo_cscv": {
+    "completed": 0.6256410256410256
+  }
+}

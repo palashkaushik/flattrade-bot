@@ -1,0 +1,19 @@
+[Unit]
+Description=Flattrade Discord Remote Control Supervisor (24/7)
+After=network.target network-online.target time-sync.target
+Wants=network-online.target time-sync.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/FLATTRADE_BOT
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/home/ubuntu/FLATTRADE_BOT
+ExecStart=/usr/bin/python3 -m flattrade_bot.discord_control
+Restart=always
+RestartSec=10s
+StandardOutput=append:/home/ubuntu/FLATTRADE_BOT/logs/discord_control.log
+StandardError=append:/home/ubuntu/FLATTRADE_BOT/logs/discord_control.log
+
+[Install]
+WantedBy=multi-user.target

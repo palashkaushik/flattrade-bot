@@ -1,0 +1,48 @@
+# Environment — never commit real credentials
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Data files (large CSVs, NPZ caches, large JSONs)
+*.csv
+*.parquet
+*.npz
+artifacts/f6_hybrid/tensor_cache/
+artifacts/f6_hybrid/smart_fib_grid_cache_full/
+artifacts/f6_hybrid/smart_fib_grid_cache_full_float64/
+artifacts/f6_hybrid/*.json
+artifacts/f6_hybrid/*.npz
+
+# Graphify outputs
+graphify-out/
+.graphify_*.json
+.graphify_*.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime and Scratch
+logs/
+scratch/

@@ -1,0 +1,105 @@
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+  1574 days × 375 bars in 2.1s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  288 tensors cached in 0.1s
+
+============================================================================================================================================
+PHASE 5d: FUSED 3D-BATCH GPU | 1×120×2 = 240 trials | FILTER=B07
+Position Lock [Y] | Slippage 1pt [Y] | Daily Cap [Y] | Cached Indicators [Y] | Batch=256
+============================================================================================================================================
+
+[01/1] B07: Best-TF CE+PE DD Target
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+  1574 days × 375 bars in 2.5s
+  TF=1m: 375 bars
+  1574 days × 375 bars in 2.5s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  1574 days × 375 bars in 2.6s
+  TF=1m: 375 bars
+  1574 days × 375 bars in 2.6s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  288 tensors cached in 0.1s
+  288 tensors cached in 0.2s
+  288 tensors cached in 0.2s
+  288 tensors cached in 0.2s
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+  1574 days × 375 bars in 2.6s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  1574 days × 375 bars in 2.6s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  1574 days × 375 bars in 2.6s
+  TF=1m: 375 bars
+  1574 days × 375 bars in 2.7s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  288 tensors cached in 0.2s
+  288 tensors cached in 0.2s
+  288 tensors cached in 0.2s
+  288 tensors cached in 0.2s
+  NW 11s: Rs +837,806 WR=96.1% PF=0.00 DD=Rs 256 T=673 CE=344 PE=329
+  WF 10s: IS=Rs +9,165 -> OOS=Rs +0 PF=0.00 WR=0.0% DD=Rs 0 WFE=0.0
+  Params NW: {'daily_loss_pts': 4, 'max_trade_loss_rs': 5000, 'sess_start_off': 0, 'sess_end_off': 30, 'timeframe': 2, 's1_k': 9, 's4_k': 95, 'atr_p': 21, 's1_os': 28.0, 's4_ob': 72.0, 'sl_m': 1.8, 'tp_m': 3.25}
+  Params WF: {'daily_loss_pts': 20, 'max_trade_loss_rs': 9999, 'sess_start_off': 5, 'sess_end_off': 75, 'timeframe': 1, 's1_k': 15, 's4_k': 20, 'atr_p': 31, 's1_os': 38.0, 's4_ob': 74.5, 'sl_m': 1.3, 'tp_m': 3.25}
+
+================================================================================================================================================================
+PHASE 5d LEADERBOARD (240 TRIALS IN 20.9s = 11 t/s) — FUSED 3D-BATCH CAUSAL
+================================================================================================================================================================
+
+NW#  OOS#  Strategy                                           NW PnL     PF     WR         DD        OOS PnL     PF     WR         DD   WFE      CE/PE
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+[ 1] [ 1]  B07: Best-TF CE+PE DD Target               Rs    +837,806  0.00 96.1% Rs     256 Rs          +0  0.00  0.0% Rs       0 0.00        0/0 ***
+
+DD COMPARISON:
+  B07: Best-TF CE+PE DD Target              : DD=Rs       0 (999%) CE=Rs         +0 PE=Rs         +0 Max Trade SL=Rs9999
+
+Saved: C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\master_phase5d_causal_fused.json

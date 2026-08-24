@@ -1,0 +1,74 @@
+{
+  "start": "2020-01-01",
+  "end": "2024-12-31",
+  "days": 1243,
+  "smoke": false,
+  "mode": "no_divergence",
+  "params": {
+    "s1_k": 12,
+    "s1_d": 3,
+    "s4_k": 50,
+    "atr_period": 10,
+    "atr_sl_mult": 3.0,
+    "atr_tp_mult": 6.0,
+    "f6_s4_thresh": 79.5,
+    "f6_s1_thresh": 25.0,
+    "consec_loss": 8
+  },
+  "engine": "causal clock-aligned live parity",
+  "costs": {
+    "slippage_points_per_side": 1.0,
+    "brokerage_per_order": 0.0
+  },
+  "stats": {
+    "trades": 3433,
+    "win_rate": 32.53713952810953,
+    "net_rs": -672834,
+    "net_points": -10351.29,
+    "fees": 50463.78,
+    "pf": 0.8032
+  },
+  "yearly": {
+    "2020": {
+      "trades": 748,
+      "win_rate": 32.887700534759354,
+      "net_rs": -102324,
+      "net_points": -1574.21,
+      "fees": 10760.24,
+      "pf": 0.8464
+    },
+    "2021": {
+      "trades": 679,
+      "win_rate": 29.749631811487482,
+      "net_rs": -225543,
+      "net_points": -3469.9,
+      "fees": 9537.24,
+      "pf": 0.6669
+    },
+    "2022": {
+      "trades": 617,
+      "win_rate": 32.090761750405186,
+      "net_rs": -155149,
+      "net_points": -2386.91,
+      "fees": 9854.45,
+      "pf": 0.7756
+    },
+    "2023": {
+      "trades": 747,
+      "win_rate": 33.33333333333333,
+      "net_rs": -119240,
+      "net_points": -1834.47,
+      "fees": 9682.91,
+      "pf": 0.8073
+    },
+    "2024": {
+      "trades": 642,
+      "win_rate": 34.57943925233645,
+      "net_rs": -70577,
+      "net_points": -1085.8,
+      "fees": 10628.94,
+      "pf": 0.9078
+    }
+  }
+}
+JSON: artifacts\f6_hybrid\causal_f6_16l_no_divergence_2020_2024.json

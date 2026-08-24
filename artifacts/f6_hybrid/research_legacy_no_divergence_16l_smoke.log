@@ -1,0 +1,36 @@
+{
+  "runner": "backtest_monthly_ramp with legacy rolling-close divergence",
+  "start": "2020-01-01",
+  "end": "2024-12-31",
+  "days": 5,
+  "smoke": true,
+  "params": {
+    "s1_k": 12,
+    "s1_d": 3,
+    "s4_k": 50,
+    "atr_period": 10,
+    "atr_sl_mult": 3.0,
+    "atr_tp_mult": 6.0,
+    "f6_s4_thresh": 79.5,
+    "f6_s1_thresh": 25.0,
+    "consec_loss": 8,
+    "use_divergence": false
+  },
+  "stats": {
+    "trades": 18,
+    "wr": 44.44444444444444,
+    "pts": 118.89,
+    "rs": 7728,
+    "pf": 2.660011170064228
+  },
+  "yearly": {
+    "2020": {
+      "trades": 18,
+      "wr": 44.44444444444444,
+      "pts": 118.89,
+      "rs": 7728,
+      "pf": 2.660011170064228
+    }
+  }
+}
+JSON: artifacts\f6_hybrid\research_legacy_no_divergence_16l_2020_2024_smoke.json

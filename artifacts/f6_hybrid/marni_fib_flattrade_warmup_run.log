@@ -1,0 +1,29 @@
+multiprocessing.pool.RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\pool.py", line 125, in worker
+    result = (True, func(*args, **kwds))
+                    ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\pool.py", line 51, in starmapstar
+    return list(itertools.starmap(args[0], args[1]))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\marni_fib_flattrade_cache.py", line 149, in run_day
+    "option_entry": option_row["close"],
+                    ^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'option_row' where it is not associated with a value
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\marni_fib_flattrade_cache.py", line 240, in <module>
+    main()
+  File "C:\Websites\FLATTRADE BOT\artifacts\f6_hybrid\marni_fib_flattrade_cache.py", line 202, in main
+    for task, result in zip(tasks, pool.starmap(run_day, tasks)):
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\pool.py", line 375, in starmap
+    return self._map_async(func, iterable, starmapstar, chunksize).get()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\pool.py", line 774, in get
+    raise self._value
+UnboundLocalError: cannot access local variable 'option_row' where it is not associated with a value

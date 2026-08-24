@@ -1,0 +1,3 @@
+C:\Websites\FLATTRADE BOT\grid_optimize_f6_atr.py:517: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  sampler = optuna.samplers.TPESampler(multivariate=True, seed=42)
+[I 2026-08-06 12:10:30,561] A new study created in memory with name: no-name-9df483c8-0a4b-4ba5-9481-51c18f598a50

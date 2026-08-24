@@ -1,0 +1,48 @@
+{
+  "start": "2020-01-01",
+  "end": "2026-05-05",
+  "days": 5,
+  "workers": 8,
+  "timeframes": [
+    "1m",
+    "2m"
+  ],
+  "filter": "price_volume_oi",
+  "strict": true,
+  "use_divergence": true,
+  "params": {
+    "s1_k": 12,
+    "s1_d": 3,
+    "s4_k": 50,
+    "atr_period": 10,
+    "atr_sl_mult": 3.0,
+    "atr_tp_mult": 6.0,
+    "fixed_sl_points": 10.0,
+    "fixed_tp_points": 15.0,
+    "timeframes": [
+      "1m",
+      "2m"
+    ],
+    "f6_s4_thresh": 79.5,
+    "f6_s1_thresh": 25.0,
+    "consec_loss": 8,
+    "use_divergence": true
+  },
+  "results": {
+    "0": {
+      "trades": 18,
+      "wr": 33.33333333333333,
+      "pts": -40.2,
+      "rs": -2613,
+      "pf": 0.556291
+    },
+    "15": {
+      "trades": 4,
+      "wr": 75.0,
+      "pts": 35.0,
+      "rs": 2275,
+      "pf": 4.5
+    }
+  }
+}
+JSON: artifacts\f6_hybrid\research_champion_12_50_pvoi_15m_divergence_2020_2026_smoke.json

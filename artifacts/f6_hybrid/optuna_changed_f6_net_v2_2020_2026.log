@@ -1,0 +1,5 @@
+REORDERED SEARCH | days=1574 | resources=[5, 20, 60, 1574] | trials=40 | batch=8 | workers=8 | f6=79.5/20.5
+C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\optuna\_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[I 2026-08-12 04:24:54,979] A new study created in memory with name: no-name-6ba6a6d3-6c14-42a8-ba61-9af93dbd2f06
+SEARCH COMPLETE | completed=15 | pruned=25 | seconds=4607.8 | json=artifacts\f6_hybrid\optuna_changed_f6_net_v2_2020_2026_20260811T225454Z.json

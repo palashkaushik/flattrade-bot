@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Autonomous Start Timer for Flattrade Bot (09:05 AM IST Mon-Fri)
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 09:05:00 Asia/Kolkata
+Persistent=false
+Unit=flattrade-bot.service
+
+[Install]
+WantedBy=timers.target

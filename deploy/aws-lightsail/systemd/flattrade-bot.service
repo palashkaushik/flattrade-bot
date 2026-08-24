@@ -1,0 +1,21 @@
+[Unit]
+Description=Flattrade Combined Supreme Live Trading Bot
+After=network.target network-online.target time-sync.target
+Wants=network-online.target time-sync.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/FLATTRADE_BOT
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/home/ubuntu/FLATTRADE_BOT
+ExecStart=/usr/bin/python3 -m flattrade_bot.undisputed_main --live
+Restart=on-failure
+RestartSec=10s
+KillMode=mixed
+TimeoutStopSec=30s
+StandardOutput=append:/home/ubuntu/FLATTRADE_BOT/logs/combined_supreme_bot.log
+StandardError=append:/home/ubuntu/FLATTRADE_BOT/logs/combined_supreme_bot.log
+
+[Install]
+WantedBy=multi-user.target

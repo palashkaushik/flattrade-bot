@@ -1,0 +1,1029 @@
+2026-08-07 23:08:01,937 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-07 23:08:01,937 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-07 23:08:01,948 [INFO] discord.client: logging in using static token
+2026-08-07 23:08:04,206 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-07 23:08:05,168 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: c9724005c428b3cf1a72b77fd8ebf2fa).
+2026-08-07 23:08:07,204 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-07 23:08:07,205 [INFO] flattrade_bot.discord_control: Scheduled bot stop completed.
+2026-08-07 23:53:16,306 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-07 23:53:16,306 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-07 23:53:16,315 [INFO] discord.client: logging in using static token
+2026-08-07 23:53:17,997 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-07 23:53:18,906 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 5f84a5ca3e38776910e16b35966fa2fc).
+2026-08-07 23:53:20,920 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-07 23:53:20,920 [INFO] flattrade_bot.discord_control: Scheduled bot stop completed.
+2026-08-08 00:08:30,744 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-08 00:08:30,744 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-08 00:08:30,754 [INFO] discord.client: logging in using static token
+2026-08-08 00:08:32,469 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-08 00:08:33,359 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 69efbf6e1de754be47961d02e45033bf).
+2026-08-08 00:08:35,365 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-08 00:16:53,353 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-08 00:16:53,353 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-08 00:16:53,365 [INFO] discord.client: logging in using static token
+2026-08-08 00:16:54,867 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-08 00:16:55,862 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 22783f1ca93f075e6143ee5edc0a88dc).
+2026-08-08 00:16:57,871 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-08 02:06:10,435 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 22783f1ca93f075e6143ee5edc0a88dc.
+2026-08-08 09:01:21,953 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-08 09:01:21,954 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-08 09:01:21,984 [INFO] discord.client: logging in using static token
+2026-08-08 09:01:23,952 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-08 09:01:24,824 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: a33a5da097fac7f30e41f3ff56fb1062).
+2026-08-08 09:01:26,920 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-08 10:20:28,278 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-08 10:20:28,278 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-08 10:20:28,295 [INFO] discord.client: logging in using static token
+2026-08-08 10:20:30,059 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-08 10:20:31,245 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: c55f31540bca03a4ccf2724b429c0357).
+2026-08-08 10:20:33,343 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-08 11:39:15,799 [INFO] discord.gateway: Shard ID None has successfully RESUMED session c55f31540bca03a4ccf2724b429c0357.
+2026-08-08 12:05:32,320 [INFO] discord.gateway: Shard ID None has successfully RESUMED session c55f31540bca03a4ccf2724b429c0357.
+2026-08-08 13:02:38,500 [INFO] discord.gateway: Shard ID None has successfully RESUMED session c55f31540bca03a4ccf2724b429c0357.
+2026-08-08 13:04:01,118 [INFO] discord.gateway: Shard ID None has successfully RESUMED session c55f31540bca03a4ccf2724b429c0357.
+2026-08-08 13:59:35,747 [INFO] discord.gateway: Shard ID None has successfully RESUMED session c55f31540bca03a4ccf2724b429c0357.
+2026-08-08 17:31:25,294 [INFO] discord.gateway: Shard ID None has successfully RESUMED session c55f31540bca03a4ccf2724b429c0357.
+2026-08-08 17:32:47,886 [INFO] discord.gateway: Shard ID None has successfully RESUMED session c55f31540bca03a4ccf2724b429c0357.
+2026-08-08 20:35:18,916 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-08 20:35:18,917 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-08 20:35:18,962 [INFO] discord.client: logging in using static token
+2026-08-08 20:35:20,964 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-08 20:35:21,944 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 61233360ca3697701dd8bb5ec6afab99).
+2026-08-08 20:35:23,958 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-08 20:45:00,523 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-08 20:45:00,523 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-08 20:45:00,552 [INFO] discord.client: logging in using static token
+2026-08-08 20:45:02,067 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-08 20:45:02,938 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: dcd5abb45b2bf97d08b86b67303a38f0).
+2026-08-08 20:45:04,946 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-08 21:17:38,813 [INFO] discord.gateway: Shard ID None has successfully RESUMED session dcd5abb45b2bf97d08b86b67303a38f0.
+2026-08-09 00:48:59,847 [INFO] discord.gateway: Shard ID None has successfully RESUMED session dcd5abb45b2bf97d08b86b67303a38f0.
+2026-08-09 09:01:23,220 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-09 09:01:23,220 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-09 09:01:23,236 [INFO] discord.client: logging in using static token
+2026-08-09 09:01:25,747 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-09 09:01:26,634 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: ecaa8a8123c3c1e975ed8a0ef59cc46f).
+2026-08-09 09:01:29,013 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-09 12:11:45,371 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-09 12:11:45,372 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-09 12:11:45,401 [INFO] discord.client: logging in using static token
+2026-08-09 12:11:47,031 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-09 12:11:48,016 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 77e943ec28cf83bdf22a4274dda97cbc).
+2026-08-09 12:11:50,111 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-09 14:37:00,123 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 77e943ec28cf83bdf22a4274dda97cbc.
+2026-08-09 14:38:23,077 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 77e943ec28cf83bdf22a4274dda97cbc.
+2026-08-09 15:24:13,141 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 77e943ec28cf83bdf22a4274dda97cbc.
+2026-08-09 16:55:49,429 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 77e943ec28cf83bdf22a4274dda97cbc.
+2026-08-09 17:36:26,006 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-09 17:36:26,006 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-09 17:36:26,020 [INFO] discord.client: logging in using static token
+2026-08-09 17:36:27,649 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-09 17:36:28,650 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: e2649f7d2c5c729ead7a63d112d1a5a3).
+2026-08-09 17:36:30,797 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-09 18:43:11,032 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e2649f7d2c5c729ead7a63d112d1a5a3.
+2026-08-09 18:43:52,673 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e2649f7d2c5c729ead7a63d112d1a5a3.
+2026-08-09 18:52:50,787 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e2649f7d2c5c729ead7a63d112d1a5a3.
+2026-08-09 18:53:32,173 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e2649f7d2c5c729ead7a63d112d1a5a3.
+2026-08-09 18:53:33,030 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e2649f7d2c5c729ead7a63d112d1a5a3.
+2026-08-09 18:54:55,957 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e2649f7d2c5c729ead7a63d112d1a5a3.
+2026-08-09 19:58:34,869 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e2649f7d2c5c729ead7a63d112d1a5a3.
+2026-08-09 21:30:15,682 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e2649f7d2c5c729ead7a63d112d1a5a3.
+2026-08-09 23:05:09,906 [WARNING] discord.gateway: Can't keep up, shard ID None websocket is 41.7s behind.
+2026-08-09 23:32:01,176 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e2649f7d2c5c729ead7a63d112d1a5a3.
+2026-08-10 01:37:06,948 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-10 01:37:06,948 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-10 01:37:06,994 [INFO] discord.client: logging in using static token
+2026-08-10 01:37:09,082 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-10 01:37:09,962 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 1cf620c37b41caca68ed73d46e703199).
+2026-08-10 01:37:11,976 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-10 02:12:31,119 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1cf620c37b41caca68ed73d46e703199.
+2026-08-10 05:48:46,535 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1cf620c37b41caca68ed73d46e703199.
+2026-08-10 08:28:24,896 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1cf620c37b41caca68ed73d46e703199.
+2026-08-10 09:15:00,651 [INFO] flattrade_bot.discord_control: Scheduled live bot start completed.
+2026-08-10 11:23:10,165 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1cf620c37b41caca68ed73d46e703199.
+2026-08-10 12:22:59,967 [WARNING] discord.gateway: Can't keep up, shard ID None websocket is 41.7s behind.
+2026-08-10 14:49:29,475 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1cf620c37b41caca68ed73d46e703199.
+2026-08-10 15:00:03,186 [INFO] flattrade_bot.discord_control: Scheduled bot stop completed.
+2026-08-10 18:05:55,513 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1cf620c37b41caca68ed73d46e703199.
+2026-08-10 18:34:11,282 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1cf620c37b41caca68ed73d46e703199.
+2026-08-10 20:26:27,604 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1cf620c37b41caca68ed73d46e703199.
+2026-08-10 20:55:58,020 [ERROR] discord.client: Attempting a reconnect in 0.03s
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\tasks.py", line 500, in wait_for
+    return fut.result()
+           ^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\gateway.py", line 392, in from_client
+    socket = await client.http.ws_connect(str(url))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\http.py", line 571, in ws_connect
+    return await self.__session.ws_connect(url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\client.py", line 1244, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\client.py", line 856, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\client.py", line 810, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 657, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1242, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1589, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1301, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohappyeyeballs\impl.py", line 87, in start_connection
+    sock, _, _ = await _staggered.staggered_race(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohappyeyeballs\_staggered.py", line 165, in staggered_race
+    done = await _wait_one(
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohappyeyeballs\_staggered.py", line 46, in _wait_one
+    return await wait_next
+           ^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\client.py", line 728, in connect
+    self.ws = await asyncio.wait_for(coro, timeout=60.0)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\tasks.py", line 502, in wait_for
+    raise exceptions.TimeoutError() from exc
+TimeoutError
+2026-08-10 20:56:49,718 [INFO] discord.gateway: Shard ID None session has been invalidated.
+2026-08-10 20:56:55,906 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 6bff65fef07c3920436c076f113e59cb).
+2026-08-10 20:56:57,948 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-10 21:38:40,496 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 6bff65fef07c3920436c076f113e59cb.
+2026-08-10 23:31:46,157 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 6bff65fef07c3920436c076f113e59cb.
+2026-08-11 01:37:58,357 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 6bff65fef07c3920436c076f113e59cb.
+2026-08-11 04:13:48,421 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 6bff65fef07c3920436c076f113e59cb.
+2026-08-11 04:31:00,492 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 6bff65fef07c3920436c076f113e59cb.
+2026-08-11 05:52:08,002 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 6bff65fef07c3920436c076f113e59cb.
+2026-08-11 07:20:43,856 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 6bff65fef07c3920436c076f113e59cb.
+2026-08-11 09:15:02,150 [INFO] flattrade_bot.discord_control: Scheduled live bot start completed.
+2026-08-11 09:20:23,149 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 6bff65fef07c3920436c076f113e59cb.
+2026-08-11 10:43:10,914 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-11 10:43:10,914 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-11 10:43:10,940 [INFO] discord.client: logging in using static token
+2026-08-11 10:43:12,897 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-11 10:43:13,858 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 130b1ecf568655929cbf574de13f3a49).
+2026-08-11 10:43:15,926 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-11 12:05:54,875 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-11 12:05:54,891 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-11 12:05:54,970 [INFO] discord.client: logging in using static token
+2026-08-11 12:05:57,291 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-11 12:05:58,746 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 6cb43bfc3f6d4543eee42f85d81b7d38).
+2026-08-11 12:06:00,747 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-11 13:52:16,946 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 6cb43bfc3f6d4543eee42f85d81b7d38.
+2026-08-11 15:00:03,596 [INFO] flattrade_bot.discord_control: Scheduled bot stop completed.
+2026-08-11 20:23:33,771 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-11 20:23:33,771 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-11 20:23:33,803 [INFO] discord.client: logging in using static token
+2026-08-11 20:23:36,081 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-11 20:23:37,234 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 868f3a31a1b66734169e1e6ef06e11d1).
+2026-08-11 20:23:39,245 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-11 20:23:39,245 [INFO] flattrade_bot.discord_control: Scheduled bot stop completed.
+2026-08-11 22:26:49,923 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 868f3a31a1b66734169e1e6ef06e11d1.
+2026-08-11 22:52:26,426 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 868f3a31a1b66734169e1e6ef06e11d1.
+2026-08-12 00:39:39,148 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 868f3a31a1b66734169e1e6ef06e11d1.
+2026-08-12 03:29:17,100 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 868f3a31a1b66734169e1e6ef06e11d1.
+2026-08-12 06:05:32,967 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 868f3a31a1b66734169e1e6ef06e11d1.
+2026-08-12 07:21:03,612 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 868f3a31a1b66734169e1e6ef06e11d1.
+2026-08-12 07:54:24,944 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 868f3a31a1b66734169e1e6ef06e11d1.
+2026-08-12 08:59:59,024 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 868f3a31a1b66734169e1e6ef06e11d1.
+2026-08-12 09:15:02,858 [INFO] flattrade_bot.discord_control: Scheduled live bot start completed.
+2026-08-12 09:28:44,850 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-12 09:28:44,851 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-12 09:28:44,866 [INFO] discord.client: logging in using static token
+2026-08-12 09:28:46,349 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-12 09:28:47,519 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 9375e43494221167b3ea8e0740f3dc95).
+2026-08-12 09:28:49,528 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-12 09:51:18,511 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-12 09:51:18,511 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-12 09:51:18,520 [INFO] discord.client: logging in using static token
+2026-08-12 09:51:20,475 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-12 09:51:21,376 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 9566f461798a688837f171213633f5b7).
+2026-08-12 09:51:23,398 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-12 09:52:56,485 [ERROR] discord.app_commands.tree: Ignoring exception in command 'stop'
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\app_commands\commands.py", line 859, in _do_call
+    return await self._callback(interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 158, in trading_stop
+    await run_stop(interaction)
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 135, in run_stop
+    await interaction.response.defer(ephemeral=True)
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\interactions.py", line 892, in defer
+    response = await adapter.create_interaction_response(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\webhook\async_.py", line 224, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\app_commands\tree.py", line 1302, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\app_commands\commands.py", line 884, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\app_commands\commands.py", line 877, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'stop' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2026-08-12 09:53:03,635 [ERROR] discord.app_commands.tree: Ignoring exception in command 'start'
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\app_commands\commands.py", line 859, in _do_call
+    return await self._callback(interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 151, in trading_start
+    await run_start(interaction)
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 127, in run_start
+    await interaction.response.defer(ephemeral=True)
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\interactions.py", line 892, in defer
+    response = await adapter.create_interaction_response(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\webhook\async_.py", line 224, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\app_commands\tree.py", line 1302, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\app_commands\commands.py", line 884, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\app_commands\commands.py", line 877, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'start' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2026-08-12 10:34:43,789 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-12 10:34:43,789 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-12 10:34:43,803 [INFO] discord.client: logging in using static token
+2026-08-12 10:34:45,142 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-12 10:34:46,168 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: cd9b119e4e320d3adb90947f82144d45).
+2026-08-12 10:34:48,177 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-12 11:25:35,795 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-12 11:25:35,795 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-12 11:25:35,803 [INFO] discord.client: logging in using static token
+2026-08-12 11:25:38,135 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-12 11:25:39,284 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 7c05275ff5cadba65e29b5d3b2c29e0d).
+2026-08-12 11:25:41,288 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-13 09:01:21,346 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-13 09:01:21,346 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-13 09:01:21,378 [INFO] discord.client: logging in using static token
+2026-08-13 09:01:23,404 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-13 09:01:24,278 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 201e2225649e514db51d061e5d303ddd).
+2026-08-13 09:01:26,676 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-13 09:15:04,856 [INFO] flattrade_bot.discord_control: Scheduled live bot start completed.
+2026-08-13 09:20:11,903 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 201e2225649e514db51d061e5d303ddd.
+2026-08-13 10:11:21,515 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 201e2225649e514db51d061e5d303ddd.
+2026-08-13 10:25:38,912 [ERROR] discord.client: Attempting a reconnect in 1.89s
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1571, in _create_direct_connection
+    hosts = await self._resolve_host(host, port, traces=traces)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1181, in _resolve_host
+    return await asyncio.shield(resolved_host_task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1212, in _resolve_host_with_throttle
+    addrs = await self._resolver.resolve(host, port, family=self._family)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\resolver.py", line 40, in resolve
+    infos = await self._loop.getaddrinfo(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\base_events.py", line 868, in getaddrinfo
+    return await self.run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\socket.py", line 974, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno 11001] getaddrinfo failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\client.py", line 728, in connect
+    self.ws = await asyncio.wait_for(coro, timeout=60.0)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\tasks.py", line 489, in wait_for
+    return fut.result()
+           ^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\gateway.py", line 392, in from_client
+    socket = await client.http.ws_connect(str(url))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\http.py", line 571, in ws_connect
+    return await self.__session.ws_connect(url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\client.py", line 1244, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\client.py", line 856, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\client.py", line 810, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 657, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1242, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1577, in _create_direct_connection
+    raise ClientConnectorDNSError(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorDNSError: Cannot connect to host gateway-us-east1-c.discord.gg:443 ssl:default [getaddrinfo failed]
+2026-08-13 10:25:40,922 [ERROR] discord.client: Attempting a reconnect in 2.36s
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1571, in _create_direct_connection
+    hosts = await self._resolve_host(host, port, traces=traces)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1181, in _resolve_host
+    return await asyncio.shield(resolved_host_task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1212, in _resolve_host_with_throttle
+    addrs = await self._resolver.resolve(host, port, family=self._family)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\resolver.py", line 40, in resolve
+    infos = await self._loop.getaddrinfo(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\base_events.py", line 868, in getaddrinfo
+    return await self.run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\socket.py", line 974, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno 11001] getaddrinfo failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\client.py", line 728, in connect
+    self.ws = await asyncio.wait_for(coro, timeout=60.0)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\tasks.py", line 489, in wait_for
+    return fut.result()
+           ^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\gateway.py", line 392, in from_client
+    socket = await client.http.ws_connect(str(url))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\http.py", line 571, in ws_connect
+    return await self.__session.ws_connect(url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\client.py", line 1244, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\client.py", line 856, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\client.py", line 810, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 657, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1242, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\aiohttp\connector.py", line 1577, in _create_direct_connection
+    raise ClientConnectorDNSError(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorDNSError: Cannot connect to host gateway-us-east1-c.discord.gg:443 ssl:default [getaddrinfo failed]
+2026-08-13 10:25:44,057 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 201e2225649e514db51d061e5d303ddd.
+2026-08-13 10:27:33,427 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-13 10:27:33,427 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-13 10:27:33,435 [INFO] discord.client: logging in using static token
+2026-08-13 10:27:35,029 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-13 10:27:36,041 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: a5f20fb8f853f8d7d6d5c7cabdc6f35f).
+2026-08-13 10:27:38,048 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-13 10:48:14,241 [INFO] discord.gateway: Shard ID None has successfully RESUMED session a5f20fb8f853f8d7d6d5c7cabdc6f35f.
+2026-08-13 10:49:37,147 [INFO] discord.gateway: Shard ID None has successfully RESUMED session a5f20fb8f853f8d7d6d5c7cabdc6f35f.
+2026-08-13 12:37:31,735 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-13 12:37:31,735 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-13 12:37:31,746 [INFO] discord.client: logging in using static token
+2026-08-13 12:37:33,459 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-13 12:37:34,398 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 59ff4e86ccef5f8f713aa57b4bfb5855).
+2026-08-13 12:37:36,410 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-13 12:39:29,063 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-13 12:39:29,063 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-13 12:39:29,077 [INFO] discord.client: logging in using static token
+2026-08-13 12:39:30,828 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-13 12:39:31,702 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: dab3ef733371be699ebfc05c3bd089cd).
+2026-08-13 12:39:33,721 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-13 12:51:13,043 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-13 12:51:13,044 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-13 12:51:13,052 [INFO] discord.client: logging in using static token
+2026-08-13 12:51:14,784 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-13 12:51:16,141 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 252f6e53bd58d301a354ea9f8a675eff).
+2026-08-13 12:51:18,151 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-13 13:19:07,988 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-13 13:44:28,010 [ERROR] discord.app_commands.tree: Ignoring exception in command 'stop'
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\app_commands\commands.py", line 859, in _do_call
+    return await self._callback(interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 193, in trading_stop
+    await run_stop(interaction)
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 165, in run_stop
+    requested = await asyncio.to_thread(manager.request_stop)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 397, in request_stop
+    self._attach_persisted_process()
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 257, in _attach_persisted_process
+    if not self._pid_probe(pid):
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 21, in _pid_is_alive
+    os.kill(pid, 0)
+SystemError: <built-in function kill> returned a result with an exception set
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\app_commands\tree.py", line 1302, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\app_commands\commands.py", line 884, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\discord\app_commands\commands.py", line 877, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'stop' raised an exception: SystemError: <built-in function kill> returned a result with an exception set
+2026-08-13 15:00:04,143 [INFO] flattrade_bot.discord_control: Scheduled bot stop completed.
+2026-08-13 17:10:55,647 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-13 17:54:17,380 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-13 17:54:58,713 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-13 17:58:26,913 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-13 17:59:08,257 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-13 18:14:49,241 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-13 18:34:09,886 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-13 20:23:23,017 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-13 20:59:37,269 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-13 22:22:46,672 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 01:17:27,089 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 03:06:47,824 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 03:50:22,652 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 05:21:37,662 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 06:18:54,411 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 08:19:56,875 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 09:15:18,368 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 351, in start
+    pid = self._launch_visible_task(args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 213, in _launch_visible_task
+    if pid is not None and self._pid_probe(pid):
+                           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 21, in _pid_is_alive
+    os.kill(pid, 0)
+SystemError: <built-in function kill> returned a result with an exception set
+2026-08-14 09:15:33,636 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 351, in start
+    pid = self._launch_visible_task(args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 213, in _launch_visible_task
+    if pid is not None and self._pid_probe(pid):
+                           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 21, in _pid_is_alive
+    os.kill(pid, 0)
+SystemError: <built-in function kill> returned a result with an exception set
+2026-08-14 09:15:48,679 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 351, in start
+    pid = self._launch_visible_task(args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 213, in _launch_visible_task
+    if pid is not None and self._pid_probe(pid):
+                           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 21, in _pid_is_alive
+    os.kill(pid, 0)
+SystemError: <built-in function kill> returned a result with an exception set
+2026-08-14 09:16:03,948 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:16:21,275 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:16:38,600 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:16:55,929 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:17:13,247 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:17:30,569 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:17:47,889 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:18:05,062 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:18:21,783 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:18:38,720 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:18:55,642 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:19:12,776 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:19:29,703 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:19:46,636 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 09:20:03,766 [ERROR] flattrade_bot.discord_control: Discord control scheduler iteration failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 224, in schedule_loop
+    if await asyncio.to_thread(manager.start, True):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 10:11:09,813 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 10:24:28,458 [ERROR] flattrade_bot.discord_control: Discord start command failed
+OSError: [WinError 87] The parameter is incorrect
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 147, in run_start
+    started = await asyncio.to_thread(manager.start, True, visible_console=visible_console)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 356, in start
+    self._started_at = datetime.now()
+                       ^^^^^^^^^^^^^^
+SystemError: <built-in method now of type object at 0x00007FF9C5C5E2C0> returned a result with an exception set
+2026-08-14 13:41:58,557 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 15:00:07,014 [INFO] flattrade_bot.discord_control: Scheduled bot stop completed.
+2026-08-14 16:36:39,272 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 16:37:20,961 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 17:18:02,524 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 17:36:37,203 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 17:37:18,868 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 19:52:49,922 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 19:54:12,565 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 20:58:51,716 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 21:00:14,645 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 23:27:12,063 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-14 23:54:08,440 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-15 01:44:32,410 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-15 02:27:09,007 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-15 02:27:50,662 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-15 03:04:55,955 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 252f6e53bd58d301a354ea9f8a675eff.
+2026-08-15 04:59:56,495 [WARNING] discord.gateway: Can't keep up, shard ID None websocket is 46.7s behind.
+2026-08-15 06:17:38,629 [INFO] discord.gateway: Shard ID None session has been invalidated.
+2026-08-15 06:17:46,069 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 0d6588c507ef0ba41138ad4c3d31cd35).
+2026-08-15 06:17:48,972 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-15 10:49:05,195 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-15 10:49:05,195 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-15 10:49:05,211 [INFO] discord.client: logging in using static token
+2026-08-15 10:49:06,782 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-15 10:49:07,725 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 409b989c232f1f24f8fa7c1b58dbcb19).
+2026-08-15 10:49:09,786 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-15 12:55:38,910 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 409b989c232f1f24f8fa7c1b58dbcb19.
+2026-08-15 14:34:22,739 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 409b989c232f1f24f8fa7c1b58dbcb19.
+2026-08-15 17:18:17,104 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 409b989c232f1f24f8fa7c1b58dbcb19.
+2026-08-15 18:24:34,964 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-15 18:24:34,964 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-15 18:24:34,988 [INFO] discord.client: logging in using static token
+2026-08-15 18:24:36,525 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-15 18:24:37,421 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: e066d1b6f25a0b524f30e940117381aa).
+2026-08-15 18:24:39,429 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-15 19:21:47,928 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e066d1b6f25a0b524f30e940117381aa.
+2026-08-15 20:25:00,229 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e066d1b6f25a0b524f30e940117381aa.
+2026-08-15 22:32:27,630 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e066d1b6f25a0b524f30e940117381aa.
+2026-08-15 22:33:50,568 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e066d1b6f25a0b524f30e940117381aa.
+2026-08-16 12:49:50,458 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-16 12:49:50,458 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-16 12:49:50,474 [INFO] discord.client: logging in using static token
+2026-08-16 12:49:51,986 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-16 12:49:53,003 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 4993dbe1370771c46e64d0eb683b6344).
+2026-08-16 12:49:55,139 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-16 15:56:25,567 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 4993dbe1370771c46e64d0eb683b6344.
+2026-08-16 16:40:51,120 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 4993dbe1370771c46e64d0eb683b6344.
+2026-08-16 19:11:34,869 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 4993dbe1370771c46e64d0eb683b6344.
+2026-08-16 19:56:31,456 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 4993dbe1370771c46e64d0eb683b6344.
+2026-08-17 09:01:23,667 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-17 09:01:23,668 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-17 09:01:23,694 [INFO] discord.client: logging in using static token
+2026-08-17 09:01:25,748 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-17 09:01:26,927 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: e624b9ab4b28ec08034501213d49d297).
+2026-08-17 09:01:29,074 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-17 09:15:16,186 [INFO] flattrade_bot.discord_control: Scheduled live bot start completed.
+2026-08-17 09:50:22,731 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 10:00:27,198 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 10:19:45,570 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 12:53:51,436 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 13:27:50,649 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 13:33:22,792 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 13:34:45,413 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 14:41:09,376 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 15:00:06,317 [INFO] flattrade_bot.discord_control: Scheduled bot stop completed.
+2026-08-17 16:34:25,829 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 19:49:21,800 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 19:57:07,906 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 21:21:43,135 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 22:30:11,587 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-17 23:52:05,903 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 00:34:03,165 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 00:51:15,150 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 01:03:34,494 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 01:35:12,820 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 02:07:35,507 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 04:30:16,430 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 04:51:00,505 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 07:45:41,729 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 08:31:46,179 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 08:51:43,125 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 08:54:28,586 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 08:57:15,351 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 08:58:37,974 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 09:11:02,300 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 09:15:15,782 [INFO] flattrade_bot.discord_control: Scheduled live bot start completed.
+2026-08-18 09:15:51,240 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 09:20:41,769 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 09:22:45,653 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 09:29:38,771 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 09:30:20,485 [INFO] discord.gateway: Shard ID None has successfully RESUMED session e624b9ab4b28ec08034501213d49d297.
+2026-08-18 10:12:16,968 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-18 10:12:16,969 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-18 10:12:16,974 [INFO] discord.client: logging in using static token
+2026-08-18 10:12:18,307 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-18 10:12:20,566 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: d33a73c64803cf3d5fa251e565082a94).
+2026-08-18 10:12:22,594 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-18 11:57:32,553 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 12:01:59,865 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 12:19:11,838 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 12:22:57,011 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 12:42:54,014 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 13:17:20,515 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 13:19:24,770 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 15:00:04,171 [INFO] flattrade_bot.discord_control: Scheduled bot stop completed.
+2026-08-18 15:49:44,582 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 18:29:31,451 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 19:30:22,539 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 21:23:04,703 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 22:02:25,253 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 22:10:40,923 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-18 23:01:37,620 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-19 01:26:40,514 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-19 01:52:32,322 [INFO] discord.gateway: Shard ID None has successfully RESUMED session d33a73c64803cf3d5fa251e565082a94.
+2026-08-19 09:01:24,625 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-19 09:01:24,625 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-19 09:01:24,635 [INFO] discord.client: logging in using static token
+2026-08-19 09:01:26,327 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-19 09:01:27,219 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 3818c438e625a1bd0ba564e50ef28805).
+2026-08-19 09:01:29,277 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-19 09:05:39,174 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 3818c438e625a1bd0ba564e50ef28805.
+2026-08-19 09:16:58,762 [INFO] flattrade_bot.discord_control: Scheduled live bot start completed.
+2026-08-19 11:53:48,253 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-08-19 11:53:48,253 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-08-19 11:53:48,274 [INFO] discord.client: logging in using static token
+2026-08-19 11:53:49,708 [INFO] flattrade_bot.discord_control: Discord trading commands synced to guild 1527242045268164758
+2026-08-19 11:53:50,674 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 1c6f99643d4f93f0e3746899bc5f290f).
+2026-08-19 11:53:52,698 [INFO] flattrade_bot.discord_control: Discord control connected as Champion Bot#4695
+2026-08-19 12:02:47,850 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 13:06:45,413 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 13:08:08,339 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 13:39:47,162 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 13:45:41,747 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 13:45:51,105 [ERROR] flattrade_bot.discord_control: Discord start command failed
+Traceback (most recent call last):
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\discord_control.py", line 147, in run_start
+    started = await asyncio.to_thread(manager.start, True, visible_console=visible_console)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 362, in start
+    pid = self._launch_visible_task(args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Websites\FLATTRADE BOT\flattrade_bot\control.py", line 227, in _launch_visible_task
+    raise RuntimeError("Interactive visible task started but no bot runtime record appeared")
+RuntimeError: Interactive visible task started but no bot runtime record appeared
+2026-08-19 14:00:08,684 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 14:47:19,180 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 14:50:04,716 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 14:54:13,833 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 14:58:21,871 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 15:00:01,941 [INFO] flattrade_bot.discord_control: Scheduled bot stop completed.
+2026-08-19 15:07:51,638 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 15:09:14,676 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 15:11:07,240 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.
+2026-08-19 15:13:52,743 [INFO] discord.gateway: Shard ID None has successfully RESUMED session 1c6f99643d4f93f0e3746899bc5f290f.

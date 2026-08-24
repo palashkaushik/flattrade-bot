@@ -1,0 +1,47 @@
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+  1574 days ╫ 375 bars in 2.2s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  288 tensors cached in 0.1s
+[B08 sweep] 9216 combos | GPU cuda | N=1574 T=375
+  batch 20/93  (7.3s)
+  batch 40/93  (14.1s)
+  batch 60/93  (20.4s)
+  batch 80/93  (27.8s)
+  batch 93/93  (31.8s)
+
+Pool: 9216 combos with >=30 trades | OOS-positive: 3032 (32.9%)
+
+TOP 25 by FULL 7y net (OTM-capture adjusted):
+       net    PF    WR trades |    IS_net   OOS_net OOS_PF | params
+    456519  1.58  37.9    776 |    305528    150991   1.43 | WFE=0.33 oc=2 bh buf2 eu10 otm2 oppo sb3 p rf0.6 pc0.1 b fFalse
+    456519  1.58  37.9    776 |    305528    150991   1.43 | WFE=0.33 oc=2 bh buf2 eu10 otm2 oppo sb3 p rf0.7 pc0.1 b fFalse
+    456519  1.58  37.9    776 |    305528    150991   1.43 | WFE=0.33 oc=2 bh buf2 eu10 otm2 oppo sb3 p rf0.75 pc0.1 b fFalse
+    456507  1.60  36.9    776 |    297852    158655   1.47 | WFE=0.35 oc=2 bh buf2 eu10 otm2 oppo sb0 p rf0.6 pc0.1 b fFalse
+    456507  1.60  36.9    776 |    297852    158655   1.47 | WFE=0.35 oc=2 bh buf2 eu10 otm2 oppo sb0 p rf0.7 pc0.1 b fFalse
+    456507  1.60  36.9    776 |    297852    158655   1.47 | WFE=0.35 oc=2 bh buf2 eu10 otm2 oppo sb0 p rf0.75 pc0.1 b fFalse
+    455942  1.57  36.8    809 |    303933    152010   1.42 | WFE=0.33 oc=2 bh buf0 eu10 otm2 oppo sb3 p rf0.6 pc0.1 b fFalse
+    455942  1.57  36.8    809 |    303933    152010   1.42 | WFE=0.33 oc=2 bh buf0 eu10 otm2 oppo sb3 p rf0.7 pc0.1 b fFalse
+    455942  1.57  36.8    809 |    303933    152010   1.42 | WFE=0.33 oc=2 bh buf0 eu10 otm2 oppo sb3 p rf0.75 pc0.1 b fFalse
+    455081  1.59  35.6    809 |    294601    160481   1.47 | WFE=0.35 oc=2 bh buf0 eu10 otm2 oppo sb0 p rf0.6 pc0.1 b fFalse
+    455081  1.59  35.6    809 |    294601    160481   1.47 | WFE=0.35 oc=2 bh buf0 eu10 otm2 oppo sb0 p rf0.7 pc0.1 b fFalse
+    455081  1.59  35.6    809 |    294601    160481   1.47 | WFE=0.35 oc=2 bh buf0 eu10 otm2 oppo sb0 p rf0.75 pc0.1 b fFalse
+    447856  1.58  39.1    739 |    300266    147590   1.43 | WFE=0.33 oc=2 bc buf0 eu10 otm2 oppo sb3 p rf0.6 pc0.1 b fFalse
+    447856  1.58  39.1    739 |    300266    147590   1.43 | WFE=0.33 oc=2 bc buf0 eu10 otm2 oppo sb3 p rf0.7 pc0.1 b fFalse
+    447856  1.58  39.1    739 |    300266    147590   1.43 | WFE=0.33 oc=2 bc buf0 eu10 otm2 oppo sb3 p rf0.75 pc0.1 b fFalse
+    444794  1.59  37.9    739 |    290886    153908   1.46 | WFE=0.35 oc=2 bc buf0 eu10 otm2 oppo sb0 p rf0.6 pc0.1 b fFalse
+    444794  1.59  37.9    739 |    290886    153908   1.46 | WFE=0.35 oc=2 bc buf0 eu10 otm2 oppo sb0 p rf0.7 pc0.1 b fFalse
+    444794  1.59  37.9    739 |    290886    153908   1.46 | WFE=0.35 oc=2 bc buf0 eu10 otm2 oppo sb0 p rf0.75 pc0.1 b fFalse
+    436670  1.58  37.9    776 |    292244    144426   1.43 | WFE=0.33 oc=2 bh buf2 eu10 otm3 oppo sb3 p rf0.6 pc0.1 b fFalse
+    436670  1.58  37.9    776 |    292244    144426   1.43 | WFE=0.33 oc=2 bh buf2 eu10 otm3 oppo sb3 p rf0.7 pc0.1 b fFalse
+    436670  1.58  37.9    776 |    292244    144426   1.43 | WFE=0.33 oc=2 bh buf2 eu10 otm3 oppo sb3 p rf0.75 pc0.1 b fFalse
+    436659  1.60  36.9    776 |    284902    151756   1.47 | WFE=0.35 oc=2 bh buf2 eu10 otm3 oppo sb0 p rf0.6 pc0.1 b fFalse
+    436659  1.60  36.9    776 |    284902    151756   1.47 | WFE=0.35 oc=2 bh buf2 eu10 otm3 oppo sb0 p rf0.7 pc0.1 b fFalse
+    436659  1.60  36.9    776 |    284902    151756   1.47 | WFE=0.35 oc=2 bh buf2 eu10 otm3 oppo sb0 p rf0.75 pc0.1 b fFalse
+    436119  1.57  36.8    809 |    290718    145401   1.42 | WFE=0.33 oc=2 bh buf0 eu10 otm3 oppo sb3 p rf0.6 pc0.1 b fFalse
+
+Saved b08_breakout_results.csv (9216 rows) in 31.9s

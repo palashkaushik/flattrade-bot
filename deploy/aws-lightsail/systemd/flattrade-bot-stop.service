@@ -1,0 +1,6 @@
+[Unit]
+Description=EOD Graceful Stop for Flattrade Bot
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl stop flattrade-bot.service

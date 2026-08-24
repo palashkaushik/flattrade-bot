@@ -1,0 +1,1 @@
+CHAMPION WALK-FORWARD | 2020-01-01..2026-05-05 | workers=8 | smoke=True | params={'s1_k': 9, 's1_d': 3, 's4_k': 60, 'atr_period': 14, 'atr_sl_mult': 2.0, 'atr_tp_mult': 6.0, 'f6_s4_thresh': 79.5, 'f6_s1_thresh': 20.5, 'consec_loss': 4, 'fixed_sl_points': 10.0, 'fixed_tp_points': 15.0, 'timeframes': ['1m', '2m']}

@@ -1,0 +1,6 @@
+CHAMPION WALK-FORWARD | 2020-01-01..2026-05-05 | workers=8 | smoke=True | params={'s1_k': 12, 's1_d': 3, 's4_k': 50, 'atr_period': 10, 'atr_sl_mult': 3.0, 'atr_tp_mult': 6.0, 'f6_s4_thresh': 79.5, 'f6_s1_thresh': 25.0, 'consec_loss': 8, 'fixed_sl_points': 10.0, 'fixed_tp_points': 15.0, 'timeframes': ['1m', '2m'], 'use_divergence': False}
+OOS 2023 | days=5 | trades    52 | WR  44.2% | pts_net     -53.10 | Rs_net        -4,142 | PF  0.78 | fees +690.09 | 2.0s
+OOS 2024 | days=5 | trades    30 | WR  33.3% | pts_net     -94.60 | Rs_net        -6,583 | PF  0.52 | fees +434.46 | 2.1s
+OOS 2025 | days=5 | trades    32 | WR  15.6% | pts_net    -239.30 | Rs_net       -16,149 | PF  0.20 | fees +594.78 | 2.1s
+OOS 2026 | days=5 | trades    42 | WR  47.6% | pts_net      -6.05 | Rs_net          -925 | PF  0.94 | fees +532.23 | 2.2s
+JSON: artifacts\f6_hybrid\research_f6_champion_12_50_fixed_10_15_1m_2m_no_divergence_walkforward_smoke.json

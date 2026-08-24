@@ -1,0 +1,52 @@
+GPU: NVIDIA GeForce RTX 3060 | VRAM: 12.0GB
+Loading data into VRAM...
+  1574 days ╫ 375 bars in 2.2s
+  TF=1m: 375 bars
+  TF=2m: 188 bars
+  TF=3m: 125 bars
+  TF=5m: 75 bars
+Pre-computing indicator cache...
+  288 tensors cached in 0.1s
+[B09 sweep] 2592 combos | GPU cuda | N=1574 T=375
+  batch 20/26  (14.4s)
+  batch 26/26  (18.1s)
+
+Pool: 2016 combos with >=30 trades | OOS-positive: 621 (30.8%)
+
+=== NON-WALK-FORWARD (full 7y) TOP 15 by net ===
+       net    PF    WR    tr |    IS_net   OOS_net OOS_PF | params
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl20 dp30
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl20 dp50
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl20 dp80
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl30 dp30
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl30 dp50
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl30 dp80
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl50 dp30
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl50 dp50
+     14513  1.21  61.8   123 |      3714     10799   1.43 | WFE=0.74 key0.6 ap10 sl1.25 tp0.29 b fFalse dl50 dp80
+     14411  1.20  61.8   123 |      2532     11879   1.50 | WFE=0.82 key0.6 ap10 sl1.115 tp0.29 b fFalse dl20 dp30
+     14411  1.20  61.8   123 |      2532     11879   1.50 | WFE=0.82 key0.6 ap10 sl1.115 tp0.29 b fFalse dl20 dp50
+     14411  1.20  61.8   123 |      2532     11879   1.50 | WFE=0.82 key0.6 ap10 sl1.115 tp0.29 b fFalse dl20 dp80
+     14411  1.20  61.8   123 |      2532     11879   1.50 | WFE=0.82 key0.6 ap10 sl1.115 tp0.29 b fFalse dl30 dp30
+     14411  1.20  61.8   123 |      2532     11879   1.50 | WFE=0.82 key0.6 ap10 sl1.115 tp0.29 b fFalse dl30 dp50
+     14411  1.20  61.8   123 |      2532     11879   1.50 | WFE=0.82 key0.6 ap10 sl1.115 tp0.29 b fFalse dl30 dp80
+
+=== WALK-FORWARD (OOS / forward) TOP 15 by OOS net ===
+  OOS_net OOS_PF OOS_WR OOS_tr |   full_net    IS_net | params
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl20 dp30
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl20 dp50
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl20 dp80
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl30 dp30
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl30 dp50
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl30 dp80
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl50 dp30
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl50 dp50
+    14623   1.31   56.1     82 |       5781     -8842 | key0.6 ap10 sl1.115 tp0.29 b fFalse dl50 dp80
+    14512   4.09   63.2     19 |       6791     -7721 | key0.7 ap10 sl1.115 tp0.29 b fTrue dl20 dp30
+    14512   4.09   63.2     19 |       6791     -7721 | key0.7 ap10 sl1.115 tp0.29 b fTrue dl20 dp50
+    14512   4.09   63.2     19 |       6791     -7721 | key0.7 ap10 sl1.115 tp0.29 b fTrue dl20 dp80
+    14512   4.09   63.2     19 |       6791     -7721 | key0.7 ap10 sl1.115 tp0.29 b fTrue dl30 dp30
+    14512   4.09   63.2     19 |       6791     -7721 | key0.7 ap10 sl1.115 tp0.29 b fTrue dl30 dp50
+    14512   4.09   63.2     19 |       6791     -7721 | key0.7 ap10 sl1.115 tp0.29 b fTrue dl30 dp80
+
+Saved b09_marni_core_results.csv (2592 rows) in 18.1s

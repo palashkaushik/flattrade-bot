@@ -1,0 +1,3 @@
+RAW BACKTEST | costs=False | days=5 | workers=8 | params={'s1_k': 12, 's1_d': 3, 's4_k': 50, 'atr_period': 14, 'atr_sl_mult': 2.0, 'atr_tp_mult': 6.0, 'f6_s4_thresh': 79.5, 'f6_s1_thresh': 20.5, 'consec_loss': 4, 'use_divergence': False}
+{'trades': 22, 'wr': 36.36363636363637, 'pts': np.float64(20.04), 'rs': 1303, 'pf': np.float64(1.205812878710075)}
+JSON: artifacts\f6_hybrid\backtest_champion_lenient_no_divergence_2020_2026_smoke.json

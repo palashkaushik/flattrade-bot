@@ -1,0 +1,560 @@
+
+----- PAGE 1/30 -----
+[PAGE 1: NO TEXT LAYER — scanned image, OCR required]
+
+----- PAGE 2/30 -----
+CONTENTS
+ 
+About the book
+About the author
+Achievements and works
+Disclaimer
+Introduction
+Options and types
+Selecting strike price
+Open interest analysis
+CPR, trendlines, area of level and stochastic
+Implementing the strategy
+ 
+
+
+----- PAGE 3/30 -----
+ABOUT THE BOOK
+ 
+THERE ARE MANY SOURCES SUCH AS BOOKS, YOUTUBE
+VIDEOS AND INSTITUTIONS PREVAILING IN THIS 21st CENTURY
+ABOUT THE VAST STOCKMARKET IDEAS IN THE WHOLE
+WORLD. BUT WAIT…AFTER YOU FINISH THIS BOOK, YOU WILL
+BE ABLE TO MAKE THE BEST TRADES IN THE STOCK MARKET
+WITH MOST PROBABLE TECHNICAL ANALYSIS FOR THE SAKE
+OF EVERYONE.
+ 
+From there, we are filtering the idea of making money in the OPTION
+BUYING sector. Cut to last 10 years, the emergence of stock market taking
+over the world is huge based on the very best reasons such as the
+inflationary circumstances faced by the government and the public,
+unemployment and low index/basic pay leading to huge crisis of the
+negativity in monetary wealth creation disorder among the middleclass.
+Now, let us learn only how to make money for yourself instead of
+discussing how billionaires made money. Come on, lets draw our path
+
+
+----- PAGE 4/30 -----
+ABOUT THE AUTHOR
+ 
+Akshay is a young prominent stock market option intraday buyer from
+Kerala, India. He uses a single strategy to trade every day and make fixed
+profits on Bank nifty index in the Indian stock market options. After
+spending several years of trading methods and hundreds of strategies, he
+developed an existing strategy and improved it to the best to build the best
+output to every stock market enthusiast thereby opening the door to public.
+The copyright and any regulation on this content is completely relied on
+him. He has an online platform which educate people with free sessions on
+basics of stock market and the only paid session is this intraday option
+strategy session which he says already as “it’s gonna be worth your money
+and my time” (vulgar grey options).
+
+
+----- PAGE 5/30 -----
+ACHIEVEMENTS AND WORKS
+ 
+“Vulgar grey options” platform founder of online options training.
+OISCA International Leadership certification at 15 years old.
+
+
+----- PAGE 6/30 -----
+DISCLAIMER
+No stocks are recommended in this content. Any stock which is used by
+name is for educational purposes only. Back test the strategy once you
+finish the book. The elements in the content is very precise and anyone who
+knows a basic knowledge about stock market can apply this. I want you all
+to win and earn more and gain that freedom you have always dreamed of.
+However the creator is not responsible for any loss or profit made by the
+users. Keep with the content and stay winning. Thankyou
+
+
+----- PAGE 7/30 -----
+ 
+ 
+ 
+ 
+ 
+ 
+NIFTY BANK INTRADAY OPTION
+BUYING SINGLE SUCCESSFUL
+STRATEGY
+Safest strategy
+ 
+ 
+ 
+AKSHAY VG
+
+
+----- PAGE 8/30 -----
+INTRODUCTION
+Do you think I’m insane?? No never…When you finish this content, you
+would thank yourself for something you did for yourself. This is not
+creating a hype only, this is what you want and which nobody gave to
+anyone till now in a readable and re accessible content form with this much
+positive outputs.
+Options is a really volatile market where the price movements are really
+drastic. When you go forward through the content it might seem easy but it
+is not. Discipline is exactly what we need at the end of the day. Here we are
+going to discuss the option trading strategy anyone could use and back test
+in any market and validate yourself. I will tell you how to do that but before
+that we have already validated all the setup in the bank nifty index. So
+going on forward we are more going to discuss about the same trading setup
+with Bank nifty. Stay with me, don’t worry, you will make money once you
+finish the contents and let’s see how we are going to do that. So as a whole,
+we will just start from the basics at a glance and essential stuffs to follow up
+with that and end up with what we want.
+
+
+----- PAGE 9/30 -----
+OPTIONS AND TYPES
+Options are financial instruments that are derivatives based on the value of
+underlying securities such as stocks/index. An options contract offers the
+buyer the opportunity to buy or sell depending on the type of contract they
+hold of the underlying asset.
+Options are financial derivatives that give buyers the right, but not the
+obligation, to buy or sell an underlying asset at an agreed upon price and
+date.
+Call options and put options form the basis for a wide range of option
+strategies designed for hedging, income, or speculation.
+Although there are many opportunities to profit with options, investors
+should carefully weigh the risks.
+ 
+So after all these I think it is time to get you know that it is a “contract”
+between a buyer and a seller who has been agreed upon or speculated upon
+an underlying asset/security.
+An options contract is an agreement between a buyer and seller that gives
+the buyer the right to buy or sell a particular asset at a later date (expiration
+date) and at an agreed upon price (strike price).
+Since the buyer has an “option” to buy or not but the seller is under the
+“obligation” to sell, seller charges an amount upfront as advance or security
+deposit or premium. This is called as the Option Premium. The premium is
+never given back.
+We will discuss the logic now. Let’s go with a day to day activity…
+You are selling your used Mercedes Benz for 20,00000. A party came
+through and got convinced about the condition of the vehicle and agreed he
+would come and buy this car after 2 weeks. In this situation you will be
+asking an advance for 2 reasons. One, what is the guarantee which he will
+come after two weeks and secondly you are avoiding other buyers for
+giving the car to him. In this case you will ask for an advance of 50,000 and
+tell him “okay, come after 2 weeks, car will be under my custody. Pay an
+advance of 50,000 and if you don’t come, I will keep it”. What if he said he
+
+
+----- PAGE 10/30 -----
+will come after two days??Would you still charge 50,000?? No…You might
+charge 5000 or 10,000 maximum. The same logic is applied in the options
+market also. The more the time, the more the risk therefore the more
+uncertainty, the more premium. Here is the revealing of time decay or theta
+decay in the options market.
+When the expiry is getting near, the premium is tend to reduce and when the
+expiry is far away, the more the premium, even when the volume is low.
+(Think the difference between weekly expiry and monthly expiry)
+
+
+----- PAGE 11/30 -----
+Types of options
+CALL and PUT are the two types of options.
+If you think the price of the security/asset will shoot up, you will buy a call
+option and if you think the price of the security won’t go above a specific
+price level, you sell the call at that specific strike price.
+If you think the price of the security/asset will go down, you buy a put
+option and if you think the price of the security won’t go below a specific
+level, you sell the put at that specific strike price. Option sellers has
+unlimited loss potential and huge capital margin.  Let us avoid that now.
+For an option buyer taking delivery, the premium will be the maximum loss
+for him which is deducted at the entry time itself. At the same time the
+option buyer has the unlimited profit potential. Note that the option buyer’s
+profit will be the profit above the premium he has already paid.
+Example :- I have bought a call option which is a delivery, of 1 lot(25 qty)
+of bank nifty at a premium of 20 Rs. The premium I have paid during the
+entry will be 500.So if my profit and loss account shows 400 profit, I am
+actually in 100 loss.(Premium paid minus Profit). I will be in profit only
+after 500 Rs in my Profit and loss account which is my breakeven. I hope
+you get the idea.
+As we are option buyers let us focus on buying only, and upon that we are
+not talking about delivery too, we are intraday traders who make profit in
+the morning to evening session when market is live.
+
+
+----- PAGE 12/30 -----
+SELECTING STRIKE PRICE
+Strike price is the price which the derivative contract can be bought or sold
+when the option is exercised. Exercising the option simply means an option
+buyer will sell the security for profit and an option seller will buy which is
+an obligation.
+Coming to strike price, it is a list of prices of a security which call and put
+option participants speculate of.
+For example ;- Bank nifty now at 35000.I am saying that it won’t go above
+36000 in two days(expiry after two days). So I sell the call option at 36000
+CE strike price which the buyers premium will be my profit if it happens so.
+One more example,  I am saying bank nifty will reach 35600 in two days,
+so I will buy the 35600 CE call option and hold till expiry for maximum
+returns.
+Now let us go to the intraday process. How to select a strike price for
+intraday option buying.(Note that premium will be deducted only in case of
+delivery, for intraday it is just like trading in stocks. Each penny will be our
+profit itself)
+For that we need to know what is In The Money(ITM), Out of The
+Money(OTM) and At The Money(ATM).
+It is really simple as it seems. Let us understand that with an example
+For call options
+Let’s say Bank nifty market price is at 36030 now. So 36000 will be ATM
+and all strike prices under ATM will be ITM which is for example
+35900,35800,35700,35000 etc and all strike prices above ATM will be
+OTM. And ATM is the nearest strike price to the current market price. It is
+as simple as that.
+ 
+For put options
+Let us take the same example mentioned just above. ATM will be 36000,
+but the OTM strike prices will be the 35900,35800 etc and all strike prices
+
+
+----- PAGE 13/30 -----
+above the ATM will be ITM for puts. Guys, only think from a buyer’s
+mindset. We are option buyers…
+So when we come to the end of this section, what you understand would be
+“OTM in calls will be ITM in puts” and vice versa.
+Now.. as we know from a buyer’s mindset, our target will be an Out of the
+money strike price right? Yes in both cases.
+Example :- Nifty market price at 15000.I think nifty will touch 15150 today
+itself. So I will be buying 15150 CE which this strike price will become
+ATM when nifty reaches there and I will get maximum profit as the
+maximum volume and volatility is always presented in the ATM strike
+prices. Same in the case of put options too. We always try to choose slightly
+OTM for the best profit and movement in prices.
+ 
+ 
+ 
+ 
+So concluding from here, our strike price to trade, whether it is a put or a
+call, always choose slightly OTM (2 to 4 strikes away from ATM) except
+the day of expiry. I would suggest trade in ITM at the day of expiry where
+that day is completely volatile and theta decay will be huge for option
+strikes because all OTM strikes are expiring at zero intrinsic value that day.
+
+
+----- PAGE 14/30 -----
+OPEN INTEREST ANALYSIS
+ 
+What is open interest?
+It is the total number of contracts on a security(options and futures
+usually)which is outstanding as of now and not yet settled. Therefore 1
+open interest in a security strike price or futures means there is 1 buyer and
+1 seller at that specific period of time. Guess what? A single open interest
+of a security reveals that there is one contract existing on that security at
+that period of time which involves a buyer and a seller because there must
+be a seller to make the buyer. It is that simple.
+So 1 OI =1 buyer + 1 seller
+Now, let us now analyse how we make open interest work for our trades to
+make it at it’s best.
+First thing is always seek open interest from the side of a seller/writers(we
+are intraday buyers but for our analysis we should analyse OI from the side
+of a seller).I will tell you the reason…options sellers are the ones who are
+playing huge in the stock market as they stake high margins for trades
+because of their unlimited loss potential. That is the main reason behind
+why we should see OI from the side of a writer. We all know the side of a
+buyer where having only limited loss.
+Now let us look at an example of bank nifty…
+Suppose current market price of bank nifty is 35000..and price is moving
+upward and upward just like 35050..35100..35200..now analyse the highest
+OI put and call option. If the market goes up and the call OI is decreasing,
+we must look forward for a long build up where market is more likely to be
+bullish as the sellers are exiting their positions to new strikes. On the other
+side where if the OI decrease in call and market is going up just like we
+said.. it will be more likely to be a fall incoming signal before the market
+reaches that strike price level.
+Let us conclude the ideas here
+
+
+----- PAGE 15/30 -----
+Market moving up + Call OI increase = Fall incoming probably just before
+the market reaches or touches the strike price area which the strike price
+become ATM.
+Market moving up + Call OI decrease = Market is more likely to break that
+level of strike price and you should look for long opportunities now.
+Market moving up + Put OI increase = Market is more likely to consolidate
+or move up but not down in any way. So look for long opportunities during
+break of patterns and other breakouts.
+Market moving up + Put OI decrease = Signals market is ready to fall
+anytime soon and there is a high probability
+Market moving down + Call OI increase = Consolidation or fall incoming
+signal where call sellers are more confident at that level of strike price.
+Market moving down + Call OI decrease = Anytime reversal momentum
+will be probably incoming and wait for a reversal.
+Market moving down + Put OI increase = Anytime reversal probability is
+really high.
+Market moving down + Put OI decrease = Market is likely to fall and break
+that level so look out for shorting opportunities instead of going long.
+ 
+Other uses of OI is, it helps us to exit any losing trades before hitting the
+stoploss and manage our capital. Analyse 2-3 factors whenever you enter a
+trade for maximum certainty. (For winners only).
+As we have seen the OI analysis, I think now you will be able to watch
+market in a little bit different way.
+All open interest related information will be updated live in the NSE official
+website.
+
+
+----- PAGE 16/30 -----
+CPR, TRENDLINES, AREA OF LEVEL
+AND STOCHASTIC
+These 4 materials are crucial for our strategy implementation.
+Let us consider the CPR first which is the Central Pivot Range and one of
+the best indicators available and used by professionals. All you have to do
+is selecting the CPR by KGS from the Trading view software. Now select
+only the list I am going to tell you ..avoid or deselect every other levels.
+Daily pivot
+Daily R1
+Daily R2
+Daily R3
+Daily R4
+Daily S1
+Daily S2
+Daily S3
+Daily S4
+Previous Day high
+Previous day low
+R indicates every possible resistance levels  for that day and S indicates the
+support levels for that specific day. Each day CPR will change data
+according to the updated data everyday. We don’t have to know how it is
+calculated because you can refer that in youtube .. we have so much other
+things to do.. let us move forward and do not waste anytime..
+Daily pivot is the central pivot which will be a great resistance and a great
+support too at the same time.
+ 
+Now you have to draw the best resistances, supports and trendlines in 4
+hour and 1 hour timeframe in the security chart you will be trading. Do
+
+
+----- PAGE 17/30 -----
+it. We need it for the strategy.
+Now the next step will be drawing the area of level which is not a straight
+support or resistance. Draw the area of level( looks like a rectangular area)
+in the 1 hour and 4 hour time frame. It is used to locate the consolidation
+areas and massive breakouts. The area of level might look like the
+illustration given below.
+ 
+
+
+----- PAGE 18/30 -----
+We need something else too right? For some momentum analysation we
+need something else other than the technical side. Stochastic!!! I want you
+to use stochastic with values 5,3,3… in the 5 minute timeframe.. just do it…
+It’s  going to be worth it.
+ Stochastic oscillator is a momentum indicator comparing a particular
+closing price of a security to a range of its prices over a certain period of
+time. The sensitivity of the oscillator to market movements is reducible by
+adjusting that time period or by taking a moving average of the result.
+Analysing the stochastic is really simple just like RSI. Above 80 default
+value will be overbought signal and below 20 default value will be over
+sold signal. So what happens to a security when it is over bought? The
+answer is profit booking will happen and crashes from that top and vice
+versa when it is oversold. Do not take trading entries just by looking at the
+stochastic overbought and oversold signal. Never be that guy. Be more
+smarter than that.
+Now we have our CPR, stochastic, area of levels and Trendlines you have
+drawn. What we need to do now is combine all of them into one single
+picture. Yeah.. we are going to do that now
+
+
+----- PAGE 19/30 -----
+IMPLEMENTING THE STRATEGY
+Before we move into the strategy, I want you all to remember what all we
+have right now which is CPR, stochastic, trendlines and area of levels.
+Now let’s go straight to the strategy which is “two candle breakout”. We
+are going to trade the breakout of the very first two candles when the
+market opens. Which timeframe you want to know right?? 5 minute time
+frame. Yes…that is true, we are going to trade the first two 5 minute
+candles forming in the market. From now onwards we are only focusing on
+bank nifty which this strategy works 100% purely every day.
+Draw the resistance and support of the 5 minute candles without including
+the wick just like the illustration below.
+ 
+ 
+ 
+If the candle body size is really small, draw the lines including the wick just
+like the illustration below. And you will have a doubt which you will see
+
+
+----- PAGE 20/30 -----
+small body and really longest wick opening candles. In that case we doesn’t
+need the wick, we only draw over the body not the wick, just like in the 1st
+case illustration.
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+----- PAGE 21/30 -----
+When the 3rd or 5th or the candle that break outs and close outside the line
+we have drawn first, to the down side or upside, trade it. This is the entry
+part which you will buy a call or buy a put of a strike price which is slightly
+OTM of bank nifty. You can also take entry before the candle closes by
+analysing the momentum and volume in HDFC bank, ICICI bank or Kotak
+Mahindra bank individual chart with same technical analysis criteria.
+The incoming part is the exit part where you will get out of the trade with
+some profit carefully. This would seem easy but it is not.. follow me till the
+end. This is where you should not be greedy, over emotional or in an
+overtrading mentality.
+Note that our strategy can be only used once in a day and it usually happens
+in the morning session. It keeps us safe from overtrading and losing trades.
+Let’s move forward and see what is special in the exit part.
+When you take an entry, the most important part is the location allocation of
+the stoploss. Where are you going to put your stoploss? We will see it…
+move on...
+Let’s call the area between our two lines which we drawn at the top and
+down of the candles as “zone”.
+There are different cases for locating the stoploss and this is the part where
+we use the CPR, stochastic, trendlines and area of levels.
+1st case is the scenario where there is no CPR levels, trendlines and
+area of level in the zone, which we will put our stoploss in the other line we
+have drawn. See the illustration below. Here you will put your stoploss in
+the bottom black support line and entry on upper black resistance line
+ 
+ 
+
+
+----- PAGE 22/30 -----
+2nd case is the scenario where there is one or more levels in the zone which
+may be one of the levels of CPR, or any of the trendlines, any
+support/resistance line or any area of level. If that is the case, your stoploss
+should be that if it is inside the zone. You don’t have to ride the loss until
+the bottom line if that is the case. Most important CPR lines are Previous
+day high and low, green coloured resistance lines and red coloured support
+lines. Avoid the trade if the candles are forming inside the rectangular area
+of level. We should protect our capital and take the best trades. It is shown
+in the illustration below. Suppose the black bold line defines the previous
+day high line of the CPR, therefore your stoploss would be that CPR line
+not the bottom black line of the 1st candle. Hope you guys get the idea. It
+might seem a little tricky to some people but daily practice makes you
+easily adaptable. It is always the toughest tasks which will make our lives
+easier and happy right?? Haha.. not said by me…Still it is not the end..
+follow me further…let’s go.. we have to discuss some more about this..
+some more things to be taken care of.
+ 
+ 
+ 
+ 
+
+
+----- PAGE 23/30 -----
+[PAGE 23: NO TEXT LAYER — scanned image, OCR required]
+
+----- PAGE 24/30 -----
+Look at this case where there is a CPR or a resistance above or below the
+lines we have drawn whichever we seeking the breakout. While looking at
+this, suppose the black line shows the CPR daily support, if that is the case
+we should use that black line instead of the red line we have drawn. That is,
+we will trade the break out of the CPR support not the line we have drawn.
+Hope everyone get the idea. Read it twice..! Concluding the idea, we should
+realise that when there is any other levels(one or more may be) nearby our
+lines, we should respect that lines and must avoid the level drawn by us. In
+that case draw the line just above the CPR level or any support/resistance
+level whichever is bottom last or top last depending on the circumstance. It
+is applicable in both ways where there is a bullish breakout or a bearish
+breakout.
+ 
+ 
+ 
+Now we have discussed 3 important criteria of how to draw the 2 candle
+levels in different scenarios, how to put stoploss in different scenarios and
+how to take entry in different circumstances.. now we have to find out how
+to fix the target of our entry. It is completely divided into two major
+strategies. And they are..:-
+
+
+----- PAGE 25/30 -----
+ 1) Percentage wise target
+ 2) Level based target
+First let us discuss about percentage wise target which is really simple as
+exit the position when it gives 4 to 10% of returns on the deployed capital
+on that specific trade. Read it again!!
+Now the key stuff “the level based target” should be mastered. After the
+entry there would be key CPR levels above(in case of bullish trades) and
+below(in case of bearish or shorting) which we listed before and counts 11
+key levels. Our target should be in an area which is 30% away downside of
+the CPR or any other levels(draw precise levels) if it is a bullish trade and
+30% upside of the CPR or any other levels out there if it is a bearish trade.
+In other way.. if our bullish entry on bank nifty is at 35000 and next CPR
+level is at 35120...exiting on 30% away from the CPR or any other level
+means your exit should be at 35080 to 35090 area. That is how you ride the
+trade. No huge profits. Fixed percentage income without any risk.
+In other words ride 60 to 75% of the area in profit zone( distance between
+entry and very next CPR/resistance/support/area of level depending on the
+type of trade) which is exactly equal to 30% away from the levels as we
+discussed in the above paragraph.
+
+
+----- PAGE 26/30 -----
+[PAGE 26: NO TEXT LAYER — scanned image, OCR required]
+
+----- PAGE 27/30 -----
+ 
+ 
+Applying the same aspect in the bearish trades too, will give the same
+output as mentioned above. The strategy may seem simple for some folks
+and little worrying to the other half. But all I want to tell you is I have been
+back tested this strategy for years in the bank nifty index and is successful
+in every aspect. All the best to everyone. Keep winning…
+
+
+----- PAGE 28/30 -----
+ 
+There are some stuffs you need to be taken care of while using the same
+strategy and they are listed below for your convenience
+Do not trade with this strategy on Fridays.
+In trading, knowledge is 10% and discipline covers 90%.
+Strict stoploss as we mentioned above … read the article again and
+again until it reflects in your brain as a piece of light.
+Always remember the candle timeframe we trade is 5 minute
+Below 3 losing trades per month
+This strategy is currently back tested and confirmed in the bank
+nifty index chart in the National Stock Exchange of India only.
+There are 4 key separation for the content in this book, they are
+1) The drawing part
+2) Entry part
+3) Stoploss part
+            4) Exit part 
+Try to learn with this key words and be an expert in  intraday option
+market.
+
+
+----- PAGE 29/30 -----
+Now I will tell you how to back test this strategy in any other market
+worldwide and confirm it’s respect level. Just like we did from the
+beginning, draw the 5 minute two candle support and resistance accordingly
+and try to find if the first breakout gives our target and accordingly step by
+step, apply each and every condition of our discussions in that market. Back
+test at least with 5 to 6 months data. If everything is respected, you won.. oh
+no no nooo!!!
+WE WON!!
+
+
+----- PAGE 30/30 -----
+For every traders who find struggling at the beginning and even at the
+intermediate stage, all you have to focus on is developing your own
+strategies and back test it as much as possible and trade according to that.
+Always remember that indicators can only support or extra confirm our
+trade quality, price action is the parent of anyone out there, nothing else can
+an indicator do. If you take list 10 best traders in the world, each and every
+one of them is only in one single aspect of trading, if one is an option
+buyer.. the other would be an option seller and the third one would be a
+forex analyst.. just like that. If you want success in your trading journey,
+analyse and back test. That is all you can do. And one day you will find
+your routine correctly for sure(I promise that)and move accordingly with it
+followed by high discipline.
+Now you can back test my strategy in the bank nifty index and build
+yourself from there. Wish everyone all the best regards from Akshay VG.
+ 
+If you find the content successful in any aspect, kindly review the book
+from what you feel inside.
