@@ -296,6 +296,17 @@ class CombinedSupremeTradingEngine:
             while True:
                 try:
                     now = datetime.now()
+
+                    # Fetch live Nifty spot price from broker
+                    if self.client.auth_token:
+                        quote = await self.client.get_quotes(exchange="NSE", token="26000")
+                        if quote.get("stat") == "Ok" and "lp" in quote:
+                            try:
+                                self.latest_spot_price = float(quote["lp"])
+                                self._broker_status = "[bold green]CONNECTED[/bold green]"
+                            except (ValueError, TypeError):
+                                pass
+
                     touch_runtime_record(
                         path=settings.BOT_RUNTIME_FILE,
                         pid=os.getpid(),
