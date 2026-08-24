@@ -349,13 +349,24 @@ class CombinedSupremeTradingEngine:
                 try:
                     now = datetime.now()
 
-                    # Fetch live Nifty spot price from broker
+                    # Fetch live Nifty spot price from broker & update indicators dynamically
                     if self.client.auth_token:
                         quote = await self.client.get_quotes(exchange="NSE", token="26000")
                         if quote.get("stat") == "Ok" and "lp" in quote:
                             try:
                                 self.latest_spot_price = float(quote["lp"])
-                                self._broker_status = "[bold green]CONNECTED[/bold green]"
+                                self._broker_status = "[bold green]LIVE CONNECTED[/bold green]"
+
+                                # Dynamic indicator update from live tick
+                                self.engine.update_indicators(
+                                    spot_price=self.latest_spot_price,
+                                    vwap=self.engine.current_vwap if self.engine.current_vwap > 0 else self.latest_spot_price,
+                                    ema20=self.engine.current_ema20 if self.engine.current_ema20 > 0 else self.latest_spot_price,
+                                    ema200=self.engine.current_ema200 if self.engine.current_ema200 > 0 else self.latest_spot_price,
+                                    spot_15m_close=self.latest_spot_price,
+                                    spot_15m_ema20=self.engine.current_15m_ema20 if self.engine.current_15m_ema20 > 0 else self.latest_spot_price,
+                                    atr=self.engine.current_atr if self.engine.current_atr > 0 else 14.0,
+                                )
                             except (ValueError, TypeError):
                                 pass
 
