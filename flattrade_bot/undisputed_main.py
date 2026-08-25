@@ -337,7 +337,7 @@ class CombinedSupremeTradingEngine:
                         s = s[:-2]
                 return ("-" if neg else "") + result
 
-            for idx, snap in enumerate(reversed(self._oi_history[-10:]), start=1):
+            for idx, snap in enumerate(reversed(self._oi_history[-3:]), start=1):
                 diff = snap["oi_diff"]
                 prev_diff = snap.get("prev_diff", diff)
                 chg_in_dir = diff - prev_diff
@@ -539,6 +539,7 @@ class CombinedSupremeTradingEngine:
     async def fetch_live_oi_chain(self):
         """Fetches live OI for 8 nearest strikes and computes OI Pulse trending diff (time-series)."""
         if not self.client.auth_token or not self.history.auth_token:
+            logger.warning("OI fetch skipped: no auth token")
             return
         try:
             now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
@@ -551,22 +552,45 @@ class CombinedSupremeTradingEngine:
             total_pe_oi = 0
             total_ce_chg = 0
             total_pe_chg = 0
+            debug_first = len(self._oi_history) == 0  # Log details on first fetch
 
             for strike in all_strikes:
                 for opt_type in ["CE", "PE"]:
-                    scrip = await self.history.search_option_token(f"NIFTY {strike} {opt_type}")
-                    if scrip and scrip.get("token"):
-                        q = await self.client.get_quotes(exchange="NFO", token=scrip["token"])
-                        if q.get("stat") == "Ok":
-                            oi = int(q.get("oi", 0))
-                            prev_oi = int(q.get("poi", q.get("oi", 0)))
-                            chg = oi - prev_oi
-                            if opt_type == "CE":
-                                total_ce_oi += oi
-                                total_ce_chg += chg
-                            else:
-                                total_pe_oi += oi
-                                total_pe_chg += chg
+                    search_text = f"NIFTY {strike} {opt_type}"
+                    scrip = await self.history.search_option_token(search_text)
+                    if not scrip or not scrip.get("token"):
+                        if debug_first:
+                            logger.warning(f"OI: No scrip found for '{search_text}'")
+                        continue
+
+                    q = await self.client.get_quotes(exchange="NFO", token=scrip["token"])
+                    if q.get("stat") != "Ok":
+                        if debug_first:
+                            logger.warning(f"OI: GetQuotes failed for {scrip['tsym']}: {q.get('emsg', 'unknown')}")
+                        continue
+
+                    # Robust string-to-int parsing (Flattrade returns OI as strings)
+                    def safe_int(val):
+                        try:
+                            return int(float(str(val))) if val else 0
+                        except (ValueError, TypeError):
+                            return 0
+
+                    oi = safe_int(q.get("oi", 0))
+                    prev_oi = safe_int(q.get("poi", 0))
+                    if prev_oi == 0:
+                        prev_oi = oi  # No previous day OI available
+                    chg = oi - prev_oi
+
+                    if debug_first:
+                        logger.info(f"OI DEBUG: {scrip['tsym']} | oi={q.get('oi')} | poi={q.get('poi')} | parsed oi={oi} chg={chg}")
+
+                    if opt_type == "CE":
+                        total_ce_oi += oi
+                        total_ce_chg += chg
+                    else:
+                        total_pe_oi += oi
+                        total_pe_chg += chg
 
             # OI Diff = Change in Call OI - Change in Put OI
             # Negative = more call writing = bearish | Positive = more put writing = bullish
@@ -588,9 +612,9 @@ class CombinedSupremeTradingEngine:
             }
             self._oi_history.append(snapshot)
             self._last_oi_fetch = time.time()
-            logger.info(f"📊 OI Pulse: CE Chg={total_ce_chg:,} | PE Chg={total_pe_chg:,} | Diff={oi_diff:,} | PCR={pcr:.2f}")
+            logger.info(f"📊 OI Pulse: CE OI={total_ce_oi:,} PE OI={total_pe_oi:,} | CE Chg={total_ce_chg:,} | PE Chg={total_pe_chg:,} | Diff={oi_diff:,} | PCR={pcr:.2f}")
         except Exception as e:
-            logger.error(f"OI chain fetch error: {e}")
+            logger.error(f"OI chain fetch error: {e}", exc_info=True)
 
     async def recover_open_positions(self):
         """On startup, check Flattrade PositionBook for orphaned open positions and close them."""
