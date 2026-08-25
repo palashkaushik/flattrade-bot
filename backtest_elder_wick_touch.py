@@ -335,13 +335,14 @@ def run_elder_wick_touch(
                             if not opt_sym:
                                 continue
 
-                            # Execute on option chart
+                            # CAUSAL: Signal at bar close → enter on NEXT bar's open
+                            next_bar_min = t_min + 3
                             c_df = opt_df[opt_df["symbol"] == opt_sym].sort_values("minute")
-                            c_bars = c_df[c_df["minute"] >= t_min].to_dict("records")
+                            c_bars = c_df[c_df["minute"] >= next_bar_min].to_dict("records")
                             if not c_bars:
                                 continue
 
-                            entry_px = c_bars[0]["open"]
+                            entry_px = c_bars[0]["open"]  # Next bar's open (causal)
                             sl_px = entry_px - sl_pts
                             tp_px = entry_px + tp_pts
                             peak = entry_px
@@ -400,12 +401,14 @@ def run_elder_wick_touch(
                             if not opt_sym:
                                 continue
 
+                            # CAUSAL: Signal at bar close → enter on NEXT bar's open
+                            next_bar_min = t_min + 3
                             c_df = opt_df[opt_df["symbol"] == opt_sym].sort_values("minute")
-                            c_bars = c_df[c_df["minute"] >= t_min].to_dict("records")
+                            c_bars = c_df[c_df["minute"] >= next_bar_min].to_dict("records")
                             if not c_bars:
                                 continue
 
-                            entry_px = c_bars[0]["open"]
+                            entry_px = c_bars[0]["open"]  # Next bar's open (causal)
                             sl_px = entry_px - sl_pts
                             tp_px = entry_px + tp_pts
                             peak = entry_px
