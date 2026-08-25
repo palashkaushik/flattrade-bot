@@ -202,6 +202,20 @@ class CombinedSupremeTradingEngine:
         self._warm_ready = True
         logger.info("Combined Supreme Strategy pre-warmed with full 3-Tier S/R Matrix.")
 
+        # Warm up Elder Impulse + RSI(14) from historical 3m bars
+        if self.history.auth_token:
+            try:
+                candles_3m = await self.history.fetch_historical_candles(
+                    token="26000", exchange="NSE", interval="3", days_back=2
+                )
+                if candles_3m:
+                    for c in candles_3m:
+                        self._elder_color = self._elder.update(c["close"])
+                        self._rsi_value = self._rsi.update(c["close"])
+                    logger.info(f"📊 Elder/RSI warmed from {len(candles_3m)} historical 3m bars → Elder={self._elder_color.upper()} RSI={self._rsi_value}")
+            except Exception as e:
+                logger.warning(f"Elder/RSI warmup failed: {e}")
+
         asyncio.create_task(
             self.discord._post_embed({
                 "title": "🟢 FLATTRADE TRADING BOT ONLINE (25-Aug-2026)",
