@@ -667,19 +667,21 @@ class CombinedSupremeTradingEngine:
                             except (ValueError, TypeError):
                                 pass
                         elif "Session Expired" in str(quote.get("emsg", "")) or "Invalid Session" in str(quote.get("emsg", "")):
-                            logger.warning("Session expired in live loop. Renewing token automatically...")
-                            from flattrade_bot.broker.auto_login import automated_flattrade_login
-                            new_token = automated_flattrade_login(
-                                user_id=settings.FLATTRADE_USER_ID,
-                                password=settings.FLATTRADE_PASSWORD,
-                                totp_key=settings.FLATTRADE_TOTP_KEY,
-                                api_key=settings.FLATTRADE_API_KEY,
-                                api_secret=settings.FLATTRADE_API_SECRET,
-                                headless=True,
-                            )
-                            if new_token:
-                                self.client.set_token(new_token)
-                                self.history.set_token(new_token)
+                            now_ts = time.time()
+                            if not hasattr(self, "_last_token_renew") or (now_ts - getattr(self, "_last_token_renew", 0)) > 300:
+                                self._last_token_renew = now_ts
+                                logger.warning("Session expired in live loop. Renewing token via lightweight REST API...")
+                                from flattrade_bot.broker.auto_login import automated_flattrade_login_rest
+                                new_token = automated_flattrade_login_rest(
+                                    user_id=settings.FLATTRADE_USER_ID,
+                                    password=settings.FLATTRADE_PASSWORD,
+                                    totp_key=settings.FLATTRADE_TOTP_KEY,
+                                    api_key=settings.FLATTRADE_API_KEY,
+                                    api_secret=settings.FLATTRADE_API_SECRET,
+                                )
+                                if new_token:
+                                    self.client.set_token(new_token)
+                                    self.history.set_token(new_token)
 
                     touch_runtime_record(
                         path=settings.BOT_RUNTIME_FILE,
