@@ -142,10 +142,10 @@ class CombinedSupremeTradingEngine:
         prev_low = 24144.30
         initial_vwap = 24225.43
         prev_vwap_close = 24220.00
-        ema200 = 24194.88
-        ema20 = 24158.72
-        ema20_5m = 24159.44
-        ema200_5m = 24207.05
+        ema200 = 24192.23
+        ema20 = 24151.23
+        ema20_5m = 24156.00
+        ema200_5m = 24204.00
         opening_3m_h = 24260.00
         opening_3m_l = 24200.00
         virgin_cprs = [(24098.00, 24111.00, 24085.00, "20-Aug")]
@@ -175,7 +175,7 @@ class CombinedSupremeTradingEngine:
             virgin_cprs=virgin_cprs,
             opening_3m_high=opening_3m_h,
             opening_3m_low=opening_3m_l,
-            vwma20=24158.72,
+            vwma20=24151.23,
             parabolic_sar=24204.50,
         )
         self.engine.current_supertrend = 24216.53
