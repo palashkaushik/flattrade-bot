@@ -305,23 +305,26 @@ class CombinedSupremeTradingEngine:
 
         # ── 4. LIVE OI CHAIN (8 NEAREST STRIKES) ──
         oi_table = Table(
-            title="[bold magenta]LIVE OPTION CHAIN — OI PULSE (8 NEAREST STRIKES)[/bold magenta]",
+            title="[bold magenta]LIVE OPTION CHAIN — OI PULSE (8 NEAREST STRIKES | 5 MIN REFRESH)[/bold magenta]",
             box=box.SIMPLE_HEAD,
             expand=True,
             padding=(0, 0),
         )
-        oi_table.add_column("CE OI CHG", style="bold white", justify="right", width=11)
-        oi_table.add_column("CE OI", style="bold cyan", justify="right", width=11)
+        oi_table.add_column("CE OI", style="bold cyan", justify="right", width=10)
+        oi_table.add_column("CE CHG", style="bold white", justify="right", width=10)
         oi_table.add_column("CE LTP", style="bold green", justify="right", width=9)
-        oi_table.add_column("CE VOL", style="dim", justify="right", width=9)
         oi_table.add_column("STRIKE", style="bold yellow", justify="center", width=8)
+        oi_table.add_column("OI DIFF", style="bold white", justify="center", width=14)
         oi_table.add_column("PE LTP", style="bold red", justify="left", width=9)
-        oi_table.add_column("PE OI", style="bold cyan", justify="left", width=11)
-        oi_table.add_column("PE OI CHG", style="bold white", justify="left", width=11)
-        oi_table.add_column("PE VOL", style="dim", justify="left", width=9)
+        oi_table.add_column("PE CHG", style="bold white", justify="left", width=10)
+        oi_table.add_column("PE OI", style="bold cyan", justify="left", width=10)
 
         if self._oi_data:
             atm = int(round(self.latest_spot_price / 50.0) * 50)
+
+            def fmt_lakh(v):
+                """Format OI values in Lakhs — the natural Nifty scale."""
+                return f"{v / 100000:+.1f}L" if v != 0 else "0"
 
             def fmt_oi(v):
                 if abs(v) >= 100000:
@@ -339,31 +342,38 @@ class CombinedSupremeTradingEngine:
                 ce_oi = row.get("ce_oi", 0)
                 ce_chg = row.get("ce_oi_chg", 0)
                 ce_ltp = row.get("ce_ltp", 0.0)
-                ce_vol = row.get("ce_vol", 0)
                 pe_oi = row.get("pe_oi", 0)
                 pe_chg = row.get("pe_oi_chg", 0)
                 pe_ltp = row.get("pe_ltp", 0.0)
-                pe_vol = row.get("pe_vol", 0)
 
-                # Trending arrows for OI change — the main signal
-                ce_arrow = "▲" if ce_chg > 0 else "▼" if ce_chg < 0 else "─"
-                pe_arrow = "▲" if pe_chg > 0 else "▼" if pe_chg < 0 else "─"
+                # THE MAIN SIGNAL: OI Difference (CE - PE) in Lakhs
+                oi_diff = ce_oi - pe_oi
+                # Positive diff = more CE writers = RESISTANCE (bearish)
+                # Negative diff = more PE writers = SUPPORT (bullish)
+                if oi_diff > 0:
+                    diff_str = f"[bold red]▼ {fmt_lakh(oi_diff)}[/bold red]"
+                elif oi_diff < 0:
+                    diff_str = f"[bold green]▲ {fmt_lakh(oi_diff)}[/bold green]"
+                else:
+                    diff_str = "[dim]─ 0[/dim]"
+
                 ce_chg_c = "bold green" if ce_chg > 0 else "bold red" if ce_chg < 0 else "dim"
                 pe_chg_c = "bold green" if pe_chg > 0 else "bold red" if pe_chg < 0 else "dim"
+                ce_arrow = "▲" if ce_chg > 0 else "▼" if ce_chg < 0 else ""
+                pe_arrow = "▲" if pe_chg > 0 else "▼" if pe_chg < 0 else ""
 
                 oi_table.add_row(
-                    f"[{ce_chg_c}]{ce_arrow} {'+' if ce_chg > 0 else ''}{fmt_oi(ce_chg)}[/{ce_chg_c}]",
                     fmt_oi(ce_oi),
+                    f"[{ce_chg_c}]{ce_arrow}{fmt_lakh(ce_chg)}[/{ce_chg_c}]",
                     f"{ce_ltp:.2f}",
-                    fmt_oi(ce_vol),
                     f"{sk_style}{strike}{sk_end}",
+                    diff_str,
                     f"{pe_ltp:.2f}",
+                    f"[{pe_chg_c}]{pe_arrow}{fmt_lakh(pe_chg)}[/{pe_chg_c}]",
                     fmt_oi(pe_oi),
-                    f"[{pe_chg_c}]{pe_arrow} {'+' if pe_chg > 0 else ''}{fmt_oi(pe_chg)}[/{pe_chg_c}]",
-                    fmt_oi(pe_vol),
                 )
         else:
-            oi_table.add_row("--", "--", "--", "--", "[dim]Loading...[/dim]", "--", "--", "--", "--")
+            oi_table.add_row("--", "--", "--", "[dim]Loading...[/dim]", "--", "--", "--", "--")
 
         # ── 5. SETUP PIPELINE & ACTIVE POSITION ──
         exec_table = Table(
