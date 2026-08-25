@@ -231,7 +231,7 @@ class CombinedSupremeEngine:
         for lvl in self.levels:
             if lvl.name == "Daily VWAP":
                 lvl.price = round(vwap, 2)
-            elif lvl.name == "EMA 20":
+            elif lvl.name in ("EMA 20", "VWMA 20"):
                 lvl.price = round(ema20, 2)
             elif lvl.name == "EMA 200":
                 lvl.price = round(ema200, 2)
