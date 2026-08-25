@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, time as dtime
+from datetime import datetime, time as dtime, timezone, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("flattrade_bot.combined_supreme")
@@ -241,8 +241,15 @@ class CombinedSupremeEngine:
                 lvl.price = round(ema200_5m, 2)
 
     def is_session_active(self, now: Optional[datetime] = None) -> bool:
-        """Operating Sessions: Full All-Day (09:18-15:00) or Dual Windows."""
-        t = (now or datetime.now()).time()
+        """Operating Sessions: Full All-Day (09:18-15:00) or Dual Windows (strictly in IST timezone)."""
+        if now is None:
+            now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+        elif now.tzinfo is None:
+            # If naive datetime, check if it's UTC (< 6 AM) and adjust to IST
+            if now.hour < 6:
+                now = now + timedelta(hours=5, minutes=30)
+
+        t = now.time()
         if self.all_day_session:
             return (dtime(9, 18) <= t <= dtime(15, 0))
         morning = (dtime(9, 15) <= t <= dtime(11, 0))

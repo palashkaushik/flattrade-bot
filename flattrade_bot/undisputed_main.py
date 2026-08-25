@@ -16,7 +16,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -97,13 +97,16 @@ class CombinedSupremeTradingEngine:
 
         # 1. Authenticate with Flattrade Broker
         token = os.getenv("FLATTRADE_TOKEN", "")
-        if not token and settings.FLATTRADE_USER_ID and settings.FLATTRADE_API_KEY:
-            try:
-                token = await self.auth.login()
-            except Exception as e:
-                logger.warning(f"REST broker login attempt: {e}")
+        if token:
+            self.client.set_token(token)
+            self.history.set_token(token)
+            q = await self.client.get_quotes(exchange="NSE", token="26000")
+            if q.get("stat") != "Ok" or "Session Expired" in str(q.get("emsg", "")) or "Invalid Session" in str(q.get("emsg", "")):
+                logger.warning("Token expired. Triggering automated zero-touch login...")
+                token = ""
 
-            if not token and settings.FLATTRADE_TOTP_KEY:
+        if not token and settings.FLATTRADE_USER_ID and settings.FLATTRADE_API_KEY:
+            if settings.FLATTRADE_TOTP_KEY:
                 try:
                     from flattrade_bot.broker.auto_login import automated_flattrade_login
                     token = automated_flattrade_login(
@@ -115,7 +118,7 @@ class CombinedSupremeTradingEngine:
                         headless=True,
                     )
                 except Exception as e:
-                    logger.warning(f"Headless broker login attempt: {e}")
+                    logger.warning(f"Automated broker login attempt: {e}")
 
         if token:
             self.client.set_token(token)
@@ -154,6 +157,8 @@ class CombinedSupremeTradingEngine:
                 if q.get("stat") == "Ok":
                     if float(q.get("c", 0)) > 0:
                         prev_close = float(q["c"])
+                    if "lp" in q and float(q["lp"]) > 0:
+                        self.latest_spot_price = float(q["lp"])
             except Exception as e:
                 logger.warning(f"Error fetching live broker quote: {e}")
 
@@ -174,11 +179,11 @@ class CombinedSupremeTradingEngine:
             parabolic_sar=24204.50,
         )
         self.engine.update_indicators(
-            spot_price=prev_close,
+            spot_price=self.latest_spot_price,
             vwap=initial_vwap,
             ema20=ema20,
             ema200=ema200,
-            spot_15m_close=prev_close,
+            spot_15m_close=self.latest_spot_price,
             spot_15m_ema20=24220.0,
             ema20_5m=ema20_5m,
             ema200_5m=ema200_5m,
@@ -189,7 +194,7 @@ class CombinedSupremeTradingEngine:
 
     def render_dashboard(self) -> Group:
         """Renders ultra-compact single-screen institutional dashboard."""
-        now = datetime.now()
+        now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
         time_str = now.strftime("%H:%M:%S")
 
         # ── 1. HEADER ──
@@ -345,7 +350,7 @@ class CombinedSupremeTradingEngine:
         with Live(self.render_dashboard(), console=console, refresh_per_second=2) as live:
             while True:
                 try:
-                    now = datetime.now()
+                    now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
 
                     # Fetch live Nifty spot price from broker & update indicators dynamically
                     if self.client.auth_token:
@@ -367,6 +372,20 @@ class CombinedSupremeTradingEngine:
                                 )
                             except (ValueError, TypeError):
                                 pass
+                        elif "Session Expired" in str(quote.get("emsg", "")) or "Invalid Session" in str(quote.get("emsg", "")):
+                            logger.warning("Session expired in live loop. Renewing token automatically...")
+                            from flattrade_bot.broker.auto_login import automated_flattrade_login
+                            new_token = automated_flattrade_login(
+                                user_id=settings.FLATTRADE_USER_ID,
+                                password=settings.FLATTRADE_PASSWORD,
+                                totp_key=settings.FLATTRADE_TOTP_KEY,
+                                api_key=settings.FLATTRADE_API_KEY,
+                                api_secret=settings.FLATTRADE_API_SECRET,
+                                headless=True,
+                            )
+                            if new_token:
+                                self.client.set_token(new_token)
+                                self.history.set_token(new_token)
 
                     touch_runtime_record(
                         path=settings.BOT_RUNTIME_FILE,
