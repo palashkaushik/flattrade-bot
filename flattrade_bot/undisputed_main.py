@@ -321,7 +321,7 @@ class CombinedSupremeTradingEngine:
         oi_table.add_column("PCR", style="bold white", justify="center", width=6)
         oi_table.add_column("Sentiment", style="bold white", justify="center", width=10)
 
-        if self._oi_history:
+        if len(self._oi_history) >= 2:
             def fmt_indian(v):
                 """Format number in Indian comma style (lakhs/crores)."""
                 neg = v < 0
@@ -337,21 +337,32 @@ class CombinedSupremeTradingEngine:
                         s = s[:-2]
                 return ("-" if neg else "") + result
 
-            for idx, snap in enumerate(reversed(self._oi_history[-3:]), start=1):
-                diff = snap["oi_diff"]
-                prev_diff = snap.get("prev_diff", diff)
-                chg_in_dir = diff - prev_diff
-                chg_pct = (abs(chg_in_dir) / abs(prev_diff) * 100) if prev_diff != 0 else 0.0
+            # Show the latest 3 interval diffs (each row = 5 min change)
+            hist = self._oi_history
+            show_count = min(3, len(hist) - 1)  # Need at least 2 snapshots for 1 diff
+            for idx in range(show_count):
+                curr = hist[-(idx + 1)]
+                prev = hist[-(idx + 2)]
 
-                # Direction arrow
-                if diff < prev_diff:
+                # 5-minute interval delta
+                ce_delta = curr["ce_oi_raw"] - prev["ce_oi_raw"]
+                pe_delta = curr["pe_oi_raw"] - prev["pe_oi_raw"]
+                diff = ce_delta - pe_delta
+                prev_diff_val = 0
+                if idx + 2 < len(hist):
+                    pp = hist[-(idx + 3)]
+                    prev_diff_val = (prev["ce_oi_raw"] - pp["ce_oi_raw"]) - (prev["pe_oi_raw"] - pp["pe_oi_raw"])
+
+                # Direction arrow (vs previous interval)
+                if diff < prev_diff_val:
                     arrow = "[bold red]▼[/bold red]"
-                elif diff > prev_diff:
+                elif diff > prev_diff_val:
                     arrow = "[bold green]▲[/bold green]"
                 else:
                     arrow = "[dim]─[/dim]"
 
-                # Sentiment: negative diff = bearish (more CE writing), positive = bullish
+                chg_pct = (abs(diff - prev_diff_val) / abs(prev_diff_val) * 100) if prev_diff_val != 0 else 0.0
+
                 if diff < 0:
                     sentiment = "[bold red]Bearish[/bold red]"
                 elif diff > 0:
@@ -359,23 +370,22 @@ class CombinedSupremeTradingEngine:
                 else:
                     sentiment = "[dim]Neutral[/dim]"
 
-                # Diff color
                 diff_color = "bold red" if diff < 0 else "bold green" if diff > 0 else "dim"
 
                 oi_table.add_row(
-                    str(idx),
-                    snap["time"],
-                    f"{snap['ltp']:,.2f}",
-                    fmt_indian(snap["ce_chg_total"]),
-                    fmt_indian(snap["pe_chg_total"]),
+                    str(idx + 1),
+                    curr["time"],
+                    f"{curr['ltp']:,.2f}",
+                    fmt_indian(ce_delta),
+                    fmt_indian(pe_delta),
                     f"[{diff_color}]{fmt_indian(diff)}[/{diff_color}]",
                     arrow,
                     f"{chg_pct:.1f} %",
-                    f"{snap['pcr']:.2f}",
+                    f"{curr['pcr']:.2f}",
                     sentiment,
                 )
         else:
-            oi_table.add_row("--", "--", "--", "--", "--", "[dim]Loading...[/dim]", "--", "--", "--", "--")
+            oi_table.add_row("--", "--", "--", "--", "--", "[dim]Waiting for 2nd snapshot...[/dim]", "--", "--", "--", "--")
 
         # ── 5. SETUP PIPELINE & ACTIVE POSITION ──
         exec_table = Table(
@@ -592,7 +602,10 @@ class CombinedSupremeTradingEngine:
                 "time": now.strftime("%H:%M:%S"),
                 "ltp": self.latest_spot_price,
                 "ce_chg_total": ce_chg,
+                "ce_chg_total": ce_chg,
                 "pe_chg_total": pe_chg,
+                "ce_oi_raw": total_ce_oi,
+                "pe_oi_raw": total_pe_oi,
                 "oi_diff": oi_diff,
                 "prev_diff": prev_diff,
                 "pcr": round(pcr, 2),
