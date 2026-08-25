@@ -292,8 +292,8 @@ class CombinedSupremeEngine:
                 self.pending_setup = None
                 return setup
 
-        # Step 1: Scan S/R Levels for Bar 1 Touch & Rejection Stall (with 4.0 pt Institutional Zone)
-        touch_zone = max(self.current_atr * 0.25, 4.0)
+        # Step 1: Scan S/R Levels for Bar 1 Touch & Rejection Stall (Verified Backtest: 0.50 * ATR, min 4.0 pts)
+        touch_zone = max(self.current_atr * 0.50, 4.0)
         sorted_levels = sorted(self.levels, key=lambda l: (not l.is_virgin, l.priority))
 
         for lvl in sorted_levels:
