@@ -144,7 +144,7 @@ class CombinedSupremeTradingEngine:
         prev_vwap_close = 24220.00
         ema200 = 24194.88
         ema20 = 24158.72
-        ema20_5m = 24178.64
+        ema20_5m = 24159.44
         ema200_5m = 24207.05
         opening_3m_h = 24260.00
         opening_3m_l = 24200.00
@@ -393,19 +393,21 @@ class CombinedSupremeTradingEngine:
                                 self._broker_status = "[bold green]LIVE CONNECTED[/bold green]"
 
                                 # True 3m & 5m Bar-Close EMA Updates (PineScript/TradingView standard)
-                                if now.second < 2:
-                                    if now.minute % 3 == 0:
-                                        # 3-Minute Bar Close EMA update
-                                        alpha_20 = 2.0 / 21.0
-                                        alpha_200 = 2.0 / 201.0
-                                        self.engine.current_ema20 = (self.latest_spot_price * alpha_20) + (self.engine.current_ema20 * (1 - alpha_20))
-                                        self.engine.current_ema200 = (self.latest_spot_price * alpha_200) + (self.engine.current_ema200 * (1 - alpha_200))
-                                    if now.minute % 5 == 0:
-                                        # 5-Minute Bar Close EMA update
-                                        alpha_5m_20 = 2.0 / 21.0
-                                        alpha_5m_200 = 2.0 / 201.0
-                                        self.engine.current_5m_ema20 = (self.latest_spot_price * alpha_5m_20) + (self.engine.current_5m_ema20 * (1 - alpha_5m_20))
-                                        self.engine.current_5m_ema200 = (self.latest_spot_price * alpha_5m_200) + (self.engine.current_5m_ema200 * (1 - alpha_5m_200))
+                                current_3m_bucket = now.minute // 3
+                                if hasattr(self, "_last_3m_bucket") and current_3m_bucket != self._last_3m_bucket:
+                                    alpha_20 = 2.0 / 21.0
+                                    alpha_200 = 2.0 / 201.0
+                                    self.engine.current_ema20 = round((self.latest_spot_price * alpha_20) + (self.engine.current_ema20 * (1 - alpha_20)), 2)
+                                    self.engine.current_ema200 = round((self.latest_spot_price * alpha_200) + (self.engine.current_ema200 * (1 - alpha_200)), 2)
+                                self._last_3m_bucket = current_3m_bucket
+
+                                current_5m_bucket = now.minute // 5
+                                if hasattr(self, "_last_5m_bucket") and current_5m_bucket != self._last_5m_bucket:
+                                    alpha_5m_20 = 2.0 / 21.0
+                                    alpha_5m_200 = 2.0 / 201.0
+                                    self.engine.current_5m_ema20 = round((self.latest_spot_price * alpha_5m_20) + (self.engine.current_5m_ema20 * (1 - alpha_5m_20)), 2)
+                                    self.engine.current_5m_ema200 = round((self.latest_spot_price * alpha_5m_200) + (self.engine.current_5m_ema200 * (1 - alpha_5m_200)), 2)
+                                self._last_5m_bucket = current_5m_bucket
 
                                 # Dynamic indicator update from live tick
                                 self.engine.update_indicators(
