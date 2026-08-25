@@ -251,7 +251,11 @@ class CombinedSupremeTradingEngine:
         else:
             chop_str = "[bold green]READY[/bold green]"
 
-        net_rs = sum(t.get("net_rs", 0.0) for t in self.trades_today)
+        if self.live_orders and hasattr(self, "_live_broker_pnl") and self._live_broker_pnl is not None:
+            net_rs = self._live_broker_pnl
+        else:
+            net_rs = sum(t.get("net_rs", 0.0) for t in self.trades_today)
+
         pnl_color = "bold green" if net_rs >= 0 else "bold red"
         pnl_str = f"[{pnl_color}]Rs {net_rs:+,.2f}[/{pnl_color}]"
 
@@ -682,6 +686,21 @@ class CombinedSupremeTradingEngine:
                                 if new_token:
                                     self.client.set_token(new_token)
                                     self.history.set_token(new_token)
+
+                    # Live Broker Position Book & P&L Sync (Every 3 seconds)
+                    if self.live_orders and self.client.auth_token:
+                        if not hasattr(self, "_last_pos_sync") or (time.time() - getattr(self, "_last_pos_sync", 0)) > 3.0:
+                            self._last_pos_sync = time.time()
+                            try:
+                                pos_res = await self.client.get_positions()
+                                if isinstance(pos_res, list):
+                                    tot_pnl = sum(float(p.get("rpnl", 0.0)) + float(p.get("urmtom", 0.0)) for p in pos_res if isinstance(p, dict))
+                                    self._live_broker_pnl = round(tot_pnl, 2)
+                                elif isinstance(pos_res, dict) and "stat" in pos_res and pos_res["stat"] == "Ok" and "positions" in pos_res:
+                                    tot_pnl = sum(float(p.get("rpnl", 0.0)) + float(p.get("urmtom", 0.0)) for p in pos_res.get("positions", []) if isinstance(p, dict))
+                                    self._live_broker_pnl = round(tot_pnl, 2)
+                            except Exception:
+                                pass
 
                     touch_runtime_record(
                         path=settings.BOT_RUNTIME_FILE,
