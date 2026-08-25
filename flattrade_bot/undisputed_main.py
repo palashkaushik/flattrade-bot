@@ -248,13 +248,18 @@ class CombinedSupremeTradingEngine:
         sr_table.add_column("BUDGET", style="bold white", justify="center", width=10)
         sr_table.add_column("STATUS", style="bold white", justify="center", width=14)
 
-        for lvl in self.engine.levels[:5]:
+        # Sort all S/R levels dynamically by distance to current market price (Nearest first)
+        nearest_levels = sorted(self.engine.levels, key=lambda l: abs(self.latest_spot_price - l.price))
+
+        for lvl in nearest_levels[:8]:
             dist = self.latest_spot_price - lvl.price
             budget_str = f"{lvl.touch_count}/{lvl.max_touches}"
             if lvl.touch_count >= lvl.max_touches:
                 st = "[dim red]EXHAUSTED[/dim red]"
             elif abs(dist) <= 6.0:
                 st = "[bold white on green][IN ZONE][/bold white on green]"
+            elif abs(dist) <= 15.0:
+                st = "[bold yellow]APPROACHING[/bold yellow]"
             else:
                 st = "[dim]WATCHING[/dim]"
             sr_table.add_row(lvl.name, f"Rs {lvl.price:.2f}", f"Tier {lvl.priority}", f"{dist:+6.1f} pts", budget_str, st)
