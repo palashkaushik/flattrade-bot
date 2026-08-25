@@ -142,8 +142,8 @@ class CombinedSupremeTradingEngine:
         prev_low = 24144.30
         initial_vwap = 24225.43
         prev_vwap_close = 24220.00
-        ema200 = 24199.16
-        ema20 = 24178.98
+        ema200 = 24194.88
+        ema20 = 24158.72
         ema20_5m = 24178.64
         ema200_5m = 24207.05
         opening_3m_h = 24260.00
@@ -175,7 +175,7 @@ class CombinedSupremeTradingEngine:
             virgin_cprs=virgin_cprs,
             opening_3m_high=opening_3m_h,
             opening_3m_low=opening_3m_l,
-            vwma20=24178.98,
+            vwma20=24158.72,
             parabolic_sar=24204.50,
         )
         self.engine.current_supertrend = 24216.53
@@ -185,7 +185,7 @@ class CombinedSupremeTradingEngine:
             ema20=ema20,
             ema200=ema200,
             spot_15m_close=self.latest_spot_price,
-            spot_15m_ema20=24220.0,
+            spot_15m_ema20=ema20_5m,
             ema20_5m=ema20_5m,
             ema200_5m=ema200_5m,
             atr=14.0,
@@ -366,29 +366,31 @@ class CombinedSupremeTradingEngine:
                                 self.latest_spot_price = float(quote["lp"])
                                 self._broker_status = "[bold green]LIVE CONNECTED[/bold green]"
 
-                                # Real-time tick smoothing for EMAs and VWAP
-                                cur_e20 = self.engine.current_ema20 if self.engine.current_ema20 > 0 else self.latest_spot_price
-                                cur_e20_5m = self.engine.current_5m_ema20 if self.engine.current_5m_ema20 > 0 else self.latest_spot_price
-                                cur_e200 = self.engine.current_ema200 if self.engine.current_ema200 > 0 else self.latest_spot_price
-                                cur_e200_5m = self.engine.current_5m_ema200 if self.engine.current_5m_ema200 > 0 else self.latest_spot_price
-                                cur_vwap = self.engine.current_vwap if self.engine.current_vwap > 0 else self.latest_spot_price
-
-                                smooth_e20 = (self.latest_spot_price * 0.005) + (cur_e20 * 0.995)
-                                smooth_e20_5m = (self.latest_spot_price * 0.003) + (cur_e20_5m * 0.997)
-                                smooth_e200 = (self.latest_spot_price * 0.001) + (cur_e200 * 0.999)
-                                smooth_e200_5m = (self.latest_spot_price * 0.0005) + (cur_e200_5m * 0.9995)
-                                smooth_vwap = (self.latest_spot_price * 0.002) + (cur_vwap * 0.998)
+                                # True 3m & 5m Bar-Close EMA Updates (PineScript/TradingView standard)
+                                if now.second < 2:
+                                    if now.minute % 3 == 0:
+                                        # 3-Minute Bar Close EMA update
+                                        alpha_20 = 2.0 / 21.0
+                                        alpha_200 = 2.0 / 201.0
+                                        self.engine.current_ema20 = (self.latest_spot_price * alpha_20) + (self.engine.current_ema20 * (1 - alpha_20))
+                                        self.engine.current_ema200 = (self.latest_spot_price * alpha_200) + (self.engine.current_ema200 * (1 - alpha_200))
+                                    if now.minute % 5 == 0:
+                                        # 5-Minute Bar Close EMA update
+                                        alpha_5m_20 = 2.0 / 21.0
+                                        alpha_5m_200 = 2.0 / 201.0
+                                        self.engine.current_5m_ema20 = (self.latest_spot_price * alpha_5m_20) + (self.engine.current_5m_ema20 * (1 - alpha_5m_20))
+                                        self.engine.current_5m_ema200 = (self.latest_spot_price * alpha_5m_200) + (self.engine.current_5m_ema200 * (1 - alpha_5m_200))
 
                                 # Dynamic indicator update from live tick
                                 self.engine.update_indicators(
                                     spot_price=self.latest_spot_price,
-                                    vwap=smooth_vwap,
-                                    ema20=smooth_e20,
-                                    ema200=smooth_e200,
+                                    vwap=self.engine.current_vwap if self.engine.current_vwap > 0 else 24225.43,
+                                    ema20=self.engine.current_ema20,
+                                    ema200=self.engine.current_ema200,
                                     spot_15m_close=self.latest_spot_price,
-                                    spot_15m_ema20=smooth_e20_5m,
-                                    ema20_5m=smooth_e20_5m,
-                                    ema200_5m=smooth_e200_5m,
+                                    spot_15m_ema20=self.engine.current_5m_ema20,
+                                    ema20_5m=self.engine.current_5m_ema20,
+                                    ema200_5m=self.engine.current_5m_ema200,
                                     atr=self.engine.current_atr if self.engine.current_atr > 0 else 14.0,
                                 )
                             except (ValueError, TypeError):
