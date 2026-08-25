@@ -145,16 +145,16 @@ class CombinedSupremeTradingEngine:
             self._broker_status = "[yellow]SIMULATION MODE[/yellow]"
             logger.warning("Running in simulation mode (No live broker token).")
 
-        # Tuesday 25-Aug Official Nifty 50 Spot Session Anchors (TradingView 11:08 Verified)
-        prev_close = 24219.00
+        # Tuesday 25-Aug Official Nifty 50 Spot Session Anchors (TradingView 13:00 Verified)
+        prev_close = 24219.10
         prev_high = 24313.00
         prev_low = 24144.30
         initial_vwap = 24225.43
         prev_vwap_close = 24220.00
-        ema200 = 24183.76  # TradingView 3m EMA 200 verified at 11:08
-        ema20 = 24143.02  # TradingView 3m EMA 20 verified at 11:08
-        ema20_5m = 24146.37  # TradingView 5m EMA 20 verified at 11:05
-        ema200_5m = 24196.34  # TradingView 5m EMA 200 verified at 11:05
+        ema200 = 24176.26  # TradingView 3m EMA 200 verified at 13:00
+        ema20 = 24158.89   # TradingView 3m EMA 20 verified at 13:00
+        ema20_5m = 24158.38  # TradingView 5m EMA 20 verified at 13:00
+        ema200_5m = 24189.19  # TradingView 5m EMA 200 verified at 13:00
         opening_3m_h = 24260.00
         opening_3m_l = 24200.00
         virgin_cprs = [(24098.00, 24111.00, 24085.00, "20-Aug")]
@@ -184,10 +184,10 @@ class CombinedSupremeTradingEngine:
             virgin_cprs=virgin_cprs,
             opening_3m_high=opening_3m_h,
             opening_3m_low=opening_3m_l,
-            vwma20=24143.02,
+            vwma20=24144.36,   # TradingView VWMA 20 at 13:00
             parabolic_sar=24204.50,
         )
-        self.engine.current_supertrend = 24216.53
+        self.engine.current_supertrend = 24185.54  # TradingView SuperTrend(10,3) at 13:00
         self.engine.update_indicators(
             spot_price=self.latest_spot_price,
             vwap=initial_vwap,

@@ -322,8 +322,8 @@ def run_elder_wick_touch(
                 upper_wick = bar_high - max(bar_open, spot_px)  # Upper shadow size
                 upper_touch = abs(bar_high - lvl_px) <= buffer and upper_wick > 0
 
-                # ── LONG SETUP (CE) ──
-                if lower_touch and spot_px > lvl_px and is_bull_15m:
+                # ── LONG SETUP (CE): lower wick touched level, close bounced (within buffer OK) ──
+                if lower_touch and spot_px >= (lvl_px - buffer) and is_bull_15m:
                     if elder_allows(elder_color, "CE"):
                         score = 40 + (25 if is_v else 20 if tier == 1 else 10 if tier == 2 else 5)
                         if is_bull_15m:
@@ -388,8 +388,8 @@ def run_elder_wick_touch(
                             cooldown_until = b_idx + 3
                             break
 
-                # ── SHORT SETUP (PE) ──
-                if upper_touch and spot_px < lvl_px and not is_bull_15m:
+                # ── SHORT SETUP (PE): upper wick touched level, close rejected (within buffer OK) ──
+                if upper_touch and spot_px <= (lvl_px + buffer) and not is_bull_15m:
                     if elder_allows(elder_color, "PE"):
                         score = 40 + (25 if is_v else 20 if tier == 1 else 10 if tier == 2 else 5)
                         if not is_bull_15m:
@@ -506,6 +506,11 @@ def main():
     virgin_cprs_by_day = {}
     history = []
 
+    # Precompute daily high/low ranges for Virgin CPR check (avoid O(n²) DataFrame filtering)
+    daily_ranges = {}
+    for d, grp in df_spot.groupby("day_str"):
+        daily_ranges[d] = (grp["close"].min(), grp["close"].max())
+
     for i in range(1, len(all_days)):
         prev_d = all_days[i - 1]
         cur_d = all_days[i]
@@ -528,10 +533,10 @@ def main():
 
         history.append((pivot, cpr_top, cpr_bot, prev_d))
         active_v = []
-        for vp, vtc, vbc, vday in history[:-1]:
-            dr = df_spot[df_spot["day_str"] == cur_d]
-            if len(dr) > 0:
-                if not (dr["close"].min() <= vtc and dr["close"].max() >= vbc):
+        if cur_d in daily_ranges:
+            d_low, d_high = daily_ranges[cur_d]
+            for vp, vtc, vbc, vday in history[:-1]:
+                if not (d_low <= vtc and d_high >= vbc):
                     active_v.append((vp, vtc, vbc, vday))
         virgin_cprs_by_day[cur_d] = active_v
 
