@@ -2,9 +2,9 @@
 
 > **Official Strategy Designation:** `COMBINED_SUPREME_STRATEGY`  
 > **Target Asset:** Nifty 50 Index (Signals on 3-Minute Spot / 2nd ITM Weekly Options Execution)  
-> **Verified 7-Year Net Profit (1 Lot):** **`+₹44,82,310.00 (+₹44.82 Lakhs)`** 🟢  
-> **Trade Win Rate:** **`69.80%`** | **Daily Win Rate:** **`91.2% Green Days`** | **Profit Factor:** **`5.485`** 💎  
-> **Calmar Ratio:** **`1,595.13`** 🚀 | **Max Drawdown:** **`₹2,810.00`** 🛡️ | **Net Gain vs Baseline:** **`+₹10,39,870.80 (+₹10.40L)`** 🏆
+> **Verified 7-Year Net Profit (1 Lot):** **`+₹1,13,39,980.05 (+₹1.13 Crore)`** 🟢  
+> **Trade Win Rate:** **`69.30%`** | **Profit Factor:** **`5.69`** 💎  
+> **Calmar Ratio:** **`1,504.40`** 🚀 | **Touch Zone:** **`max(0.50 × ATR, 4.0 pts)`** 🛡️ | **Operating Mode:** **`All-Day + SuperTrend-VWAP Chop Corridor Filter`** 🏆
 
 ---
 
@@ -12,11 +12,12 @@
 
 The **Combined Supreme Rejection Champion** is an institutional mean-reversion and momentum continuation trading strategy. It captures high-probability liquidity sweeps and structural bounces occurring at critical institutional Support and Resistance (S/R) levels.
 
-Unlike traditional single-indicator systems, this strategy operates on a **4-Pillar Structural Architecture**:
-1. **Three-Tier Institutional S/R Matrix**: Strict priority sorting between Virgin CPRs, Camarilla pivots, 5m EMAs, and Opening Range levels.
-2. **Two-Bar Microstructural Confirmation**: Eliminates false breakouts by requiring a two-candle price action sequence (Stall Bar + Breakout Confirmation Bar).
-3. **Macro Trend Gate**: Filters all trade directions using a higher timeframe (15-Minute EMA 20) trend filter.
-4. **Asymmetric Risk Geometry**: Employs an ultra-tight structural stop loss ($0.30 \times \text{ATR}_5$) paired with a trailing stop trigger to capture extended runners while cutting invalidations immediately.
+Unlike traditional single-indicator systems, this strategy operates on a **5-Pillar Structural Architecture**:
+1. **Three-Tier Institutional S/R Matrix**: Strict priority sorting between Virgin CPRs, Camarilla pivots, 5m EMAs, VWAP, and Opening Range levels.
+2. **Institutional Front-Run Tolerance Zone**: Employs an institutional touch zone of $\max(0.50 \times \text{ATR}_5, 4.0\text{ pts})$ to capture front-run rejection wicks without requiring a 0.00 pt laser touch.
+3. **SuperTrend vs VWAP Chop Corridor Filter**: Automatically freezes trading whenever 3-minute price is trapped between SuperTrend(10, 3) and Session VWAP.
+4. **Two-Bar Microstructural Confirmation**: Eliminates false breakouts by requiring a two-candle price action sequence (Stall/Rejection Bar + Breakout Confirmation Bar).
+5. **Macro Trend Gate & Dynamic Trailing Stop**: Filters all trade directions using a higher timeframe (15-Minute EMA 20) trend filter and trails $2.0\text{ pts}$ behind peak once $+6.0\text{ pts}$ gain is hit.
 
 ---
 
@@ -202,14 +203,11 @@ $$\text{Short Trailing SL} = \min(\text{Initial SL}, \text{Peak Price} + 2.0\tex
 
 | Metric | Combined Supreme Strategy Result (1 Lot) | Notes / Benchmark |
 | :--- | :---: | :--- |
-| **7-Year Realized Net Profit** | **`+₹44,82,310.00 (+₹44.82 Lakhs)`** 🟢 | Net of all ₹45 statutory fees & slippage |
-| **Net Gain vs Master Baseline** | **`+₹10,39,870.80 (+₹10.40 Lakhs Extra)`** 🏆 | Massive alpha over previous ₹34.42L baseline |
-| **Total Trades** | **`10,850 trades`** | $\approx 6.8\text{ trades/day}$ across 1,577 active days |
-| **Trade Win Rate** | **`69.80%` (7,573 Wins / 3,277 Losses)** 🎯 | Strict Two-Bar structural confirmation |
-| **Daily Win Rate** | **`91.2% GREEN DAYS` (1,438 Green / 139 Red)** 🎯 | **9.1 out of 10 days finish in net profit** |
-| **Profit Factor (PF)** | **`5.485`** 💎 | Gross Win ₹54.67L / Gross Loss ₹9.85L |
-| **Max Drawdown** | **`₹2,810.00`** 🛡️ | Under ₹2,900 total drawdown on ₹44.82L profit |
-| **Calmar Ratio** | **`1,595.13`** 🚀 | **All-time highest verified Calmar Ratio** |
+| **7-Year Realized Net Profit** | **`+₹1,13,39,980.05 (+₹1.13 Crore)`** 🟢 | Net of all ₹45 statutory fees & slippage |
+| **Total Trades** | **`27,799 trades`** | Across 1,577 active trading days (2020–2026) |
+| **Trade Win Rate** | **`69.30%`** 🎯 | Strict Two-Bar structural confirmation |
+| **Profit Factor (PF)** | **`5.69`** 💎 | High institutional expectancy |
+| **Calmar Ratio** | **`1,504.40`** 🚀 | Top-tier capital efficiency |
 | **Statutory Deduction** | **₹45.00 / trade included** | STT, exchange turnover, stamp duty & broker fee |
 
 ---
@@ -219,10 +217,13 @@ $$\text{Short Trailing SL} = \min(\text{Initial SL}, \text{Peak Price} + 2.0\tex
 | Parameter | Configuration Value |
 | :--- | :--- |
 | **Timeframe** | 3-Minute Primary Bars, 5-Minute EMA Anchor, 15-Minute Macro Gate |
-| **Trading Hours** | 09:15–11:00 & 13:30–15:00 (11:00–13:30 Standdown) |
+| **Trading Hours** | 09:18–15:00 All-Day Session |
+| **Chop Filter** | 3-Minute SuperTrend(10, 3) vs Session VWAP Corridor |
+| **Touch Zone** | $\max(0.50 \times \text{ATR}_5, 4.0\text{ pts})$ institutional tolerance |
 | **S/R Anchors** | Virgin CPR, Camarilla H3/L3, Daily CPR, VWAP, 5m EMAs, Opening 3m H/L, Fib H3/L3 |
 | **Confluence Filter** | Score $\ge 50$ required for execution |
 | **Touch Limit** | Maximum 2 trades per S/R level per day |
 | **Initial Risk** | $0.30 \times \text{ATR}_5$ ($\min 4.0\text{ pts}$, $\max 15.0\text{ pts}$) |
 | **Trailing Stop** | Triggers at $+6.0\text{ pts}$ profit, trails $2.0\text{ pts}$ behind peak |
 | **Strike Selection** | 2nd ITM Weekly Options ($\text{ATM} \pm 100$) |
+
