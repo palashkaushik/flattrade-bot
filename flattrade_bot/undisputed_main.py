@@ -144,8 +144,8 @@ class CombinedSupremeTradingEngine:
         prev_vwap_close = 24220.00
         ema200 = 24179.71
         ema20 = 24181.93
-        ema20_5m = 24181.93
-        ema200_5m = 24179.71
+        ema20_5m = 24179.21
+        ema200_5m = 24207.09
         opening_3m_h = 24260.00
         opening_3m_l = 24200.00
         virgin_cprs = [(24098.00, 24111.00, 24085.00, "20-Aug")]
