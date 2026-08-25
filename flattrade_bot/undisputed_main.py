@@ -353,7 +353,7 @@ class CombinedSupremeTradingEngine:
         """Executes 2nd ITM option order with full risk geometry."""
         strike = self.engine.select_2nd_itm_strike(self.latest_spot_price, setup.direction)
         opt_type = "CE" if setup.direction == "LONG" else "PE"
-        symbol = f"NIFTY {strike} {opt_type}"
+        display_symbol = f"NIFTY {strike} {opt_type}"
 
         if setup.direction == "LONG":
             actual_sl = round(setup.entry_price - setup.initial_sl, 2)
@@ -362,12 +362,56 @@ class CombinedSupremeTradingEngine:
             actual_sl = round(setup.entry_price + setup.initial_sl, 2)
             actual_tp = round(setup.entry_price - setup.target_price, 2)
 
-        logger.info(f"🚀 EXECUTING TRADE: {setup.direction} on {setup.level.name} | Strike={symbol} | Entry={setup.entry_price:.2f} | SL={actual_sl:.2f} | TP={actual_tp:.2f}")
+        # Resolve exact Flattrade option trading symbol & security token
+        tsym = f"NIFTY{strike}{opt_type}"
+        token = ""
+        opt_ltp = 100.0
+
+        if self.history.auth_token:
+            try:
+                scrip = await self.history.search_option_token(f"NIFTY {strike} {opt_type}")
+                if scrip:
+                    tsym = scrip.get("tsym", tsym)
+                    token = scrip.get("token", "")
+                    # Fetch live option quote
+                    if token:
+                        oq = await self.client.get_quotes(exchange="NFO", token=token)
+                        if oq.get("stat") == "Ok" and "lp" in oq:
+                            opt_ltp = float(oq["lp"])
+            except Exception as e:
+                logger.warning(f"Option scrip resolution error: {e}")
+
+        logger.info(f"🚀 EXECUTING TRADE: {setup.direction} on {setup.level.name} | Strike={tsym} | Spot Entry={setup.entry_price:.2f} | SL={actual_sl:.2f} | TP={actual_tp:.2f}")
+
+        broker_filled = False
+        order_id = ""
+
+        # LIVE ORDER EXECUTION ON FLATTRADE BROKER PLATFORM
+        if self.live_orders:
+            try:
+                res = await self.client.place_market_order(
+                    symbol=tsym,
+                    side="BUY",
+                    quantity=settings.LOT_SIZE,
+                    ltp=opt_ltp,
+                    product="MIS",
+                    slippage_buffer=2.0,
+                )
+                if res.get("stat") == "Ok":
+                    broker_filled = True
+                    order_id = res.get("norenordno", "")
+                    logger.info(f"✅ LIVE BROKER ORDER FILLED on Flattrade! Order ID: {order_id} | Option LTP: ₹{opt_ltp:.2f}")
+                else:
+                    logger.error(f"❌ LIVE BROKER ORDER REJECTED: {res.get('emsg')}")
+            except Exception as e:
+                logger.error(f"Failed to place live broker order: {e}")
 
         now_ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
         self.active_position = {
-            "symbol": symbol,
-            "strike_symbol": symbol,
+            "symbol": display_symbol,
+            "strike_symbol": tsym,
+            "tsym": tsym,
+            "token": token,
             "direction": setup.direction,
             "entry_price": setup.entry_price,
             "initial_sl": actual_sl,
@@ -377,17 +421,20 @@ class CombinedSupremeTradingEngine:
             "entry_time": now_ist.strftime("%H:%M:%S"),
             "current_pts": 0.0,
             "peak_pts": 0.0,
+            "broker_filled": broker_filled,
+            "order_id": order_id,
+            "option_ltp": opt_ltp,
         }
 
         asyncio.create_task(
             self.discord.send_trade_alert(
                 strategy="Combined Supreme Strategy (1,595+ Calmar)",
                 direction=setup.direction,
-                symbol=symbol,
+                symbol=display_symbol,
                 entry_price=setup.entry_price,
                 sl_price=actual_sl,
                 tp_price=actual_tp,
-                notes=f"Rejection on {setup.level.name} (Tier {setup.level.priority}) | Confluence Score={setup.score}",
+                notes=f"Rejection on {setup.level.name} (Tier {setup.level.priority}) | Confluence Score={setup.score} | Flattrade ID: {order_id or 'SIM'}",
             )
         )
 
@@ -493,6 +540,20 @@ class CombinedSupremeTradingEngine:
                                             pos["exit_price"] = self.latest_spot_price
                                             pos["net_rs"] = pts * settings.LOT_SIZE
                                             logger.info(f"🛑 LONG SL Hit at {self.latest_spot_price:.2f} (P&L: {pts:+.2f} pts)")
+                                            if self.live_orders and pos.get("broker_filled"):
+                                                try:
+                                                    await self.client.place_market_order(
+                                                        symbol=pos["tsym"],
+                                                        side="SELL",
+                                                        quantity=settings.LOT_SIZE,
+                                                        ltp=pos.get("option_ltp", 100.0),
+                                                        product="MIS",
+                                                        slippage_buffer=2.0,
+                                                    )
+                                                    logger.info(f"✅ LIVE BROKER EXIT FILLED on Flattrade for {pos['tsym']}")
+                                                except Exception as e:
+                                                    logger.error(f"Failed to place live broker exit: {e}")
+
                                             self.trades_today.append(pos)
                                             if pts > 0:
                                                 self._wins_today += 1
@@ -538,6 +599,20 @@ class CombinedSupremeTradingEngine:
                                             pos["exit_price"] = self.latest_spot_price
                                             pos["net_rs"] = pts * settings.LOT_SIZE
                                             logger.info(f"🛑 SHORT SL Hit at {self.latest_spot_price:.2f} (P&L: {pts:+.2f} pts)")
+                                            if self.live_orders and pos.get("broker_filled"):
+                                                try:
+                                                    await self.client.place_market_order(
+                                                        symbol=pos["tsym"],
+                                                        side="SELL",
+                                                        quantity=settings.LOT_SIZE,
+                                                        ltp=pos.get("option_ltp", 100.0),
+                                                        product="MIS",
+                                                        slippage_buffer=2.0,
+                                                    )
+                                                    logger.info(f"✅ LIVE BROKER EXIT FILLED on Flattrade for {pos['tsym']}")
+                                                except Exception as e:
+                                                    logger.error(f"Failed to place live broker exit: {e}")
+
                                             self.trades_today.append(pos)
                                             if pts > 0:
                                                 self._wins_today += 1
