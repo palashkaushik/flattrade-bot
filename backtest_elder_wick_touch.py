@@ -71,15 +71,16 @@ class ElderImpulse:
         e12 = self.ema12.update(close)
         e26 = self.ema26.update(close)
         macd_line = e12 - e26
-        hist = self.macd_ema9.update(macd_line)
+        signal_line = self.macd_ema9.update(macd_line)
+        histogram = macd_line - signal_line  # TRUE MACD histogram
         color = "blue"
         if self.prev_ema13 is not None and self.prev_hist is not None:
-            if e13 > self.prev_ema13 and hist > self.prev_hist:
+            if e13 > self.prev_ema13 and histogram > self.prev_hist:
                 color = "green"
-            elif e13 < self.prev_ema13 and hist < self.prev_hist:
+            elif e13 < self.prev_ema13 and histogram < self.prev_hist:
                 color = "red"
         self.prev_ema13 = e13
-        self.prev_hist = hist
+        self.prev_hist = histogram
         self.color = color
         return color
 
@@ -335,8 +336,9 @@ def run_elder_wick_touch(
                             if not opt_sym:
                                 continue
 
-                            # CAUSAL: Signal at bar close → enter on NEXT bar's open
-                            next_bar_min = t_min + 3
+                            # CAUSAL: Signal at bar close → enter on NEXT minute's open
+                            # Options are 1-min bars; spot signal on 3m bar close
+                            next_bar_min = t_min + 1
                             c_df = opt_df[opt_df["symbol"] == opt_sym].sort_values("minute")
                             c_bars = c_df[c_df["minute"] >= next_bar_min].to_dict("records")
                             if not c_bars:
@@ -401,8 +403,8 @@ def run_elder_wick_touch(
                             if not opt_sym:
                                 continue
 
-                            # CAUSAL: Signal at bar close → enter on NEXT bar's open
-                            next_bar_min = t_min + 3
+                            # CAUSAL: Signal at bar close → enter on NEXT minute's open
+                            next_bar_min = t_min + 1
                             c_df = opt_df[opt_df["symbol"] == opt_sym].sort_values("minute")
                             c_bars = c_df[c_df["minute"] >= next_bar_min].to_dict("records")
                             if not c_bars:

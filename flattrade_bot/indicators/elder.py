@@ -6,7 +6,15 @@ from flattrade_bot.indicators.ema import IncrementalEMA
 
 
 class IncrementalElderImpulse:
-    """EMA(13) slope plus MACD(12,26,9) histogram slope."""
+    """EMA(13) slope plus MACD(12,26,9) histogram slope.
+    
+    MACD Histogram = MACD Line - Signal Line
+                   = (EMA12 - EMA26) - EMA9(EMA12 - EMA26)
+    
+    Green: EMA13 rising AND MACD Histogram rising
+    Red:   EMA13 falling AND MACD Histogram falling
+    Blue:  otherwise (mixed momentum)
+    """
 
     def __init__(self):
         self.ema13 = IncrementalEMA(13)
@@ -14,7 +22,7 @@ class IncrementalElderImpulse:
         self.ema26 = IncrementalEMA(26)
         self.macd_ema9 = IncrementalEMA(9)
         self.prev_ema13: Optional[float] = None
-        self.prev_hist: Optional[float] = None
+        self.prev_hist: Optional[float] = None  # Previous MACD histogram (not signal line!)
         self.color = "blue"
 
     def update(self, close: float) -> str:
@@ -23,18 +31,20 @@ class IncrementalElderImpulse:
         ema26 = self.ema26.update(close)
         color = "blue"
         if ema12 is not None and ema26 is not None:
-            histogram = self.macd_ema9.update(ema12 - ema26)
-            if (
-                ema13 is not None
-                and histogram is not None
-                and self.prev_ema13 is not None
-                and self.prev_hist is not None
-            ):
-                if ema13 > self.prev_ema13 and histogram > self.prev_hist:
-                    color = "green"
-                elif ema13 < self.prev_ema13 and histogram < self.prev_hist:
-                    color = "red"
-            self.prev_hist = histogram
+            macd_line = ema12 - ema26
+            signal_line = self.macd_ema9.update(macd_line)
+            if signal_line is not None:
+                histogram = macd_line - signal_line  # TRUE MACD histogram
+                if (
+                    ema13 is not None
+                    and self.prev_ema13 is not None
+                    and self.prev_hist is not None
+                ):
+                    if ema13 > self.prev_ema13 and histogram > self.prev_hist:
+                        color = "green"
+                    elif ema13 < self.prev_ema13 and histogram < self.prev_hist:
+                        color = "red"
+                self.prev_hist = histogram
         self.prev_ema13 = ema13
         self.color = color
         return color
@@ -50,12 +60,13 @@ class IncrementalElderImpulse:
         if e13 is None or e12 is None or e26 is None:
             return self.color
         macd_line = e12 - e26
-        hist = self.macd_ema9.peek(macd_line)
-        if hist is None or self.prev_ema13 is None or self.prev_hist is None:
+        signal_line = self.macd_ema9.peek(macd_line)
+        if signal_line is None or self.prev_ema13 is None or self.prev_hist is None:
             return self.color
-        if e13 > self.prev_ema13 and hist > self.prev_hist:
+        histogram = macd_line - signal_line  # TRUE MACD histogram
+        if e13 > self.prev_ema13 and histogram > self.prev_hist:
             return "green"
-        elif e13 < self.prev_ema13 and hist < self.prev_hist:
+        elif e13 < self.prev_ema13 and histogram < self.prev_hist:
             return "red"
         return "blue"
 
@@ -67,4 +78,5 @@ def elder_allows(color: str, side: str, mode: str = "permissive") -> bool:
     if mode == "strict":
         return color == ("green" if side == "CE" else "red")
     raise ValueError(f"Unknown Elder mode: {mode}")
+
 
