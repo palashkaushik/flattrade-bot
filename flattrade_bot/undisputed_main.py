@@ -461,9 +461,77 @@ class CombinedSupremeTradingEngine:
             )
         )
 
+    async def recover_open_positions(self):
+        """On startup, check Flattrade PositionBook for orphaned open positions and close them."""
+        if not self.live_orders or not self.client.auth_token:
+            return
+        try:
+            pos_res = await self.client.get_positions()
+            positions = []
+            if isinstance(pos_res, list):
+                positions = pos_res
+            elif isinstance(pos_res, dict) and pos_res.get("stat") == "Ok":
+                positions = pos_res.get("positions", pos_res) if "positions" in pos_res else []
+
+            for p in positions:
+                if not isinstance(p, dict):
+                    continue
+                tsym = p.get("tsym", "")
+                netqty = int(p.get("netqty", 0))
+                if "NIFTY" in tsym and netqty != 0:
+                    side = "SELL" if netqty > 0 else "BUY"
+                    qty = abs(netqty)
+                    ltp = float(p.get("lp", p.get("urmtom", 100.0)))
+                    logger.warning(f"🔄 RECOVERING orphaned position: {tsym} qty={netqty} — placing {side} {qty} to square off")
+                    try:
+                        res = await self.client.place_market_order(
+                            symbol=tsym, side=side, quantity=qty,
+                            ltp=max(ltp, 1.0), product="MIS", slippage_buffer=3.0,
+                        )
+                        if res.get("stat") == "Ok":
+                            logger.info(f"✅ Orphaned position {tsym} squared off successfully! Order: {res.get('norenordno')}")
+                        else:
+                            logger.error(f"❌ Failed to square off {tsym}: {res.get('emsg')}")
+                    except Exception as e:
+                        logger.error(f"Error squaring off orphaned {tsym}: {e}")
+        except Exception as e:
+            logger.error(f"Position recovery check failed: {e}")
+
+    async def eod_square_off(self):
+        """Emergency EOD square-off: close all open positions at 15:15 IST."""
+        if self.active_position and self.active_position.get("broker_filled"):
+            pos = self.active_position
+            logger.warning(f"⏰ EOD SQUARE-OFF: Closing {pos['tsym']} at market")
+            try:
+                res = await self.client.place_market_order(
+                    symbol=pos["tsym"], side="SELL",
+                    quantity=settings.LOT_SIZE,
+                    ltp=pos.get("option_ltp", 100.0),
+                    product="MIS", slippage_buffer=3.0,
+                )
+                if res.get("stat") == "Ok":
+                    logger.info(f"✅ EOD exit filled for {pos['tsym']}")
+                else:
+                    logger.error(f"❌ EOD exit failed: {res.get('emsg')}")
+            except Exception as e:
+                logger.error(f"EOD square-off error: {e}")
+
+            pts = (self.latest_spot_price - pos["entry_price"]) if pos["direction"] == "LONG" else (pos["entry_price"] - self.latest_spot_price)
+            pos["net_rs"] = pts * settings.LOT_SIZE
+            self.trades_today.append(pos)
+            if pts > 0:
+                self._wins_today += 1
+            self.active_position = None
+
+        # Also catch any broker-side orphans
+        await self.recover_open_positions()
+
     async def run(self):
         """Persistent live execution loop."""
         await self.initialize()
+
+        # On startup: check for orphaned positions from previous crash
+        await self.recover_open_positions()
 
         with Live(self.render_dashboard(), console=console, refresh_per_second=2) as live:
             while True:
@@ -550,6 +618,12 @@ class CombinedSupremeTradingEngine:
                                     if setup and setup.confirmed and not self.active_position:
                                         logger.info(f"🚨 REJECTION SETUP TRIGGERED: {setup.direction} on {setup.level.name} | Score={setup.score}")
                                         await self.execute_trade(setup)
+
+                                # EOD Auto Square-Off at 15:15 IST
+                                if now.hour == 15 and now.minute >= 15 and not getattr(self, '_eod_done', False):
+                                    self._eod_done = True
+                                    logger.warning("⏰ 15:15 IST — Triggering EOD Auto Square-Off")
+                                    await self.eod_square_off()
 
                                 # Manage Active Position (Trailing SL & Target Exits)
                                 if self.active_position:
