@@ -297,21 +297,39 @@ class CombinedSupremeTradingEngine:
             exec_table.add_column("SCORE", style="bold white", justify="center", width=14)
             exec_table.add_column("POSITION", style="bold white", justify="center", width=20)
 
-            if self.engine.pending_setup:
-                setup = self.engine.pending_setup
-                exec_table.add_row(
-                    "[bold yellow]WAITING BAR 2 BREAKOUT[/bold yellow]",
-                    setup.level.name,
-                    f"Score={setup.score}",
-                    "[dim]PENDING TRIGGER[/dim]",
+        # ── 5. COMPLETED TRADES AUDIT LOG (IF ANY) ──
+        if self.trades_today:
+            trades_table = Table(
+                title=f"[bold green]COMPLETED TRADES LOG ({len(self.trades_today)} TRADES | {self._wins_today} WINS)[/bold green]",
+                box=box.SIMPLE_HEAD,
+                expand=True,
+                padding=(0, 1),
+            )
+            trades_table.add_column("TRADE #", style="bold white", justify="center", width=10)
+            trades_table.add_column("ENTRY TIME", style="cyan", justify="center", width=12)
+            trades_table.add_column("SIDE", style="bold white", justify="center", width=10)
+            trades_table.add_column("STRIKE", style="bold yellow", justify="center", width=18)
+            trades_table.add_column("ENTRY", style="bold white", justify="center", width=12)
+            trades_table.add_column("EXIT", style="bold white", justify="center", width=12)
+            trades_table.add_column("POINTS", style="bold white", justify="center", width=14)
+            trades_table.add_column("NET PROFIT", style="bold white", justify="center", width=16)
+
+            for idx, t in enumerate(self.trades_today, start=1):
+                pts = t.get("current_pts", 0.0)
+                net = t.get("net_rs", 0.0)
+                color = "bold green" if pts >= 0 else "bold red"
+                side_color = "bold green" if t["direction"] == "LONG" else "bold red"
+                trades_table.add_row(
+                    f"Trade {idx}",
+                    t.get("entry_time", "--:--"),
+                    f"[{side_color}]{t['direction']}[/{side_color}]",
+                    t.get("strike_symbol", "NIFTY"),
+                    f"Rs {t.get('entry_price', 0.0):.2f}",
+                    f"Rs {t.get('exit_price', t.get('entry_price', 0.0)):.2f}",
+                    f"[{color}]{pts:+.2f} pts[/{color}]",
+                    f"[{color}]Rs {net:+,.2f}[/{color}]",
                 )
-            else:
-                exec_table.add_row(
-                    "SCANNING S/R LEVELS",
-                    "Tier 1/2/3 Anchors",
-                    "Score>=50",
-                    "FLAT (Zero Risk)",
-                )
+            return Group(banner, sys_table, sr_table, exec_table, trades_table)
 
         return Group(banner, sys_table, sr_table, exec_table)
 
@@ -321,18 +339,26 @@ class CombinedSupremeTradingEngine:
         opt_type = "CE" if setup.direction == "LONG" else "PE"
         symbol = f"NIFTY {strike} {opt_type}"
 
-        logger.info(f"EXECUTING TRADE: {setup.direction} on {setup.level.name} | Strike={symbol} | Score={setup.score}")
+        if setup.direction == "LONG":
+            actual_sl = round(setup.entry_price - setup.initial_sl, 2)
+            actual_tp = round(setup.entry_price + setup.target_price, 2)
+        else:
+            actual_sl = round(setup.entry_price + setup.initial_sl, 2)
+            actual_tp = round(setup.entry_price - setup.target_price, 2)
 
+        logger.info(f"🚀 EXECUTING TRADE: {setup.direction} on {setup.level.name} | Strike={symbol} | Entry={setup.entry_price:.2f} | SL={actual_sl:.2f} | TP={actual_tp:.2f}")
+
+        now_ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
         self.active_position = {
             "symbol": symbol,
             "strike_symbol": symbol,
             "direction": setup.direction,
             "entry_price": setup.entry_price,
-            "initial_sl": setup.initial_sl,
-            "current_sl": setup.initial_sl,
-            "target_price": setup.target_price,
+            "initial_sl": actual_sl,
+            "current_sl": actual_sl,
+            "target_price": actual_tp,
             "level": setup.level.name,
-            "entry_time": datetime.now().strftime("%H:%M:%S"),
+            "entry_time": now_ist.strftime("%H:%M:%S"),
             "current_pts": 0.0,
             "peak_pts": 0.0,
         }
@@ -343,8 +369,8 @@ class CombinedSupremeTradingEngine:
                 direction=setup.direction,
                 symbol=symbol,
                 entry_price=setup.entry_price,
-                sl_price=setup.initial_sl,
-                tp_price=setup.target_price,
+                sl_price=actual_sl,
+                tp_price=actual_tp,
                 notes=f"Rejection on {setup.level.name} (Tier {setup.level.priority}) | Confluence Score={setup.score}",
             )
         )
