@@ -614,8 +614,17 @@ class CombinedSupremeTradingEngine:
                                     bar_1 = self.past_3m_bars[-1]
                                     bar_2 = self.current_3m_bar
 
+                                    # GUARD: Max 1 trade per 3m bar + 180s cooldown after any exit
+                                    can_trade = True
+                                    current_bar_id = bar_1.get("bar_idx", -1)
+                                    if hasattr(self, "_last_traded_bar_idx") and self._last_traded_bar_idx == current_bar_id:
+                                        can_trade = False  # Already traded on this bar
+                                    if hasattr(self, "_last_exit_ts") and (time.time() - self._last_exit_ts) < 180:
+                                        can_trade = False  # Cooldown after last exit
+
                                     setup = self.engine.evaluate_rejection_trigger(bar_1, bar_2, now)
-                                    if setup and setup.confirmed and not self.active_position:
+                                    if setup and setup.confirmed and not self.active_position and can_trade:
+                                        self._last_traded_bar_idx = current_bar_id
                                         logger.info(f"🚨 REJECTION SETUP TRIGGERED: {setup.direction} on {setup.level.name} | Score={setup.score}")
                                         await self.execute_trade(setup)
 
@@ -665,6 +674,7 @@ class CombinedSupremeTradingEngine:
                                                     "duration_min": 1,
                                                 })
                                             )
+                                            self._last_exit_ts = time.time()
                                             self.active_position = None
                                         elif pts >= 2.0 and pos["current_sl"] < pos["entry_price"]:
                                             pos["current_sl"] = pos["entry_price"]
@@ -724,6 +734,7 @@ class CombinedSupremeTradingEngine:
                                                     "duration_min": 1,
                                                 })
                                             )
+                                            self._last_exit_ts = time.time()
                                             self.active_position = None
                                         elif pts >= 2.0 and pos["current_sl"] > pos["entry_price"]:
                                             pos["current_sl"] = pos["entry_price"]
