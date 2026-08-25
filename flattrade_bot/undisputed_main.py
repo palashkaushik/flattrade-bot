@@ -193,6 +193,22 @@ class CombinedSupremeTradingEngine:
         self._warm_ready = True
         logger.info("Combined Supreme Strategy pre-warmed with full 3-Tier S/R Matrix.")
 
+        asyncio.create_task(
+            self.discord._post_embed({
+                "title": "🟢 FLATTRADE TRADING BOT ONLINE (25-Aug-2026)",
+                "color": 0x2ECC71,
+                "fields": [
+                    {"name": "Session", "value": "09:18 - 15:00 IST", "inline": True},
+                    {"name": "Broker Status", "value": "🟢 LIVE CONNECTED", "inline": True},
+                    {"name": "Nifty Spot", "value": f"₹{self.latest_spot_price:,.2f}", "inline": True},
+                    {"name": "Strategy", "value": "Combined Supreme (Two-Bar Rejection)", "inline": True},
+                    {"name": "15m Macro Trend", "value": "🟢 BULL" if self.engine.current_15m_bullish else "🔴 BEAR", "inline": True},
+                ],
+                "timestamp": datetime.utcnow().isoformat(),
+                "footer": {"text": "Flattrade Undisputed Rejection Bot"}
+            })
+        )
+
     def render_dashboard(self) -> Group:
         """Renders ultra-compact single-screen institutional dashboard."""
         now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
@@ -474,18 +490,44 @@ class CombinedSupremeTradingEngine:
                                         pos["peak_pts"] = max(pos["peak_pts"], pts)
 
                                         if self.latest_spot_price <= pos["current_sl"]:
+                                            pos["exit_price"] = self.latest_spot_price
                                             pos["net_rs"] = pts * settings.LOT_SIZE
                                             logger.info(f"🛑 LONG SL Hit at {self.latest_spot_price:.2f} (P&L: {pts:+.2f} pts)")
                                             self.trades_today.append(pos)
                                             if pts > 0:
                                                 self._wins_today += 1
+                                            asyncio.create_task(
+                                                self.discord.notify_trade_close({
+                                                    "symbol": pos["symbol"],
+                                                    "reason": "Target / Trailing SL Hit",
+                                                    "pts": pts,
+                                                    "rs": pos["net_rs"],
+                                                    "entry": pos["entry_price"],
+                                                    "exit": self.latest_spot_price,
+                                                    "duration_min": 1,
+                                                })
+                                            )
                                             self.active_position = None
                                         elif pts >= 2.0 and pos["current_sl"] < pos["entry_price"]:
                                             pos["current_sl"] = pos["entry_price"]
                                             logger.info("🔒 Target 1: SL Moved to Cost (Risk-Free!)")
+                                            asyncio.create_task(
+                                                self.discord.notify_trailing_sl_updated({
+                                                    "symbol": pos["symbol"],
+                                                    "new_sl": pos["current_sl"],
+                                                    "gain_pts": pts,
+                                                })
+                                            )
                                         elif pts >= 8.0 and pos["current_sl"] < pos["entry_price"] + 5.0:
                                             pos["current_sl"] = pos["entry_price"] + 5.0
                                             logger.info("💰 Target 2: SL Locked at +5.0 pts profit!")
+                                            asyncio.create_task(
+                                                self.discord.notify_trailing_sl_updated({
+                                                    "symbol": pos["symbol"],
+                                                    "new_sl": pos["current_sl"],
+                                                    "gain_pts": pts,
+                                                })
+                                            )
 
                                     elif pos["direction"] == "SHORT":
                                         pts = pos["entry_price"] - self.latest_spot_price
@@ -493,18 +535,44 @@ class CombinedSupremeTradingEngine:
                                         pos["peak_pts"] = max(pos["peak_pts"], pts)
 
                                         if self.latest_spot_price >= pos["current_sl"]:
+                                            pos["exit_price"] = self.latest_spot_price
                                             pos["net_rs"] = pts * settings.LOT_SIZE
                                             logger.info(f"🛑 SHORT SL Hit at {self.latest_spot_price:.2f} (P&L: {pts:+.2f} pts)")
                                             self.trades_today.append(pos)
                                             if pts > 0:
                                                 self._wins_today += 1
+                                            asyncio.create_task(
+                                                self.discord.notify_trade_close({
+                                                    "symbol": pos["symbol"],
+                                                    "reason": "Target / Trailing SL Hit",
+                                                    "pts": pts,
+                                                    "rs": pos["net_rs"],
+                                                    "entry": pos["entry_price"],
+                                                    "exit": self.latest_spot_price,
+                                                    "duration_min": 1,
+                                                })
+                                            )
                                             self.active_position = None
                                         elif pts >= 2.0 and pos["current_sl"] > pos["entry_price"]:
                                             pos["current_sl"] = pos["entry_price"]
                                             logger.info("🔒 Target 1: SL Moved to Cost (Risk-Free!)")
+                                            asyncio.create_task(
+                                                self.discord.notify_trailing_sl_updated({
+                                                    "symbol": pos["symbol"],
+                                                    "new_sl": pos["current_sl"],
+                                                    "gain_pts": pts,
+                                                })
+                                            )
                                         elif pts >= 8.0 and pos["current_sl"] > pos["entry_price"] - 5.0:
                                             pos["current_sl"] = pos["entry_price"] - 5.0
                                             logger.info("💰 Target 2: SL Locked at +5.0 pts profit!")
+                                            asyncio.create_task(
+                                                self.discord.notify_trailing_sl_updated({
+                                                    "symbol": pos["symbol"],
+                                                    "new_sl": pos["current_sl"],
+                                                    "gain_pts": pts,
+                                                })
+                                            )
 
                             except (ValueError, TypeError):
                                 pass
