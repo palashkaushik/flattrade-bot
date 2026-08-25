@@ -341,7 +341,12 @@ class CombinedSupremeTradingEngine:
             if lvl.touch_count >= lvl.max_touches:
                 st = "[dim red]EXHAUSTED[/dim red]"
             elif abs(dist) <= 6.0:
-                st = "[bold white on green][IN ZONE][/bold white on green]"
+                # Price above level = approaching support from above (GREEN / bullish bounce)
+                # Price below level = approaching resistance from below (RED / bearish rejection)
+                if dist >= 0:
+                    st = "[bold white on green][IN ZONE ▲][/bold white on green]"
+                else:
+                    st = "[bold white on red][IN ZONE ▼][/bold white on red]"
             elif abs(dist) <= 15.0:
                 st = "[bold yellow]APPROACHING[/bold yellow]"
             else:
