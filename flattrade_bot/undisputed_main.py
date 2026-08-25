@@ -664,7 +664,7 @@ class CombinedSupremeTradingEngine:
         # On startup: check for orphaned positions from previous crash
         await self.recover_open_positions()
 
-        with Live(self.render_dashboard(), console=console, refresh_per_second=2) as live:
+        with Live(self.render_dashboard(), console=console, refresh_per_second=1, screen=True) as live:
             while True:
                 try:
                     now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
