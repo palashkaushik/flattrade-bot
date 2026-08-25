@@ -281,14 +281,12 @@ class CombinedSupremeEngine:
             if setup.direction == "LONG" and bar_2["high"] > setup.bar_1_high:
                 setup.confirmed = True
                 setup.entry_price = bar_1["high"] + 0.5
-                setup.level.touch_count += 1
                 self.pending_setup = None
                 return setup
             # Short confirmation: Bar 2 breaks Bar 1 Low
             elif setup.direction == "SHORT" and bar_2["low"] < setup.bar_1_low:
                 setup.confirmed = True
                 setup.entry_price = bar_1["low"] - 0.5
-                setup.level.touch_count += 1
                 self.pending_setup = None
                 return setup
 
@@ -333,7 +331,6 @@ class CombinedSupremeEngine:
 
                         if bar_2["high"] > bar_1["high"]:
                             setup.confirmed = True
-                            lvl.touch_count += 1
                             return setup
                         else:
                             self.pending_setup = setup
@@ -371,7 +368,6 @@ class CombinedSupremeEngine:
 
                         if bar_2["low"] < bar_1["low"]:
                             setup.confirmed = True
-                            lvl.touch_count += 1
                             return setup
                         else:
                             self.pending_setup = setup

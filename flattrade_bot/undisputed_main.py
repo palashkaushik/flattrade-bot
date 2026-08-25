@@ -425,6 +425,9 @@ class CombinedSupremeTradingEngine:
             except Exception as e:
                 logger.error(f"Failed to place live broker order: {e}")
 
+        # Increment level budget once upon actual execution
+        setup.level.touch_count += 1
+
         now_ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
         self.active_position = {
             "symbol": display_symbol,
