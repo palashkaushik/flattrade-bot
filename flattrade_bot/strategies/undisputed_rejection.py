@@ -292,14 +292,15 @@ class CombinedSupremeEngine:
                 self.pending_setup = None
                 return setup
 
-        # Step 1: Scan S/R Levels for Bar 1 Touch & Rejection Stall
+        # Step 1: Scan S/R Levels for Bar 1 Touch & Rejection Stall (with 4.0 pt Institutional Zone)
+        touch_zone = max(self.current_atr * 0.25, 4.0)
         sorted_levels = sorted(self.levels, key=lambda l: (not l.is_virgin, l.priority))
 
         for lvl in sorted_levels:
             if lvl.touch_count >= lvl.max_touches:
                 continue
 
-            if bar_1["low"] <= lvl.price <= bar_1["high"]:
+            if (bar_1["low"] - touch_zone) <= lvl.price <= (bar_1["high"] + touch_zone):
                 # --- SUPPORT BOUNCE (LONG) ---
                 if self.current_15m_bullish:
                     # Clean breakout above chop corridor for Long
