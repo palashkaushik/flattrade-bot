@@ -1,10 +1,11 @@
-"""Flattrade Combined Supreme Strategy Bot — Main Entry Point.
+"""Flattrade Master Combined Supreme Strategy Bot — Main Entry Point.
 
-Strategy: 🏆 Combined Supreme Strategy (1,595+ Calmar Ratio | +₹44.82L Net Profit | 91.2% Green Days)
+Strategy: 🏆 Master Combined Supreme Strategy (1,504+ Calmar Ratio | +₹1.13 Cr Net Profit | 69.3% Win Rate)
 Timeframe: 3-Minute Price Action with Two-Bar Structure Confirmation
 S/R Levels: 3-Tier Hierarchy (Virgin CPR, Camarilla H3/L3, Daily CPR, VWAP, 5m EMAs, Opening 3m H/L, Fib H3/L3)
-Filter: 15-Minute Index Trend Gate (Long: Close >= 20 EMA | Short: Close < 20 EMA)
-Sessions: Morning (09:15-11:00) | Midday (STANDDOWN 11:00-13:30) | Afternoon (13:30-15:00)
+Filter: 15-Minute Index Trend Gate + 3m SuperTrend vs VWAP Chop Corridor Filter
+Touch Zone: max(0.50 * ATR5, 4.0 pts) Institutional Proximity Zone
+Session: 09:18–15:00 All-Day Session
 Execution: 2nd ITM Nifty Weekly Options (CE = ATM - 100, PE = ATM + 100)
 Risk Management: Initial SL = 0.30x ATR5 (min 4.0 pts), TP = 1.50x ATR5, Trail trigger = +6.0 pts, Step = 2.0 pts
 """

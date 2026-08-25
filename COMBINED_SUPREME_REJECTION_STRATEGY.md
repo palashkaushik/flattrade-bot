@@ -105,9 +105,9 @@ A trade is never entered immediately upon touching an S/R level. It requires a s
 ```
 
 ### Bar 1: Rejection Stall Condition
-1. The candle low and high must intersect the S/R level:
-$$\text{Low}_{\text{Bar 1}} \le \text{Level Price} \le \text{High}_{\text{Bar 1}}$$
-2. Price must stall at or reject from the level.
+1. The candle low and high must intersect the S/R level within the institutional touch zone ($\text{Zone} = \max(0.50 \times \text{ATR}_5, 4.0\text{ pts})$):
+$$\text{Low}_{\text{Bar 1}} - \text{Touch Zone} \le \text{Level Price} \le \text{High}_{\text{Bar 1}} + \text{Touch Zone}$$
+2. Price must stall at or reject from the level with an upper/lower rejection wick.
 
 ### Bar 2: Momentum Confirmation Condition
 * **LONG Confirmation**:

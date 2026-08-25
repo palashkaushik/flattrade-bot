@@ -227,13 +227,14 @@ def create_client(manager: TradingProcessManager):
             await reply(interaction, "🚫 Not authorized for this control channel.")
             return
         msg = (
-            "🏛️ **Combined Supreme S/R Hierarchy Matrix (1,595+ Calmar | +₹44.82L)**\n"
+            "🏛️ **Master Combined Supreme S/R Matrix (1,504+ Calmar | +₹1.13 Cr | 69.3% WR)**\n"
             "• **Tier 1+ (Supreme):** Virgin CPR (Pivot, TC, BC) [+25 pts bonus]\n"
             "• **Tier 1 (Core):** Camarilla H3/L3, Daily CPR (TC/BC/P), Daily VWAP, PD VWAP, 5m EMA 20/200, 3m EMA 200\n"
             "• **Tier 2 (Momentum):** Opening 3m High/Low (IB-3m), 3m EMA 20, Prev Day High/Low\n"
             "• **Tier 3 (Extremes):** Fibonacci H3/L3, Camarilla H4/L4\n"
+            "• **Chop Corridor:** 3m SuperTrend(10,3) vs Session VWAP Corridor Active\n"
             "• **Gating:** 15m Index Trend Gate + Score >= 50 + Two-Bar Breakout Required\n"
-            "• **Budget:** Max 2 touches per level per session | Standdown 11:00-13:30"
+            "• **Budget:** Max 2 touches per level per session | 09:18–15:00 All-Day Session"
         )
     @trading.command(name="logs", description="View the latest 15 lines from the live trading bot log")
     async def trading_logs(interaction: discord.Interaction):

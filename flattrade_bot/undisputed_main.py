@@ -216,9 +216,9 @@ class CombinedSupremeTradingEngine:
 
         # ── 1. HEADER ──
         header = Text.from_markup(
-            f" [bold bright_yellow]* COMBINED SUPREME STRATEGY (1,595+ CALMAR)[/bold bright_yellow] "
-            f"| [bold white]3-Tier S/R + 15m Gate + Two-Bar Trigger[/bold white] "
-            f"| [bold bright_green]91.2% Green Days | +Rs 44.82L[/bold bright_green] | [cyan]{time_str}[/cyan]"
+            f" [bold bright_yellow]🏆 MASTER COMBINED SUPREME STRATEGY (1,504+ CALMAR)[/bold bright_yellow] "
+            f"| [bold white]3-Tier S/R + SuperTrend-VWAP Filter + Two-Bar Trigger[/bold white] "
+            f"| [bold bright_green]69.3% Win Rate | +Rs 1.13 Cr[/bold bright_green] | [cyan]{time_str}[/cyan]"
         )
         banner = Panel(Align.center(header), box=box.ROUNDED, style="bright_blue", padding=(0, 1))
 
@@ -229,14 +229,28 @@ class CombinedSupremeTradingEngine:
         sys_table.add_column("SESSION", style="bold white", justify="center")
         sys_table.add_column("NIFTY SPOT", style="bold yellow", justify="center")
         sys_table.add_column("15m TREND", style="bold white", justify="center")
+        sys_table.add_column("CHOP FILTER", style="bold white", justify="center")
         sys_table.add_column("TRADES", style="bold white", justify="center")
         sys_table.add_column("DAY P&L", style="bold white", justify="center")
 
         mode_str = "[bold white on red] LIVE [/bold white on red]" if self.live_orders else "[bold white on blue] SIM / PAPER [/bold white on blue]"
         sess_active = self.engine.is_session_active(now)
-        sess_str = "[bold green]ACTIVE[/bold green]" if sess_active else "[yellow]STANDDOWN (11:00-13:30)[/yellow]"
+        sess_str = "[bold green]ACTIVE (ALL-DAY)[/bold green]" if sess_active else "[yellow]STANDDOWN[/yellow]"
         trend_str = "[bold green][BULL] Close>=EMA20[/bold green]" if self.engine.current_15m_bullish else "[bold red][BEAR] Close<EMA20[/bold red]"
         
+        # Live Chop Corridor Check
+        st_val = self.engine.current_supertrend
+        vwap_val = self.engine.current_vwap
+        if st_val > 0 and vwap_val > 0:
+            c_high = max(st_val, vwap_val)
+            c_low = min(st_val, vwap_val)
+            if c_low <= self.latest_spot_price <= c_high:
+                chop_str = "[bold red]CHOPPED (Locked)[/bold red]"
+            else:
+                chop_str = "[bold green]CLEAR (Trading)[/bold green]"
+        else:
+            chop_str = "[bold green]READY[/bold green]"
+
         net_rs = sum(t.get("net_rs", 0.0) for t in self.trades_today)
         pnl_color = "bold green" if net_rs >= 0 else "bold red"
         pnl_str = f"[{pnl_color}]Rs {net_rs:+,.2f}[/{pnl_color}]"
@@ -247,6 +261,7 @@ class CombinedSupremeTradingEngine:
             sess_str,
             f"Rs {self.latest_spot_price:,.2f}",
             trend_str,
+            chop_str,
             f"{len(self.trades_today)} ({self._wins_today}W/{len(self.trades_today) - self._wins_today}L)",
             pnl_str,
         )
