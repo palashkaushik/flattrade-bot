@@ -284,8 +284,8 @@ class CombinedSupremeTradingEngine:
         pnl_color = "bold green" if net_rs >= 0 else "bold red"
         pnl_str = f"[{pnl_color}]Rs {net_rs:+,.2f}[/{pnl_color}]"
 
-        # Elder Impulse color display
-        ec = self._elder_color
+        # Elder Impulse color display (partial candle — real-time via peek)
+        ec = self._elder.peek(self.latest_spot_price)
         if ec == "green":
             elder_str = "[bold green]██ GREEN[/bold green]"
         elif ec == "red":
@@ -601,15 +601,25 @@ class CombinedSupremeTradingEngine:
         if not self.client.auth_token or not self.history.auth_token:
             logger.warning("OI fetch skipped: no auth token")
             return
+
+        # Concurrency guard: prevent overlapping fetches
+        if getattr(self, '_oi_fetching', False):
+            return
+        self._oi_fetching = True
+        self._last_oi_fetch = time.time()  # Set BEFORE fetch to prevent re-fire
+
         try:
             now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
             atm = int(round(self.latest_spot_price / 50.0) * 50)
-            all_strikes = sorted([atm + (i * 50) for i in range(-4, 5)])
-            all_strikes = sorted(all_strikes, key=lambda s: abs(s - atm))[:8]
+
+            # Fix strikes on first fetch to prevent ATM-shift noise between snapshots
+            if not hasattr(self, '_oi_fixed_strikes'):
+                self._oi_fixed_strikes = sorted([atm + (i * 50) for i in range(-4, 5)])
+                self._oi_fixed_strikes = sorted(self._oi_fixed_strikes, key=lambda s: abs(s - atm))[:8]
+                logger.info(f"📊 OI Fixed strikes: {self._oi_fixed_strikes} (ATM={atm})")
 
             total_ce_oi = 0
             total_pe_oi = 0
-            is_first = not hasattr(self, '_oi_baseline')
 
             def safe_int(val):
                 try:
@@ -617,7 +627,7 @@ class CombinedSupremeTradingEngine:
                 except (ValueError, TypeError):
                     return 0
 
-            for strike in all_strikes:
+            for strike in self._oi_fixed_strikes:
                 for opt_type in ["CE", "PE"]:
                     scrip = await self.history.search_option_token(f"NIFTY {strike} {opt_type}")
                     if not scrip or not scrip.get("token"):
@@ -627,44 +637,26 @@ class CombinedSupremeTradingEngine:
                         continue
 
                     oi = safe_int(q.get("oi", 0))
-                    if is_first:
-                        logger.info(f"OI DEBUG: {scrip['tsym']} oi={q.get('oi')} poi={q.get('poi')}")
-
                     if opt_type == "CE":
                         total_ce_oi += oi
                     else:
                         total_pe_oi += oi
 
-            # First fetch = store baseline; subsequent = compute delta from baseline
-            if is_first:
-                self._oi_baseline = {"ce": total_ce_oi, "pe": total_pe_oi}
-                logger.info(f"📊 OI Baseline set: CE={total_ce_oi:,} PE={total_pe_oi:,}")
-
-            ce_chg = total_ce_oi - self._oi_baseline["ce"]
-            pe_chg = total_pe_oi - self._oi_baseline["pe"]
-
-            # OI Diff = Change in Call OI - Change in Put OI
-            oi_diff = ce_chg - pe_chg
             pcr = total_pe_oi / total_ce_oi if total_ce_oi > 0 else 0.0
-            prev_diff = self._oi_history[-1]["oi_diff"] if self._oi_history else oi_diff
 
             snapshot = {
                 "time": now.strftime("%H:%M:%S"),
                 "ltp": self.latest_spot_price,
-                "ce_chg_total": ce_chg,
-                "ce_chg_total": ce_chg,
-                "pe_chg_total": pe_chg,
                 "ce_oi_raw": total_ce_oi,
                 "pe_oi_raw": total_pe_oi,
-                "oi_diff": oi_diff,
-                "prev_diff": prev_diff,
                 "pcr": round(pcr, 2),
             }
             self._oi_history.append(snapshot)
-            self._last_oi_fetch = time.time()
-            logger.info(f"📊 OI Pulse: CE={total_ce_oi:,}(Δ{ce_chg:+,}) PE={total_pe_oi:,}(Δ{pe_chg:+,}) | Diff={oi_diff:,} | PCR={pcr:.2f}")
+            logger.info(f"📊 OI Pulse: CE={total_ce_oi:,} PE={total_pe_oi:,} | PCR={pcr:.2f}")
         except Exception as e:
             logger.error(f"OI chain fetch error: {e}", exc_info=True)
+        finally:
+            self._oi_fetching = False
 
     async def recover_open_positions(self):
         """On startup, check Flattrade PositionBook for orphaned open positions and close them."""

@@ -39,6 +39,26 @@ class IncrementalElderImpulse:
         self.color = color
         return color
 
+    def peek(self, close: float) -> str:
+        """Peek at what color WOULD be if this close were committed — read-only, no state change.
+
+        This gives the real-time partial candle Elder color for live dashboards.
+        """
+        e13 = self.ema13.peek(close)
+        e12 = self.ema12.peek(close)
+        e26 = self.ema26.peek(close)
+        if e13 is None or e12 is None or e26 is None:
+            return self.color
+        macd_line = e12 - e26
+        hist = self.macd_ema9.peek(macd_line)
+        if hist is None or self.prev_ema13 is None or self.prev_hist is None:
+            return self.color
+        if e13 > self.prev_ema13 and hist > self.prev_hist:
+            return "green"
+        elif e13 < self.prev_ema13 and hist < self.prev_hist:
+            return "red"
+        return "blue"
+
 
 def elder_allows(color: str, side: str, mode: str = "permissive") -> bool:
     """Return whether an Elder color permits a CE/PE entry."""
@@ -47,3 +67,4 @@ def elder_allows(color: str, side: str, mode: str = "permissive") -> bool:
     if mode == "strict":
         return color == ("green" if side == "CE" else "red")
     raise ValueError(f"Unknown Elder mode: {mode}")
+

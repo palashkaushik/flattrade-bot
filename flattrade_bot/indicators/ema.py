@@ -22,3 +22,13 @@ class IncrementalEMA:
             return self.value
         self.value = self.alpha * float(close) + (1.0 - self.alpha) * self.value
         return self.value
+
+    def peek(self, close: float):
+        """Return what value WOULD be with this close, without changing state."""
+        if self.value is None:
+            seeds = self._seed + [float(close)]
+            if len(seeds) < self.period:
+                return None
+            return sum(seeds) / self.period
+        return self.alpha * float(close) + (1.0 - self.alpha) * self.value
+
