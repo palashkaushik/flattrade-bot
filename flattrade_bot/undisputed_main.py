@@ -545,74 +545,61 @@ class CombinedSupremeTradingEngine:
             now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
             atm = int(round(self.latest_spot_price / 50.0) * 50)
             all_strikes = sorted([atm + (i * 50) for i in range(-4, 5)])
-            # Keep 8 nearest to ATM
             all_strikes = sorted(all_strikes, key=lambda s: abs(s - atm))[:8]
 
             total_ce_oi = 0
             total_pe_oi = 0
-            total_ce_chg = 0
-            total_pe_chg = 0
-            debug_first = len(self._oi_history) == 0  # Log details on first fetch
+            is_first = not hasattr(self, '_oi_baseline')
+
+            def safe_int(val):
+                try:
+                    return int(float(str(val))) if val else 0
+                except (ValueError, TypeError):
+                    return 0
 
             for strike in all_strikes:
                 for opt_type in ["CE", "PE"]:
-                    search_text = f"NIFTY {strike} {opt_type}"
-                    scrip = await self.history.search_option_token(search_text)
+                    scrip = await self.history.search_option_token(f"NIFTY {strike} {opt_type}")
                     if not scrip or not scrip.get("token"):
-                        if debug_first:
-                            logger.warning(f"OI: No scrip found for '{search_text}'")
                         continue
-
                     q = await self.client.get_quotes(exchange="NFO", token=scrip["token"])
                     if q.get("stat") != "Ok":
-                        if debug_first:
-                            logger.warning(f"OI: GetQuotes failed for {scrip['tsym']}: {q.get('emsg', 'unknown')}")
                         continue
 
-                    # Robust string-to-int parsing (Flattrade returns OI as strings)
-                    def safe_int(val):
-                        try:
-                            return int(float(str(val))) if val else 0
-                        except (ValueError, TypeError):
-                            return 0
-
                     oi = safe_int(q.get("oi", 0))
-                    prev_oi = safe_int(q.get("poi", 0))
-                    if prev_oi == 0:
-                        prev_oi = oi  # No previous day OI available
-                    chg = oi - prev_oi
-
-                    if debug_first:
-                        logger.info(f"OI DEBUG: {scrip['tsym']} | oi={q.get('oi')} | poi={q.get('poi')} | parsed oi={oi} chg={chg}")
+                    if is_first:
+                        logger.info(f"OI DEBUG: {scrip['tsym']} oi={q.get('oi')} poi={q.get('poi')}")
 
                     if opt_type == "CE":
                         total_ce_oi += oi
-                        total_ce_chg += chg
                     else:
                         total_pe_oi += oi
-                        total_pe_chg += chg
+
+            # First fetch = store baseline; subsequent = compute delta from baseline
+            if is_first:
+                self._oi_baseline = {"ce": total_ce_oi, "pe": total_pe_oi}
+                logger.info(f"📊 OI Baseline set: CE={total_ce_oi:,} PE={total_pe_oi:,}")
+
+            ce_chg = total_ce_oi - self._oi_baseline["ce"]
+            pe_chg = total_pe_oi - self._oi_baseline["pe"]
 
             # OI Diff = Change in Call OI - Change in Put OI
-            # Negative = more call writing = bearish | Positive = more put writing = bullish
-            oi_diff = total_ce_chg - total_pe_chg
-
-            # Net PCR = Total Put OI / Total Call OI
+            oi_diff = ce_chg - pe_chg
             pcr = total_pe_oi / total_ce_oi if total_ce_oi > 0 else 0.0
-
             prev_diff = self._oi_history[-1]["oi_diff"] if self._oi_history else oi_diff
 
             snapshot = {
                 "time": now.strftime("%H:%M:%S"),
                 "ltp": self.latest_spot_price,
-                "ce_chg_total": total_ce_chg,
-                "pe_chg_total": total_pe_chg,
+                "ce_chg_total": ce_chg,
+                "pe_chg_total": pe_chg,
                 "oi_diff": oi_diff,
                 "prev_diff": prev_diff,
                 "pcr": round(pcr, 2),
             }
             self._oi_history.append(snapshot)
             self._last_oi_fetch = time.time()
-            logger.info(f"📊 OI Pulse: CE OI={total_ce_oi:,} PE OI={total_pe_oi:,} | CE Chg={total_ce_chg:,} | PE Chg={total_pe_chg:,} | Diff={oi_diff:,} | PCR={pcr:.2f}")
+            logger.info(f"📊 OI Pulse: CE={total_ce_oi:,}(Δ{ce_chg:+,}) PE={total_pe_oi:,}(Δ{pe_chg:+,}) | Diff={oi_diff:,} | PCR={pcr:.2f}")
         except Exception as e:
             logger.error(f"OI chain fetch error: {e}", exc_info=True)
 
