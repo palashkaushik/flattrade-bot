@@ -46,6 +46,8 @@ from flattrade_bot.strategies.undisputed_rejection import (
     UndisputedRejectionEngine,
 )
 from flattrade_bot.utils.discord import DiscordNotifier
+from flattrade_bot.indicators.elder import IncrementalElderImpulse
+from flattrade_bot.indicators.rsi import IncrementalRSI
 
 log_dir = ROOT / "logs"
 log_dir.mkdir(exist_ok=True)
@@ -93,6 +95,10 @@ class CombinedSupremeTradingEngine:
         self._broker_status: str = "INITIALIZING..."
         self._oi_history: List[Dict[str, Any]] = []  # Time-series OI snapshots (OI Pulse style)
         self._last_oi_fetch: float = 0.0
+        self._elder = IncrementalElderImpulse()  # Elder Impulse on 3m spot bars
+        self._elder_color: str = "blue"  # Current Elder Impulse color
+        self._rsi = IncrementalRSI(14)  # RSI(14) on 3m spot bars
+        self._rsi_value: Optional[float] = None
 
     async def initialize(self):
         """Initializes broker session and real S/R Levels (3-Tier Combined Supreme Hierarchy)."""
@@ -233,6 +239,8 @@ class CombinedSupremeTradingEngine:
         sys_table.add_column("NIFTY SPOT", style="bold yellow", justify="center")
         sys_table.add_column("15m TREND", style="bold white", justify="center")
         sys_table.add_column("CHOP FILTER", style="bold white", justify="center")
+        sys_table.add_column("ELDER", style="bold white", justify="center")
+        sys_table.add_column("RSI(14)", style="bold white", justify="center")
         sys_table.add_column("TRADES", style="bold white", justify="center")
         sys_table.add_column("DAY P&L", style="bold white", justify="center")
 
@@ -262,6 +270,27 @@ class CombinedSupremeTradingEngine:
         pnl_color = "bold green" if net_rs >= 0 else "bold red"
         pnl_str = f"[{pnl_color}]Rs {net_rs:+,.2f}[/{pnl_color}]"
 
+        # Elder Impulse color display
+        ec = self._elder_color
+        if ec == "green":
+            elder_str = "[bold green]██ GREEN[/bold green]"
+        elif ec == "red":
+            elder_str = "[bold red]██ RED[/bold red]"
+        else:
+            elder_str = "[bold blue]██ BLUE[/bold blue]"
+
+        # RSI display with value
+        if self._rsi_value is not None:
+            rv = self._rsi_value
+            if rv < 40:
+                rsi_str = f"[bold red]{rv:.1f} BEARISH[/bold red]"
+            elif rv > 60:
+                rsi_str = f"[bold green]{rv:.1f} BULLISH[/bold green]"
+            else:
+                rsi_str = f"[bold yellow]{rv:.1f} NEUTRAL[/bold yellow]"
+        else:
+            rsi_str = "[dim]Warming...[/dim]"
+
         sys_table.add_row(
             self._broker_status,
             mode_str,
@@ -269,6 +298,8 @@ class CombinedSupremeTradingEngine:
             f"Rs {self.latest_spot_price:,.2f}",
             trend_str,
             chop_str,
+            elder_str,
+            rsi_str,
             f"{len(self.trades_today)} ({self._wins_today}W/{len(self.trades_today) - self._wins_today}L)",
             pnl_str,
         )
@@ -708,6 +739,10 @@ class CombinedSupremeTradingEngine:
                                     alpha_200 = 2.0 / 201.0
                                     self.engine.current_ema20 = round((self.latest_spot_price * alpha_20) + (self.engine.current_ema20 * (1 - alpha_20)), 2)
                                     self.engine.current_ema200 = round((self.latest_spot_price * alpha_200) + (self.engine.current_ema200 * (1 - alpha_200)), 2)
+                                    # Elder Impulse update on 3m bar close
+                                    self._elder_color = self._elder.update(self.latest_spot_price)
+                                    self._rsi_value = self._rsi.update(self.latest_spot_price)
+                                    logger.debug(f"Elder={self._elder_color.upper()} RSI={self._rsi_value} on 3m close {self.latest_spot_price}")
                                 self._last_3m_bucket = current_3m_bucket
 
                                 current_5m_bucket = now.minute // 5
