@@ -91,6 +91,8 @@ class CombinedSupremeTradingEngine:
         self._wins_today: int = 0
         self._warm_ready: bool = False
         self._broker_status: str = "INITIALIZING..."
+        self._oi_data: List[Dict[str, Any]] = []  # Live OI chain for dashboard
+        self._last_oi_fetch: float = 0.0
 
     async def initialize(self):
         """Initializes broker session and real S/R Levels (3-Tier Combined Supreme Hierarchy)."""
@@ -301,7 +303,69 @@ class CombinedSupremeTradingEngine:
                 st = "[dim]WATCHING[/dim]"
             sr_table.add_row(lvl.name, f"Rs {lvl.price:.2f}", f"Tier {lvl.priority}", f"{dist:+6.1f} pts", budget_str, st)
 
-        # ── 4. SETUP PIPELINE & ACTIVE POSITION ──
+        # ── 4. LIVE OI CHAIN (8 NEAREST STRIKES) ──
+        oi_table = Table(
+            title="[bold magenta]LIVE OPTION CHAIN — OI PULSE (8 NEAREST STRIKES)[/bold magenta]",
+            box=box.SIMPLE_HEAD,
+            expand=True,
+            padding=(0, 0),
+        )
+        oi_table.add_column("CE OI CHG", style="bold white", justify="right", width=11)
+        oi_table.add_column("CE OI", style="bold cyan", justify="right", width=11)
+        oi_table.add_column("CE LTP", style="bold green", justify="right", width=9)
+        oi_table.add_column("CE VOL", style="dim", justify="right", width=9)
+        oi_table.add_column("STRIKE", style="bold yellow", justify="center", width=8)
+        oi_table.add_column("PE LTP", style="bold red", justify="left", width=9)
+        oi_table.add_column("PE OI", style="bold cyan", justify="left", width=11)
+        oi_table.add_column("PE OI CHG", style="bold white", justify="left", width=11)
+        oi_table.add_column("PE VOL", style="dim", justify="left", width=9)
+
+        if self._oi_data:
+            atm = int(round(self.latest_spot_price / 50.0) * 50)
+
+            def fmt_oi(v):
+                if abs(v) >= 100000:
+                    return f"{v/100000:.1f}L"
+                elif abs(v) >= 1000:
+                    return f"{v/1000:.1f}K"
+                return str(v)
+
+            for row in self._oi_data:
+                strike = row.get("strike", 0)
+                is_atm = strike == atm
+                sk_style = "[bold white on blue]" if is_atm else ""
+                sk_end = "[/bold white on blue]" if is_atm else ""
+
+                ce_oi = row.get("ce_oi", 0)
+                ce_chg = row.get("ce_oi_chg", 0)
+                ce_ltp = row.get("ce_ltp", 0.0)
+                ce_vol = row.get("ce_vol", 0)
+                pe_oi = row.get("pe_oi", 0)
+                pe_chg = row.get("pe_oi_chg", 0)
+                pe_ltp = row.get("pe_ltp", 0.0)
+                pe_vol = row.get("pe_vol", 0)
+
+                # Trending arrows for OI change — the main signal
+                ce_arrow = "▲" if ce_chg > 0 else "▼" if ce_chg < 0 else "─"
+                pe_arrow = "▲" if pe_chg > 0 else "▼" if pe_chg < 0 else "─"
+                ce_chg_c = "bold green" if ce_chg > 0 else "bold red" if ce_chg < 0 else "dim"
+                pe_chg_c = "bold green" if pe_chg > 0 else "bold red" if pe_chg < 0 else "dim"
+
+                oi_table.add_row(
+                    f"[{ce_chg_c}]{ce_arrow} {'+' if ce_chg > 0 else ''}{fmt_oi(ce_chg)}[/{ce_chg_c}]",
+                    fmt_oi(ce_oi),
+                    f"{ce_ltp:.2f}",
+                    fmt_oi(ce_vol),
+                    f"{sk_style}{strike}{sk_end}",
+                    f"{pe_ltp:.2f}",
+                    fmt_oi(pe_oi),
+                    f"[{pe_chg_c}]{pe_arrow} {'+' if pe_chg > 0 else ''}{fmt_oi(pe_chg)}[/{pe_chg_c}]",
+                    fmt_oi(pe_vol),
+                )
+        else:
+            oi_table.add_row("--", "--", "--", "--", "[dim]Loading...[/dim]", "--", "--", "--", "--")
+
+        # ── 5. SETUP PIPELINE & ACTIVE POSITION ──
         exec_table = Table(
             title="[bold cyan]TWO-BAR CONFIRMATION PIPELINE & ACTIVE POSITION[/bold cyan]",
             box=box.SIMPLE_HEAD,
@@ -365,9 +429,9 @@ class CombinedSupremeTradingEngine:
                     f"[{color}]{pts:+.2f} pts[/{color}]",
                     f"[{color}]Rs {net:+,.2f}[/{color}]",
                 )
-            return Group(banner, sys_table, sr_table, exec_table, trades_table)
+            return Group(banner, sys_table, oi_table, sr_table, exec_table, trades_table)
 
-        return Group(banner, sys_table, sr_table, exec_table)
+        return Group(banner, sys_table, oi_table, sr_table, exec_table)
 
     async def execute_trade(self, setup: RejectionSetup):
         """Executes 2nd ITM option order with full risk geometry."""
@@ -460,6 +524,54 @@ class CombinedSupremeTradingEngine:
                 notes=f"Rejection on {setup.level.name} (Tier {setup.level.priority}) | Confluence Score={setup.score} | Flattrade ID: {order_id or 'SIM'}",
             )
         )
+    async def fetch_live_oi_chain(self):
+        """Fetches live OI for 8 nearest strikes (4 CE + 4 PE) via Flattrade GetQuotes every 5 min."""
+        if not self.client.auth_token or not self.history.auth_token:
+            return
+        try:
+            atm = int(round(self.latest_spot_price / 50.0) * 50)
+            strikes = [atm + (i * 50) for i in range(-4, 5) if i != 0]  # 4 below ATM, 4 above ATM
+            strikes = sorted(strikes)
+            # Include ATM itself
+            all_strikes = sorted(set(strikes) | {atm})
+            # Take 8 nearest to ATM
+            all_strikes = sorted(all_strikes, key=lambda s: abs(s - atm))[:8]
+            all_strikes = sorted(all_strikes)
+
+            oi_rows = []
+            for strike in all_strikes:
+                ce_data = {"oi": 0, "oi_chg": 0, "ltp": 0.0, "vol": 0}
+                pe_data = {"oi": 0, "oi_chg": 0, "ltp": 0.0, "vol": 0}
+
+                for opt_type, data in [("CE", ce_data), ("PE", pe_data)]:
+                    scrip = await self.history.search_option_token(f"NIFTY {strike} {opt_type}")
+                    if scrip and scrip.get("token"):
+                        q = await self.client.get_quotes(exchange="NFO", token=scrip["token"])
+                        if q.get("stat") == "Ok":
+                            data["oi"] = int(q.get("oi", 0))
+                            data["ltp"] = float(q.get("lp", 0.0))
+                            data["vol"] = int(q.get("v", 0))
+                            # OI change = current OI - previous close OI (if available)
+                            prev_oi = int(q.get("poi", q.get("oi", 0)))
+                            data["oi_chg"] = data["oi"] - prev_oi
+
+                oi_rows.append({
+                    "strike": strike,
+                    "ce_oi": ce_data["oi"],
+                    "ce_oi_chg": ce_data["oi_chg"],
+                    "ce_ltp": ce_data["ltp"],
+                    "ce_vol": ce_data["vol"],
+                    "pe_oi": pe_data["oi"],
+                    "pe_oi_chg": pe_data["oi_chg"],
+                    "pe_ltp": pe_data["ltp"],
+                    "pe_vol": pe_data["vol"],
+                })
+
+            self._oi_data = oi_rows
+            self._last_oi_fetch = time.time()
+            logger.info(f"📊 OI Chain refreshed: {len(oi_rows)} strikes | ATM={atm}")
+        except Exception as e:
+            logger.error(f"OI chain fetch error: {e}")
 
     async def recover_open_positions(self):
         """On startup, check Flattrade PositionBook for orphaned open positions and close them."""
@@ -756,6 +868,10 @@ class CombinedSupremeTradingEngine:
                                                     "gain_pts": pts,
                                                 })
                                             )
+
+                                # ── OI CHAIN REFRESH (every 5 min) ──
+                                if (time.time() - self._last_oi_fetch) >= 300:
+                                    asyncio.create_task(self.fetch_live_oi_chain())
 
                             except (ValueError, TypeError):
                                 pass
