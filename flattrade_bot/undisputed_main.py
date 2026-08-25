@@ -91,7 +91,7 @@ class CombinedSupremeTradingEngine:
         self._wins_today: int = 0
         self._warm_ready: bool = False
         self._broker_status: str = "INITIALIZING..."
-        self._oi_data: List[Dict[str, Any]] = []  # Live OI chain for dashboard
+        self._oi_history: List[Dict[str, Any]] = []  # Time-series OI snapshots (OI Pulse style)
         self._last_oi_fetch: float = 0.0
 
     async def initialize(self):
@@ -303,77 +303,79 @@ class CombinedSupremeTradingEngine:
                 st = "[dim]WATCHING[/dim]"
             sr_table.add_row(lvl.name, f"Rs {lvl.price:.2f}", f"Tier {lvl.priority}", f"{dist:+6.1f} pts", budget_str, st)
 
-        # ── 4. LIVE OI CHAIN (8 NEAREST STRIKES) ──
+        # ── 4. TRENDING OI — OI PULSE (TIME SERIES) ──
         oi_table = Table(
-            title="[bold magenta]LIVE OPTION CHAIN — OI PULSE (8 NEAREST STRIKES | 5 MIN REFRESH)[/bold magenta]",
+            title="[bold magenta]TRENDING OI — OI PULSE (8 STRIKES | 5 MIN INTERVALS)[/bold magenta]",
             box=box.SIMPLE_HEAD,
             expand=True,
             padding=(0, 0),
         )
-        oi_table.add_column("CE OI", style="bold cyan", justify="right", width=10)
-        oi_table.add_column("CE CHG", style="bold white", justify="right", width=10)
-        oi_table.add_column("CE LTP", style="bold green", justify="right", width=9)
-        oi_table.add_column("STRIKE", style="bold yellow", justify="center", width=8)
-        oi_table.add_column("OI DIFF", style="bold white", justify="center", width=14)
-        oi_table.add_column("PE LTP", style="bold red", justify="left", width=9)
-        oi_table.add_column("PE CHG", style="bold white", justify="left", width=10)
-        oi_table.add_column("PE OI", style="bold cyan", justify="left", width=10)
+        oi_table.add_column("#", style="dim", justify="center", width=4)
+        oi_table.add_column("TIME", style="bold white", justify="center", width=10)
+        oi_table.add_column("LTP", style="bold yellow", justify="center", width=10)
+        oi_table.add_column("Chg. In Call OI", style="bold cyan", justify="right", width=14)
+        oi_table.add_column("Chg. In Put OI", style="bold cyan", justify="right", width=14)
+        oi_table.add_column("Diff. in OI", style="bold white", justify="right", width=14)
+        oi_table.add_column("▼/▲", style="bold white", justify="center", width=4)
+        oi_table.add_column("Chg %", style="bold white", justify="center", width=8)
+        oi_table.add_column("PCR", style="bold white", justify="center", width=6)
+        oi_table.add_column("Sentiment", style="bold white", justify="center", width=10)
 
-        if self._oi_data:
-            atm = int(round(self.latest_spot_price / 50.0) * 50)
-
-            def fmt_lakh(v):
-                """Format OI values in Lakhs — the natural Nifty scale."""
-                return f"{v / 100000:+.1f}L" if v != 0 else "0"
-
-            def fmt_oi(v):
-                if abs(v) >= 100000:
-                    return f"{v/100000:.1f}L"
-                elif abs(v) >= 1000:
-                    return f"{v/1000:.1f}K"
-                return str(v)
-
-            for row in self._oi_data:
-                strike = row.get("strike", 0)
-                is_atm = strike == atm
-                sk_style = "[bold white on blue]" if is_atm else ""
-                sk_end = "[/bold white on blue]" if is_atm else ""
-
-                ce_oi = row.get("ce_oi", 0)
-                ce_chg = row.get("ce_oi_chg", 0)
-                ce_ltp = row.get("ce_ltp", 0.0)
-                pe_oi = row.get("pe_oi", 0)
-                pe_chg = row.get("pe_oi_chg", 0)
-                pe_ltp = row.get("pe_ltp", 0.0)
-
-                # THE MAIN SIGNAL: OI Difference (CE - PE) in Lakhs
-                oi_diff = ce_oi - pe_oi
-                # Positive diff = more CE writers = RESISTANCE (bearish)
-                # Negative diff = more PE writers = SUPPORT (bullish)
-                if oi_diff > 0:
-                    diff_str = f"[bold red]▼ {fmt_lakh(oi_diff)}[/bold red]"
-                elif oi_diff < 0:
-                    diff_str = f"[bold green]▲ {fmt_lakh(oi_diff)}[/bold green]"
+        if self._oi_history:
+            def fmt_indian(v):
+                """Format number in Indian comma style (lakhs/crores)."""
+                neg = v < 0
+                v = abs(v)
+                s = str(int(v))
+                if len(s) <= 3:
+                    result = s
                 else:
-                    diff_str = "[dim]─ 0[/dim]"
+                    result = s[-3:]
+                    s = s[:-3]
+                    while s:
+                        result = s[-2:] + "," + result
+                        s = s[:-2]
+                return ("-" if neg else "") + result
 
-                ce_chg_c = "bold green" if ce_chg > 0 else "bold red" if ce_chg < 0 else "dim"
-                pe_chg_c = "bold green" if pe_chg > 0 else "bold red" if pe_chg < 0 else "dim"
-                ce_arrow = "▲" if ce_chg > 0 else "▼" if ce_chg < 0 else ""
-                pe_arrow = "▲" if pe_chg > 0 else "▼" if pe_chg < 0 else ""
+            for idx, snap in enumerate(reversed(self._oi_history[-10:]), start=1):
+                diff = snap["oi_diff"]
+                prev_diff = snap.get("prev_diff", diff)
+                chg_in_dir = diff - prev_diff
+                chg_pct = (abs(chg_in_dir) / abs(prev_diff) * 100) if prev_diff != 0 else 0.0
+
+                # Direction arrow
+                if diff < prev_diff:
+                    arrow = "[bold red]▼[/bold red]"
+                elif diff > prev_diff:
+                    arrow = "[bold green]▲[/bold green]"
+                else:
+                    arrow = "[dim]─[/dim]"
+
+                # Sentiment: negative diff = bearish (more CE writing), positive = bullish
+                if diff < 0:
+                    sentiment = "[bold red]Bearish[/bold red]"
+                elif diff > 0:
+                    sentiment = "[bold green]Bullish[/bold green]"
+                else:
+                    sentiment = "[dim]Neutral[/dim]"
+
+                # Diff color
+                diff_color = "bold red" if diff < 0 else "bold green" if diff > 0 else "dim"
 
                 oi_table.add_row(
-                    fmt_oi(ce_oi),
-                    f"[{ce_chg_c}]{ce_arrow}{fmt_lakh(ce_chg)}[/{ce_chg_c}]",
-                    f"{ce_ltp:.2f}",
-                    f"{sk_style}{strike}{sk_end}",
-                    diff_str,
-                    f"{pe_ltp:.2f}",
-                    f"[{pe_chg_c}]{pe_arrow}{fmt_lakh(pe_chg)}[/{pe_chg_c}]",
-                    fmt_oi(pe_oi),
+                    str(idx),
+                    snap["time"],
+                    f"{snap['ltp']:,.2f}",
+                    fmt_indian(snap["ce_chg_total"]),
+                    fmt_indian(snap["pe_chg_total"]),
+                    f"[{diff_color}]{fmt_indian(diff)}[/{diff_color}]",
+                    arrow,
+                    f"{chg_pct:.1f} %",
+                    f"{snap['pcr']:.2f}",
+                    sentiment,
                 )
         else:
-            oi_table.add_row("--", "--", "--", "[dim]Loading...[/dim]", "--", "--", "--", "--")
+            oi_table.add_row("--", "--", "--", "--", "--", "[dim]Loading...[/dim]", "--", "--", "--", "--")
 
         # ── 5. SETUP PIPELINE & ACTIVE POSITION ──
         exec_table = Table(
@@ -535,51 +537,58 @@ class CombinedSupremeTradingEngine:
             )
         )
     async def fetch_live_oi_chain(self):
-        """Fetches live OI for 8 nearest strikes (4 CE + 4 PE) via Flattrade GetQuotes every 5 min."""
+        """Fetches live OI for 8 nearest strikes and computes OI Pulse trending diff (time-series)."""
         if not self.client.auth_token or not self.history.auth_token:
             return
         try:
+            now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
             atm = int(round(self.latest_spot_price / 50.0) * 50)
-            strikes = [atm + (i * 50) for i in range(-4, 5) if i != 0]  # 4 below ATM, 4 above ATM
-            strikes = sorted(strikes)
-            # Include ATM itself
-            all_strikes = sorted(set(strikes) | {atm})
-            # Take 8 nearest to ATM
+            all_strikes = sorted([atm + (i * 50) for i in range(-4, 5)])
+            # Keep 8 nearest to ATM
             all_strikes = sorted(all_strikes, key=lambda s: abs(s - atm))[:8]
-            all_strikes = sorted(all_strikes)
 
-            oi_rows = []
+            total_ce_oi = 0
+            total_pe_oi = 0
+            total_ce_chg = 0
+            total_pe_chg = 0
+
             for strike in all_strikes:
-                ce_data = {"oi": 0, "oi_chg": 0, "ltp": 0.0, "vol": 0}
-                pe_data = {"oi": 0, "oi_chg": 0, "ltp": 0.0, "vol": 0}
-
-                for opt_type, data in [("CE", ce_data), ("PE", pe_data)]:
+                for opt_type in ["CE", "PE"]:
                     scrip = await self.history.search_option_token(f"NIFTY {strike} {opt_type}")
                     if scrip and scrip.get("token"):
                         q = await self.client.get_quotes(exchange="NFO", token=scrip["token"])
                         if q.get("stat") == "Ok":
-                            data["oi"] = int(q.get("oi", 0))
-                            data["ltp"] = float(q.get("lp", 0.0))
-                            data["vol"] = int(q.get("v", 0))
-                            # OI change = current OI - previous close OI (if available)
+                            oi = int(q.get("oi", 0))
                             prev_oi = int(q.get("poi", q.get("oi", 0)))
-                            data["oi_chg"] = data["oi"] - prev_oi
+                            chg = oi - prev_oi
+                            if opt_type == "CE":
+                                total_ce_oi += oi
+                                total_ce_chg += chg
+                            else:
+                                total_pe_oi += oi
+                                total_pe_chg += chg
 
-                oi_rows.append({
-                    "strike": strike,
-                    "ce_oi": ce_data["oi"],
-                    "ce_oi_chg": ce_data["oi_chg"],
-                    "ce_ltp": ce_data["ltp"],
-                    "ce_vol": ce_data["vol"],
-                    "pe_oi": pe_data["oi"],
-                    "pe_oi_chg": pe_data["oi_chg"],
-                    "pe_ltp": pe_data["ltp"],
-                    "pe_vol": pe_data["vol"],
-                })
+            # OI Diff = Change in Call OI - Change in Put OI
+            # Negative = more call writing = bearish | Positive = more put writing = bullish
+            oi_diff = total_ce_chg - total_pe_chg
 
-            self._oi_data = oi_rows
+            # Net PCR = Total Put OI / Total Call OI
+            pcr = total_pe_oi / total_ce_oi if total_ce_oi > 0 else 0.0
+
+            prev_diff = self._oi_history[-1]["oi_diff"] if self._oi_history else oi_diff
+
+            snapshot = {
+                "time": now.strftime("%H:%M:%S"),
+                "ltp": self.latest_spot_price,
+                "ce_chg_total": total_ce_chg,
+                "pe_chg_total": total_pe_chg,
+                "oi_diff": oi_diff,
+                "prev_diff": prev_diff,
+                "pcr": round(pcr, 2),
+            }
+            self._oi_history.append(snapshot)
             self._last_oi_fetch = time.time()
-            logger.info(f"📊 OI Chain refreshed: {len(oi_rows)} strikes | ATM={atm}")
+            logger.info(f"📊 OI Pulse: CE Chg={total_ce_chg:,} | PE Chg={total_pe_chg:,} | Diff={oi_diff:,} | PCR={pcr:.2f}")
         except Exception as e:
             logger.error(f"OI chain fetch error: {e}")
 
