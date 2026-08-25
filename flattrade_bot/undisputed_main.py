@@ -136,7 +136,7 @@ class CombinedSupremeTradingEngine:
             self._broker_status = "[yellow]SIMULATION MODE[/yellow]"
             logger.warning("Running in simulation mode (No live broker token).")
 
-        # Tuesday 25-Aug Official Nifty 50 Spot Session Anchors (from Monday 24-Aug OHLC)
+        # Tuesday 25-Aug Official Nifty 50 Spot Session Anchors (TradingView 11:05 Verified)
         prev_close = 24219.00
         prev_high = 24313.00
         prev_low = 24144.30
@@ -144,8 +144,8 @@ class CombinedSupremeTradingEngine:
         prev_vwap_close = 24220.00
         ema200 = 24192.23
         ema20 = 24151.23
-        ema20_5m = 24156.00
-        ema200_5m = 24204.00
+        ema20_5m = 24146.37  # TradingView 5m EMA 20 verified at 11:05
+        ema200_5m = 24196.34  # TradingView 5m EMA 200 verified at 11:05
         opening_3m_h = 24260.00
         opening_3m_l = 24200.00
         virgin_cprs = [(24098.00, 24111.00, 24085.00, "20-Aug")]
