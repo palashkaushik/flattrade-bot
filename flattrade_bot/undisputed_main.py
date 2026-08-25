@@ -393,6 +393,91 @@ class CombinedSupremeTradingEngine:
                                     ema200_5m=self.engine.current_5m_ema200,
                                     atr=self.engine.current_atr if self.engine.current_atr > 0 else 14.0,
                                 )
+
+                                # ── 3-MINUTE CANDLE AGGREGATOR & TRIGGER EVALUATION ──
+                                bar_idx = now.minute // 3
+                                if not hasattr(self, "current_3m_bar") or self.current_3m_bar is None:
+                                    self.current_3m_bar = {
+                                        "open": self.latest_spot_price,
+                                        "high": self.latest_spot_price,
+                                        "low": self.latest_spot_price,
+                                        "close": self.latest_spot_price,
+                                        "bar_idx": bar_idx,
+                                        "minute": now.minute,
+                                    }
+                                    self.past_3m_bars = []
+                                elif bar_idx != self.current_3m_bar["bar_idx"]:
+                                    # 3-Minute Bar Closed!
+                                    completed_bar = dict(self.current_3m_bar)
+                                    self.past_3m_bars.append(completed_bar)
+                                    logger.info(f"📊 3-Minute Bar Closed: O={completed_bar['open']:.2f} H={completed_bar['high']:.2f} L={completed_bar['low']:.2f} C={completed_bar['close']:.2f}")
+
+                                    # Start new active bar
+                                    self.current_3m_bar = {
+                                        "open": self.latest_spot_price,
+                                        "high": self.latest_spot_price,
+                                        "low": self.latest_spot_price,
+                                        "close": self.latest_spot_price,
+                                        "bar_idx": bar_idx,
+                                        "minute": now.minute,
+                                    }
+                                else:
+                                    # Update active bar high / low / close
+                                    self.current_3m_bar["high"] = max(self.current_3m_bar["high"], self.latest_spot_price)
+                                    self.current_3m_bar["low"] = min(self.current_3m_bar["low"], self.latest_spot_price)
+                                    self.current_3m_bar["close"] = self.latest_spot_price
+
+                                # Evaluate Two-Bar Rejection on live bars
+                                if len(self.past_3m_bars) >= 1:
+                                    bar_1 = self.past_3m_bars[-1]
+                                    bar_2 = self.current_3m_bar
+
+                                    setup = self.engine.evaluate_rejection_trigger(bar_1, bar_2, now)
+                                    if setup and setup.confirmed and not self.active_position:
+                                        logger.info(f"🚨 REJECTION SETUP TRIGGERED: {setup.direction} on {setup.level.name} | Score={setup.score}")
+                                        await self.execute_trade(setup)
+
+                                # Manage Active Position (Trailing SL & Target Exits)
+                                if self.active_position:
+                                    pos = self.active_position
+                                    if pos["direction"] == "LONG":
+                                        pts = self.latest_spot_price - pos["entry_price"]
+                                        pos["current_pts"] = pts
+                                        pos["peak_pts"] = max(pos["peak_pts"], pts)
+
+                                        if self.latest_spot_price <= pos["current_sl"]:
+                                            pos["net_rs"] = pts * settings.LOT_SIZE
+                                            logger.info(f"🛑 LONG SL Hit at {self.latest_spot_price:.2f} (P&L: {pts:+.2f} pts)")
+                                            self.trades_today.append(pos)
+                                            if pts > 0:
+                                                self._wins_today += 1
+                                            self.active_position = None
+                                        elif pts >= 2.0 and pos["current_sl"] < pos["entry_price"]:
+                                            pos["current_sl"] = pos["entry_price"]
+                                            logger.info("🔒 Target 1: SL Moved to Cost (Risk-Free!)")
+                                        elif pts >= 8.0 and pos["current_sl"] < pos["entry_price"] + 5.0:
+                                            pos["current_sl"] = pos["entry_price"] + 5.0
+                                            logger.info("💰 Target 2: SL Locked at +5.0 pts profit!")
+
+                                    elif pos["direction"] == "SHORT":
+                                        pts = pos["entry_price"] - self.latest_spot_price
+                                        pos["current_pts"] = pts
+                                        pos["peak_pts"] = max(pos["peak_pts"], pts)
+
+                                        if self.latest_spot_price >= pos["current_sl"]:
+                                            pos["net_rs"] = pts * settings.LOT_SIZE
+                                            logger.info(f"🛑 SHORT SL Hit at {self.latest_spot_price:.2f} (P&L: {pts:+.2f} pts)")
+                                            self.trades_today.append(pos)
+                                            if pts > 0:
+                                                self._wins_today += 1
+                                            self.active_position = None
+                                        elif pts >= 2.0 and pos["current_sl"] > pos["entry_price"]:
+                                            pos["current_sl"] = pos["entry_price"]
+                                            logger.info("🔒 Target 1: SL Moved to Cost (Risk-Free!)")
+                                        elif pts >= 8.0 and pos["current_sl"] > pos["entry_price"] - 5.0:
+                                            pos["current_sl"] = pos["entry_price"] - 5.0
+                                            logger.info("💰 Target 2: SL Locked at +5.0 pts profit!")
+
                             except (ValueError, TypeError):
                                 pass
                         elif "Session Expired" in str(quote.get("emsg", "")) or "Invalid Session" in str(quote.get("emsg", "")):
