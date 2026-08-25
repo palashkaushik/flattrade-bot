@@ -959,7 +959,7 @@ class CombinedSupremeTradingEngine:
                                             )
 
                                 # ── OI CHAIN REFRESH (every 5 min) ──
-                                if (time.time() - self._last_oi_fetch) >= 300:
+                                if (time.time() - self._last_oi_fetch) >= 300:  # 5-min OI refresh
                                     asyncio.create_task(self.fetch_live_oi_chain())
 
                             except (ValueError, TypeError):
