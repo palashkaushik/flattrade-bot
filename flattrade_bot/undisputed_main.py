@@ -376,6 +376,7 @@ class CombinedSupremeTradingEngine:
                                 smooth_e20 = (self.latest_spot_price * 0.005) + (cur_e20 * 0.995)
                                 smooth_e20_5m = (self.latest_spot_price * 0.003) + (cur_e20_5m * 0.997)
                                 smooth_e200 = (self.latest_spot_price * 0.001) + (cur_e200 * 0.999)
+                                smooth_e200_5m = (self.latest_spot_price * 0.0005) + (cur_e200_5m * 0.9995)
                                 smooth_vwap = (self.latest_spot_price * 0.002) + (cur_vwap * 0.998)
 
                                 # Dynamic indicator update from live tick
@@ -387,7 +388,7 @@ class CombinedSupremeTradingEngine:
                                     spot_15m_close=self.latest_spot_price,
                                     spot_15m_ema20=smooth_e20_5m,
                                     ema20_5m=smooth_e20_5m,
-                                    ema200_5m=cur_e200_5m,
+                                    ema200_5m=smooth_e200_5m,
                                     atr=self.engine.current_atr if self.engine.current_atr > 0 else 14.0,
                                 )
                             except (ValueError, TypeError):
