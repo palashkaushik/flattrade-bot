@@ -2,7 +2,7 @@
 
 **Generated:** 2026-08-30  
 **Source:** `C:\\Websites\\FLATTRADE BOT`  
-**Graph:** 5018 nodes · 11870 edges · 1 communities
+**Graph:** 5125 nodes · 12140 edges · 1 communities
 
 ---
 
@@ -12,21 +12,21 @@ These are the most-connected modules — touching these affects the most other c
 
 | RANK | NODE | DEGREE CENTRALITY |
 |:---:|:---|:---:|
-| #1 | `flattrade_bot_indicators_patterns_candle` | 0.0769 |
-| #2 | `flattrade_bot_indicators_divergence_divergenceengine` | 0.0359 |
-| #3 | `backtest_5y_optimized_option_files` | 0.0357 |
-| #4 | `flattrade_bot_indicators_stochastic_incrementalstochastic` | 0.0335 |
-| #5 | `backtest_5y_optimized_load_spot` | 0.0277 |
-| #6 | `flattrade_bot_indicators_patterns_bullishpinbardetector` | 0.0231 |
-| #7 | `backtest_5y_optimized_latest_spot` | 0.0225 |
-| #8 | `backtest_5y_optimized` | 0.0219 |
-| #9 | `flattrade_bot_indicators_patterns` | 0.0205 |
-| #10 | `grid_optimize_f6_atr` | 0.0195 |
-| #11 | `artifacts_f6_hybrid_causal_live_parity_research_incrementalatr` | 0.0175 |
-| #12 | `opt_futures_quad` | 0.0171 |
-| #13 | `backtest_5y_optimized_summarize` | 0.0163 |
-| #14 | `backtest_5y_optimized_timeframetracker` | 0.0151 |
-| #15 | `backtest_5y_optimized_to_minutes` | 0.0130 |
+| #1 | `flattrade_bot_indicators_patterns_candle` | 0.0753 |
+| #2 | `flattrade_bot_indicators_divergence_divergenceengine` | 0.0351 |
+| #3 | `backtest_5y_optimized_option_files` | 0.0349 |
+| #4 | `flattrade_bot_indicators_stochastic_incrementalstochastic` | 0.0328 |
+| #5 | `backtest_5y_optimized_load_spot` | 0.0271 |
+| #6 | `flattrade_bot_indicators_patterns_bullishpinbardetector` | 0.0226 |
+| #7 | `backtest_5y_optimized_latest_spot` | 0.0221 |
+| #8 | `backtest_5y_optimized` | 0.0215 |
+| #9 | `flattrade_bot_indicators_patterns` | 0.0201 |
+| #10 | `grid_optimize_f6_atr` | 0.0191 |
+| #11 | `artifacts_f6_hybrid_causal_live_parity_research_incrementalatr` | 0.0172 |
+| #12 | `opt_futures_quad` | 0.0168 |
+| #13 | `backtest_5y_optimized_summarize` | 0.0160 |
+| #14 | `backtest_5y_optimized_timeframetracker` | 0.0148 |
+| #15 | `backtest_5y_optimized_to_minutes` | 0.0127 |
 
 ## Betweenness Centrality (Critical Bridges)
 
@@ -34,32 +34,32 @@ Nodes that act as bridges between communities — removing these would disconnec
 
 | RANK | NODE | BETWEENNESS |
 |:---:|:---|:---:|
-| #1 | `flattrade_bot_indicators_patterns_candle` | 0.1891 |
-| #2 | `opt_futures_quad` | 0.1588 |
-| #3 | `artifacts_f6_hybrid_tmp_winners_f` | 0.1067 |
-| #4 | `grid_optimize_f6_atr` | 0.0882 |
-| #5 | `backtest_walkforward_fees` | 0.0798 |
-| #6 | `artifacts_f6_hybrid_smart_fib_optimus_gpu` | 0.0655 |
-| #7 | `flattrade_bot_indicators_divergence_divergenceengine` | 0.0562 |
-| #8 | `flattrade_bot_indicators_stochastic_incrementalstochastic` | 0.0487 |
-| #9 | `artifacts_f6_hybrid_optimized_gpu_backtest` | 0.0452 |
-| #10 | `tests_test_b07_e2e_execution` | 0.0377 |
+| #1 | `opt_futures_quad` | 0.1962 |
+| #2 | `flattrade_bot_indicators_patterns_candle` | 0.1723 |
+| #3 | `backtest_walkforward_fees` | 0.0926 |
+| #4 | `grid_optimize_f6_atr` | 0.0911 |
+| #5 | `artifacts_f6_hybrid_tmp_winners_f` | 0.0875 |
+| #6 | `artifacts_f6_hybrid_optimized_gpu_backtest` | 0.0593 |
+| #7 | `flattrade_bot_indicators_divergence_divergenceengine` | 0.0561 |
+| #8 | `flattrade_bot_indicators_stochastic_incrementalstochastic` | 0.0550 |
+| #9 | `artifacts_f6_hybrid_smart_fib_optimus_gpu` | 0.0487 |
+| #10 | `tests_test_b07_e2e_execution` | 0.0487 |
 
 ## Community Structure (1 communities)
 
 | COMMUNITY | SIZE | KEY NODES |
 |:---:|:---:|:---|
-| 0 | 5018 | `flattrade_bot_indicators_patterns_candle`, `flattrade_bot_indicators_divergence_divergenceengine`, `backtest_5y_optimized_option_files` |
+| 0 | 5125 | `flattrade_bot_indicators_patterns_candle`, `flattrade_bot_indicators_divergence_divergenceengine`, `backtest_5y_optimized_option_files` |
 
 ## Architecture Summary
 
 | METRIC | VALUE |
 |:---|:---:|
 | Total Python Files | 63 |
-| Total Nodes | 5018 |
-| Total Edges | 11870 |
+| Total Nodes | 5125 |
+| Total Edges | 12140 |
 | Communities | 1 |
-| Avg Degree | 4.73 |
+| Avg Degree | 4.74 |
 
 ## Interactive Visualization
 

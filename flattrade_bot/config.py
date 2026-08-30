@@ -46,12 +46,11 @@ class Settings:
     CE_STRIKE_OFFSET: int = 0    # ATM Exact (0 offset)
     PE_STRIKE_OFFSET: int = 0    # ATM Exact (0 offset)
 
-    # ── Champion Strategy: Undisputed Rejection Champion (794+ Calmar) ──
-    # Two-Bar Structure Confirmation Rejection Scalper with 15m Trend Gate.
-    # 2nd ITM strikes (CE ATM-100 / PE ATM+100), S/R Anchors (CPR, VWAP, EMA200, EMA20, Camarilla H3/L3).
-    # Initial SL = 0.30x ATR5 (min 4.0 pts), TP = 1.50x ATR5, Trail SL @ +6.0 pts (step 2.0 pts).
-    # 7-Year Verified: 70.06% WR, 90.1% Green Days, 100% Green Months (77/77), Calmar 1,294.
-    STRATEGY_NAME: str = "UNDISPUTED_REJECTION_CHAMPION"
+    # ── Live Strategy: Pocket Money (10s FLAG/SUPER scalper) ──
+    # 2nd ITM strikes (CE ATM-100 / PE ATM+100), index UT Bot + LinReg side filter.
+    # SL/TP = ±7.0 premium pts (SL priority), EOD flat at 15:00 IST, 4-loss day block.
+    # Verified congruent with artifacts/f6_hybrid/pocket_money_backtest.py (9/9 trades).
+    STRATEGY_NAME: str = "POCKET_MONEY"
     UNDISPUTED_MIN_SCORE: int = 50
     UNDISPUTED_SL_MULT: float = 0.30
     UNDISPUTED_TP_MULT: float = 1.50

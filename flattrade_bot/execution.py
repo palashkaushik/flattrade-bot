@@ -48,40 +48,52 @@ class TradeExecutor:
                     continue
         return fallback
 
-    async def _confirm_fill(self, order_id: str, fallback: float) -> Dict[str, Any]:
-        """Confirms broker fill status; never treats an accepted request as a fill."""
-        for attempt in range(3):
-            order_book = await self.client.get_order_book()
-            records = order_book if isinstance(order_book, list) else order_book.get("orders", [])
-            record = next(
-                (item for item in records if item.get("norenordno") == order_id),
-                None,
-            )
-            if record:
-                status = str(record.get("status", "")).strip().upper()
-                rejection = str(record.get("rejreason", "")).strip()
-                if status in {"REJECT", "REJECTED", "CANCEL", "CANCELLED"}:
-                    return {"filled": False, "reason": rejection or status, "record": record}
+    async def _confirm_fill(
+        self, order_id: str, fallback: float, max_attempts: int = 10, is_exit: bool = False
+    ) -> Dict[str, Any]:
+        """Confirms broker fill status; never treats an unconfirmed accepted request as a fill."""
+        for attempt in range(max_attempts):
+            try:
+                order_book = await self.client.get_order_book()
+                records = order_book if isinstance(order_book, list) else order_book.get("orders", [])
+                record = next(
+                    (item for item in records if str(item.get("norenordno", "")).strip() == str(order_id).strip()),
+                    None,
+                )
+                if record:
+                    status = str(record.get("status", "")).strip().upper()
+                    rejection = str(record.get("rejreason", "")).strip()
+                    if status in {"REJECT", "REJECTED", "CANCEL", "CANCELLED"}:
+                        return {"filled": False, "reason": rejection or status, "record": record}
 
-                try:
-                    fillshares = float(record.get("fillshares", 0) or 0)
-                except (TypeError, ValueError):
-                    fillshares = 0.0
-                if status in {"COMPLETE", "FILLED", "TRADED"} or fillshares > 0:
-                    return {
-                        "filled": True,
-                        "price": self._fill_price(record, fallback),
-                        "record": record,
-                    }
-                if rejection:
-                    return {"filled": False, "reason": rejection, "record": record}
-            if attempt < 2:
-                await asyncio.sleep(0.25)
+                    try:
+                        fillshares = float(record.get("fillshares", 0) or 0)
+                    except (TypeError, ValueError):
+                        fillshares = 0.0
+                    if status in {"COMPLETE", "FILLED", "TRADED"} or fillshares > 0:
+                        return {
+                            "filled": True,
+                            "price": self._fill_price(record, fallback),
+                            "record": record,
+                        }
+                    if rejection:
+                        return {"filled": False, "reason": rejection, "record": record}
+            except Exception as e:
+                pass
+
+            if attempt < max_attempts - 1:
+                await asyncio.sleep(0.3)
+
+        # For exits, check position book directly: if broker shows 0 qty, trade did fill!
+        if is_exit:
+            is_open = await self.reconcile_broker_position()
+            if is_open is False:
+                return {"filled": True, "price": fallback, "record": None}
 
         cancel = getattr(self.client, "cancel_order", None)
-        if cancel:
+        if cancel and not is_exit:
             await cancel(order_id)
-        return {"filled": False, "reason": "Order fill not confirmed", "record": None}
+        return {"filled": False, "reason": "Order fill not confirmed within timeout", "record": None}
 
     async def reconcile_broker_position(self) -> Optional[bool]:
         """Returns whether the broker still has the locally tracked position open."""
@@ -319,9 +331,10 @@ class TradeExecutor:
             quantity=self.position["quantity"],
             ltp=order_price if order_price is not None else ltp,
             product="MIS",
-            slippage_buffer=1.0,
+            slippage_buffer=5.0,  # Generous buffer guarantees instant fill across the bid-ask spread
         )
         if not self._accepted(response):
+            self._last_exit_attempt_at = None  # Allow immediate retry on error
             return {
                 "accepted": False,
                 "reason": response.get("emsg", "Broker rejected exit order"),
@@ -330,9 +343,14 @@ class TradeExecutor:
 
         order_id = response.get("norenordno")
         if not order_id:
+            self._last_exit_attempt_at = None
             return {"accepted": False, "reason": "Broker returned no exit order ID", "response": response}
-        fill = await self._confirm_fill(order_id, order_price if order_price is not None else ltp)
+
+        fill = await self._confirm_fill(
+            order_id, order_price if order_price is not None else ltp, max_attempts=12, is_exit=True
+        )
         if not fill["filled"]:
+            self._last_exit_attempt_at = None  # Allow immediate retry
             return {
                 "accepted": False,
                 "reason": fill["reason"],

@@ -95,6 +95,40 @@ When running ANY strategy on the FIRST 5 days of 2020 with standard settings:
 
 ---
 
+## Nifty 50 Option Master Parquet (CANONICAL DATA)
+
+**ALL strategies MUST read option data from the single canonical parquet:**
+
+```
+C:\Users\user\Desktop\nifty50 data\nifty50_options_master.parquet
+```
+
+- This is the **only** option parquet any strategy may use. The old
+  `cache_marni_opt.parquet` is deprecated/removed (it held wrong-expiry
+  "malicious" rows) — do NOT point engines at it.
+- Built by `build_canonical_parquet.py`. Schema: `day, minute, symbol,
+  strike, side, open, high, low, close` (1-minute bars).
+- `minute` = minute-of-day (e.g. 555 = 09:15). Symbols are `NIFTY<DDMMMYY><STRIKE><CE|PE>`.
+- Underlying INDEX 1m (for bias/Elder) lives at
+  `C:\Users\user\Desktop\nifty50 data\index\NIFTY 50_minute.csv`.
+
+### Expiry-Day Rule (NSE/SEBI, web-verified)
+Nifty 50 option expiry day changed exactly once in 2020–2026:
+
+| PERIOD | WEEKLY EXPIRY DAY |
+|:---|:---|
+| 2020-01-01 → 2025-08-28 | **Thursday** of the week |
+| 2025-09-01 → today | **Tuesday** of the week |
+
+- Effective: end of trading 28-Aug-2025; new contracts from 1-Sep-2025 use Tuesday
+  (SEBI mandate limiting index-expiry days to Tue/Thu; NSE→Tue, BSE→Thu).
+- The canonical parquet keeps ONLY the **correct weekly contract per trading day**
+  (Thu pre-change, Tue post-change). Wrong-contract rows (e.g. a monthly expiry used
+  on a weekly-strategy day) were dropped. Engines must NOT re-filter by expiry.
+- 2nd ITM strike per day: **CE = ATM−100, PE = ATM+100** (ATM from index spot 09:15 open).
+
+---
+
 ## Security
 
 - `.env` contains live API credentials — **never commit it** (excluded in `.gitignore`)
@@ -112,5 +146,7 @@ When running ANY strategy on the FIRST 5 days of 2020 with standard settings:
 | `backtest_5y_optimized.py` | Core backtest engine (reference) |
 | `backtest_unlimited_profit.py` | Unlimited profit variant (pmtrig reference) |
 | `BACKTEST_LEDGER.md` | All strategy test results |
+| `nifty50_options_master.parquet` | **Canonical** Nifty 50 option 1m bars (see Data section) |
+| `build_canonical_parquet.py` | Rebuilds the canonical parquet (correct weekly expiry per day) |
 | `graphify-out/GRAPH_REPORT.md` | Knowledge graph audit report |
 | `.env` | Live credentials (local only) |

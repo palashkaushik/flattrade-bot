@@ -709,7 +709,8 @@ class PocketMoneyEngine:
         keys.add(f"PE:{atm + ROLLOVER_WATCH_OFFSET}")
         return keys
 
-    def seed_spot_1m(self, rows: List[Dict[str, Any]], today: Optional[str] = None) -> int:
+    def seed_spot_1m(self, rows: List[Dict[str, Any]], today: Optional[str] = None,
+                     now: Optional[datetime] = None) -> int:
         """Feeds historical 1m spot rows (warm days + today) into the filter.
 
         Each row carries its trading day; a day boundary flushes the 5m
@@ -721,11 +722,13 @@ class PocketMoneyEngine:
         are dropped. Prior days are fed in full. A mid-session restart
         therefore reconstructs today's chain exactly and the live tick path
         continues seamlessly from the current minute.
+
+        `now` lets the caller pin "current minute" to IST on UTC hosts.
         """
         if today is not None:
             self.today = today
             self.filter.set_today(today)
-        now = datetime.now()
+        now = now or datetime.now()
         cur_minute = now.hour * 60 + now.minute
         n = 0
         last_day: Optional[str] = None

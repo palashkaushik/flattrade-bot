@@ -368,7 +368,7 @@ class TradingProcessManager:
             args: Sequence[str] = [
                 self.python_executable,
                 "-m",
-                "flattrade_bot.undisputed_main",
+                "flattrade_bot.main",
             ]
             if live_orders:
                 args = [*args, "--live"]

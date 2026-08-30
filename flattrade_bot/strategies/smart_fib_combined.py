@@ -19,6 +19,7 @@ backtest.
 """
 
 import logging
+import os
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -27,6 +28,17 @@ from artifacts.f6_hybrid.marni_fib_core_combo_cache import (
     extract_day_events,
 )
 from artifacts.f6_hybrid.marni_fib_backtest import fib_price
+
+# Engine selector: "ut" (stock B17) or "elder" (Elder Impulse fib legs).
+# Elder mode swaps the bar colorer/leg detector via the shared engine module
+# so research backtests and this live path stay byte-identical.
+SMART_FIB_ENGINE = os.getenv("SMART_FIB_ENGINE", "ut").strip().lower()
+if SMART_FIB_ENGINE == "elder":
+    from flattrade_bot.strategies._elder_fib_engine import (
+        ELDER_MIN_SPAN,
+        install_elder_engine,
+    )
+    install_elder_engine()
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +52,8 @@ CHAMPION = dict(
     s1_k_period=12,
     s1_d_period=4,
 )
+if SMART_FIB_ENGINE == "elder":
+    CHAMPION["min_span"] = ELDER_MIN_SPAN
 TIMEFRAMES: Tuple[int, ...] = (1, 2, 3, 5)
 TARGET_LEVEL = 0.786
 STOP_LEVEL = 1.13
@@ -165,16 +179,27 @@ class LiveSmartFibCombinedStrategy:
 
     def _payload_for(self, day: date) -> Optional[Dict[str, Any]]:
         iso = day.isoformat()
+        # The causal slice cap applies to TODAY only. Past days are complete
+        # history and must be served whole — otherwise warmup length varies
+        # with the evaluated minute and indicator state stops being stable.
+        past_day = self.today is not None and day < self.today
         spot_rows = [
             r for r in self.spot_rows.get(iso, [])
-            if _row_minute(r) <= self._slice_minute
+            if past_day or _row_minute(r) <= self._slice_minute
         ]
         contracts = {}
         for key, entry in self.contract_rows.items():
-            rows = [
-                r for r in entry["rows"]
-                if self._row_key(r) == iso and _row_minute(r) <= self._slice_minute
-            ]
+            # Today's rows are sliced causally; EARLIER days ride along whole
+            # because extract_day_events date-splits them into records["previous"]
+            # to warm the option-chart feeds (mirrors the replay-cache payloads).
+            rows = []
+            for r in entry["rows"]:
+                r_iso = self._row_key(r)
+                if r_iso == iso:
+                    if _row_minute(r) <= self._slice_minute:
+                        rows.append(r)
+                elif r_iso < iso:
+                    rows.append(r)
             contracts[key] = {
                 "rows": rows,
                 "tsym": entry["tsym"],

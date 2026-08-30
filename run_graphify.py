@@ -4,8 +4,10 @@ on the FLATTRADE BOT directory. Generates:
   - graphify-out/graph.json  (persistent graph)
   - graphify-out/GRAPH_REPORT.md (audit report)
 """
-import json, sys
+import json, sys, os
 from pathlib import Path
+
+os.environ["GRAPHIFY_VIZ_NODE_LIMIT"] = "20000"
 
 TARGET = Path(r"C:\Websites\FLATTRADE BOT")
 OUT    = TARGET / "graphify-out"
@@ -90,8 +92,11 @@ print(f"  graph.json  -> {graph_json_path}")
 
 # Export HTML visualization
 html_path = str(OUT / "graph.html")
-to_html(G, communities_dict, html_path)
-print(f"  graph.html  -> {html_path}")
+try:
+    to_html(G, communities_dict, html_path)
+    print(f"  graph.html  -> {html_path}")
+except Exception as e:
+    print(f"  ⚠️ HTML export skipped: {e}")
 
 # Step 6: Generate GRAPH_REPORT.md manually from graph data
 print("\n[Step 6] Generating GRAPH_REPORT.md...")

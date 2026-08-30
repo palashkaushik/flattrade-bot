@@ -87,7 +87,8 @@ class CombinedSupremeTradingEngine:
         self.risk = RiskManager(quantity=settings.LOT_SIZE)
         self.executor = TradeExecutor(self.client, self.risk, self.discord, quantity=settings.LOT_SIZE, live_orders=live_orders) if live_orders else None
 
-        self.latest_spot_price: float = 24240.0
+        self.latest_spot_price: float = 24240.0  # Futures price (for S/R, indicators, Elder)
+        self.index_spot_price: float = 24240.0   # Index price (for ATM strike selection only)
         self.active_position: Optional[Dict[str, Any]] = None
         self.trades_today: List[Dict[str, Any]] = []
         self._wins_today: int = 0
@@ -95,6 +96,8 @@ class CombinedSupremeTradingEngine:
         self._broker_status: str = "INITIALIZING..."
         self._oi_history: List[Dict[str, Any]] = []  # Time-series OI snapshots (OI Pulse style)
         self._last_oi_fetch: float = 0.0
+        self._futures_token: Optional[str] = None   # NFO token for Nifty Futures
+        self._futures_tsym: Optional[str] = None     # Trading symbol for Nifty Futures
         self._elder = IncrementalElderImpulse()  # Elder Impulse on 3m spot bars
         self._elder_color: str = "blue"  # Current Elder Impulse color
         self._rsi = IncrementalRSI(14)  # RSI(14) on 3m spot bars
@@ -134,13 +137,39 @@ class CombinedSupremeTradingEngine:
             self.history.set_token(token)
             self._broker_status = "[bold green]LIVE AUTHENTICATED[/bold green]"
             logger.info("✅ Flattrade Live Broker Session Authenticated.")
-            # Fetch initial spot quote
+
+            # Discover Nifty Futures token for tick data
+            try:
+                fut_info = await self.history.search_futures_token("NIFTY")
+                if fut_info:
+                    self._futures_token = fut_info["token"]
+                    self._futures_tsym = fut_info["tsym"]
+                    logger.info(f"📈 Futures contract: {fut_info['tsym']} (token={fut_info['token']})")
+                else:
+                    logger.warning("⚠️ Could not find Nifty Futures token — falling back to Index")
+            except Exception as e:
+                logger.warning(f"Futures token search error: {e}")
+
+            # Fetch initial Index spot (for ATM calculation)
             q = await self.client.get_quotes(exchange="NSE", token="26000")
             if q.get("stat") == "Ok" and "lp" in q:
                 try:
-                    self.latest_spot_price = float(q["lp"])
+                    self.index_spot_price = float(q["lp"])
                 except (ValueError, TypeError):
                     pass
+
+            # Fetch initial Futures price (for S/R, indicators)
+            if self._futures_token:
+                fq = await self.client.get_quotes(exchange="NFO", token=self._futures_token)
+                if fq.get("stat") == "Ok" and "lp" in fq:
+                    try:
+                        self.latest_spot_price = float(fq["lp"])
+                    except (ValueError, TypeError):
+                        self.latest_spot_price = self.index_spot_price
+                else:
+                    self.latest_spot_price = self.index_spot_price
+            else:
+                self.latest_spot_price = self.index_spot_price
         else:
             self._broker_status = "[yellow]SIMULATION MODE[/yellow]"
             logger.warning("Running in simulation mode (No live broker token).")
@@ -239,9 +268,9 @@ class CombinedSupremeTradingEngine:
 
         # ── 1. HEADER ──
         header = Text.from_markup(
-            f" [bold bright_yellow]🏆 MASTER COMBINED SUPREME STRATEGY (1,504+ CALMAR)[/bold bright_yellow] "
-            f"| [bold white]3-Tier S/R + SuperTrend-VWAP Filter + Two-Bar Trigger[/bold white] "
-            f"| [bold bright_green]69.3% Win Rate | +Rs 1.13 Cr[/bold bright_green] | [cyan]{time_str}[/cyan]"
+            f" [bold bright_yellow]🏆 OI-DRIVEN COMBINED SUPREME STRATEGY[/bold bright_yellow] "
+            f"| [bold white]Futures S/R + OI Bias + Elder Gate + Chop Filter[/bold white] "
+            f"| [cyan]{time_str}[/cyan]"
         )
         banner = Panel(Align.center(header), box=box.ROUNDED, style="bright_blue", padding=(0, 1))
 
@@ -250,8 +279,8 @@ class CombinedSupremeTradingEngine:
         sys_table.add_column("BROKER", style="bold green", justify="center")
         sys_table.add_column("EXEC MODE", style="bold white", justify="center")
         sys_table.add_column("SESSION", style="bold white", justify="center")
-        sys_table.add_column("NIFTY SPOT", style="bold yellow", justify="center")
-        sys_table.add_column("15m TREND", style="bold white", justify="center")
+        sys_table.add_column("NIFTY FUT", style="bold yellow", justify="center")
+        sys_table.add_column("OI BIAS", style="bold white", justify="center")
         sys_table.add_column("CHOP FILTER", style="bold white", justify="center")
         sys_table.add_column("ELDER", style="bold white", justify="center")
         sys_table.add_column("RSI(14)", style="bold white", justify="center")
@@ -261,7 +290,15 @@ class CombinedSupremeTradingEngine:
         mode_str = "[bold white on red] LIVE [/bold white on red]" if self.live_orders else "[bold white on blue] SIM / PAPER [/bold white on blue]"
         sess_active = self.engine.is_session_active(now)
         sess_str = "[bold green]ACTIVE (ALL-DAY)[/bold green]" if sess_active else "[yellow]STANDDOWN[/yellow]"
-        trend_str = "[bold green][BULL] Close>=EMA20[/bold green]" if self.engine.current_15m_bullish else "[bold red][BEAR] Close<EMA20[/bold red]"
+        # OI Bias display
+        oi_dir = self.engine.oi_direction
+        oi_val = self.engine.oi_diff_value / 100000.0  # Convert to lakhs
+        if oi_dir == "CE":
+            trend_str = f"[bold green]CE ↑ ({oi_val:+.1f}L)[/bold green]"
+        elif oi_dir == "PE":
+            trend_str = f"[bold red]PE ↓ ({oi_val:+.1f}L)[/bold red]"
+        else:
+            trend_str = f"[yellow]DEAD ZONE ({oi_val:+.1f}L)[/yellow]"
         
         # Live Chop Corridor Check
         st_val = self.engine.current_supertrend
@@ -653,6 +690,16 @@ class CombinedSupremeTradingEngine:
             }
             self._oi_history.append(snapshot)
             logger.info(f"📊 OI Pulse: CE={total_ce_oi:,} PE={total_pe_oi:,} | PCR={pcr:.2f}")
+
+            # Update OI-driven direction bias
+            if len(self._oi_history) >= 2:
+                curr = self._oi_history[-1]
+                prev = self._oi_history[-2]
+                ce_delta = curr["ce_oi_raw"] - prev["ce_oi_raw"]
+                pe_delta = curr["pe_oi_raw"] - prev["pe_oi_raw"]
+                oi_diff = ce_delta - pe_delta
+                direction = self.engine.set_oi_direction(oi_diff)
+                logger.info(f"📈 OI Direction: diff={oi_diff:+,.0f} ({oi_diff/100000:+.1f}L) → {direction or 'DEAD ZONE'}")
         except Exception as e:
             logger.error(f"OI chain fetch error: {e}", exc_info=True)
         finally:

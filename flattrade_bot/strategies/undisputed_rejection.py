@@ -1,14 +1,13 @@
 """Combined Supreme Strategy Engine.
 
-Strategy: 🏆 Combined Supreme Strategy (1,595+ Calmar Ratio | +₹44.82L Realized Net Profit | 91.2% Green Days)
+Strategy: 🏆 OI-Driven Combined Supreme Strategy
 Key Features:
-  - 3-Tier Prioritized S/R Hierarchy:
-      Tier 1 Supreme (Priority 1): Virgin CPR, Camarilla H3/L3, Daily CPR, Daily VWAP, Prev Day VWAP Close, 5m EMA20/200, 3m EMA200
-      Tier 2 (Priority 2): Opening 3m Candle High/Low (IB-3m), 3m EMA20, Prev Day High/Low
-      Tier 3 (Priority 3): Fibonacci H3/L3 (R3/S3), Camarilla H4/L4
+  - 3-Tier Prioritized S/R Hierarchy (Futures chart)
   - Two-Bar Structure Confirmation (Bar 1 Rejection Stall + Bar 2 Extreme Breakout)
-  - 15-Minute Macro Trend Gate (15m Close vs EMA20)
-  - Dual Operating Sessions (09:15-11:00 & 13:30-15:00) with Midday Standdown (11:00-13:30)
+  - OI Diff Direction Gate: CE only if OI Diff > +20L, PE only if OI Diff < -20L (latest 5-min delta)
+  - SuperTrend-VWAP Chop Corridor Filter
+  - Elder Impulse as final confirmation (Green/Blue=CE, Red/Blue=PE)
+  - All-Day Session (09:15-15:15) with EOD Auto Square-Off
   - 2nd ITM Nifty Weekly Options Execution (CE = ATM - 100, PE = ATM + 100)
   - Risk Geometry: Initial SL = 0.30x ATR5 (min 4.0 pts), TP = 1.50x ATR5, Trail trigger = +6.0 pts, Step = 2.0 pts
 """
@@ -78,7 +77,11 @@ class CombinedSupremeEngine:
 
         self.levels: List[SRLevel] = []
         self.pending_setup: Optional[RejectionSetup] = None
-        self.current_15m_bullish: bool = True
+        # OI-driven direction: "CE", "PE", or None (dead zone)
+        self.oi_direction: Optional[str] = None
+        self.oi_diff_value: float = 0.0  # Latest 5-min OI diff in raw units
+        self.OI_THRESHOLD: float = 20_00_000.0  # ±20 lakhs
+        self.current_15m_bullish: bool = True  # Legacy — kept for dashboard compatibility
         self.current_15m_ema20: float = 0.0
         self.current_vwap: float = 0.0
         self.current_supertrend: float = 0.0
@@ -256,6 +259,26 @@ class CombinedSupremeEngine:
         afternoon = (dtime(13, 30) <= t <= dtime(15, 0))
         return morning or afternoon
 
+    def set_oi_direction(self, oi_diff: float) -> Optional[str]:
+        """Set trade direction from latest 5-min OI Diff.
+
+        Args:
+            oi_diff: ce_delta - pe_delta from latest OI snapshot (raw units, not lakhs).
+
+        Returns:
+            "CE" if OI Diff > +threshold (bullish), "PE" if < -threshold (bearish), None if dead zone.
+        """
+        self.oi_diff_value = oi_diff
+        if oi_diff > self.OI_THRESHOLD:
+            self.oi_direction = "CE"
+            self.current_15m_bullish = True  # Legacy compat
+        elif oi_diff < -self.OI_THRESHOLD:
+            self.oi_direction = "PE"
+            self.current_15m_bullish = False  # Legacy compat
+        else:
+            self.oi_direction = None  # Dead zone — no trades
+        return self.oi_direction
+
     def evaluate_rejection_trigger(
         self,
         bar_1: Dict[str, Any],
@@ -299,8 +322,8 @@ class CombinedSupremeEngine:
                 continue
 
             if (bar_1["low"] - touch_zone) <= lvl.price <= (bar_1["high"] + touch_zone):
-                # --- SUPPORT BOUNCE (LONG) ---
-                if self.current_15m_bullish:
+                # --- SUPPORT BOUNCE (LONG / CE) --- OI must allow CE
+                if self.oi_direction == "CE":
                     # Clean breakout above chop corridor for Long
                     if self.enable_chop_filter and self.current_supertrend > 0:
                         if bar_1["close"] < max(self.current_supertrend, self.current_vwap):
@@ -309,8 +332,7 @@ class CombinedSupremeEngine:
                     score = 40 + (25 if lvl.is_virgin else 20 if lvl.priority == 1 else 10 if lvl.priority == 2 else 5)
                     if bar_1["close"] > lvl.price:
                         score += 15
-                    if self.current_15m_bullish:
-                        score += 25
+                    score += 25  # OI alignment bonus
 
                     if score >= self.min_score:
                         initial_sl = round(max(self.current_atr * self.sl_mult, self.min_sl_pts), 2)
@@ -336,8 +358,8 @@ class CombinedSupremeEngine:
                             self.pending_setup = setup
                             return None
 
-                # --- RESISTANCE REJECTION (SHORT) ---
-                elif not self.current_15m_bullish:
+                # --- RESISTANCE REJECTION (SHORT / PE) --- OI must allow PE
+                elif self.oi_direction == "PE":
                     # Clean breakdown below chop corridor for Short
                     if self.enable_chop_filter and self.current_supertrend > 0:
                         if bar_1["close"] > min(self.current_supertrend, self.current_vwap):
@@ -346,8 +368,7 @@ class CombinedSupremeEngine:
                     score = 40 + (25 if lvl.is_virgin else 20 if lvl.priority == 1 else 10 if lvl.priority == 2 else 5)
                     if bar_1["close"] < lvl.price:
                         score += 15
-                    if not self.current_15m_bullish:
-                        score += 25
+                    score += 25  # OI alignment bonus
 
                     if score >= self.min_score:
                         initial_sl = round(max(self.current_atr * self.sl_mult, self.min_sl_pts), 2)

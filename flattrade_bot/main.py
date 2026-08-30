@@ -1,26 +1,23 @@
-"""Flattrade Master Combined Supreme Strategy Bot — Main Entry Point.
+"""Flattrade Last Hope GPU Winner Strategy Bot — Main Entry Point.
 
-Strategy: 🏆 Master Combined Supreme Strategy (1,504+ Calmar Ratio | +₹1.13 Cr Net Profit | 69.3% Win Rate)
-Timeframe: 3-Minute Price Action with Two-Bar Structure Confirmation
-S/R Levels: 3-Tier Hierarchy (Virgin CPR, Camarilla H3/L3, Daily CPR, VWAP, 5m EMAs, Opening 3m H/L, Fib H3/L3)
-Filter: 15-Minute Index Trend Gate + 3m SuperTrend vs VWAP Chop Corridor Filter
-Touch Zone: max(0.50 * ATR5, 4.0 pts) Institutional Proximity Zone
-Session: 09:18–15:00 All-Day Session
-Execution: 2nd ITM Nifty Weekly Options (CE = ATM - 100, PE = ATM + 100)
-Risk Management: Initial SL = 0.30x ATR5 (min 4.0 pts), TP = 1.50x ATR5, Trail trigger = +6.0 pts, Step = 2.0 pts
+Strategy: 🏆 Last Hope GPU Winner (7-Year Net ₹2,108,703 | 63.89% Win Rate | Max DD ₹9,303 | Calmar 226.68)
+Triggers: FLAG / SUPER stochastic setups on 2nd ITM strikes (CE = ATM - 100, PE = ATM + 100).
+Gating:   10-bar arming window + strict S/R bounce (touch_buffer = 0.0) on option CPR/Camarilla/EMA/VWAP.
+Exits:    Symmetric ATR(10)×1.5 distance + Breakeven stop hardening at +70% of distance to Entry + 1.0 pt.
+Docs:     LAST_HOPE_WINNER.md
 """
 
 import asyncio
-import os
-import sys
 from pathlib import Path
+import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from flattrade_bot.undisputed_main import CombinedSupremeTradingEngine, main
+from flattrade_bot.last_hope_main import main
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+
