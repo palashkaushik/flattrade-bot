@@ -373,7 +373,7 @@ class TradingProcessManager:
             if live_orders:
                 args = [*args, "--live"]
 
-            if use_visible_console and self._session_id_provider() == 0:
+            if use_visible_console and sys.platform == "win32" and self._session_id_provider() == 0:
                 pid = self._launch_visible_task(args)
                 if pid is None:
                     raise RuntimeError("Interactive visible bot task returned no process ID")
@@ -386,6 +386,25 @@ class TradingProcessManager:
                 self._responsive = True
                 return True
 
+            if use_visible_console and sys.platform != "win32":
+                # On Linux VPS: launch in a persistent detached screen session 'bot'
+                screen_cmd = ["screen", "-S", "bot", "-dm", *args]
+                try:
+                    subprocess.run(screen_cmd, cwd=str(self.project_root), check=True)
+                    # Allow 1s for bot runtime record to appear
+                    time.sleep(1.0)
+                    rec = self._read_pid_record() or self._process_discovery()
+                    if rec and "pid" in rec:
+                        self._attached_pid = int(rec["pid"])
+                    self._started_at = datetime.now()
+                    self._last_returncode = None
+                    self._external = True
+                    self._live_orders = live_orders
+                    self._responsive = True
+                    return True
+                except Exception as e:
+                    logger.warning(f"Screen launch failed, falling back to background process: {e}")
+
             env = os.environ.copy()
             env.setdefault("PYTHONIOENCODING", "utf-8")
             kwargs = {
@@ -396,7 +415,7 @@ class TradingProcessManager:
                 kwargs["stdout"] = output_handle
                 kwargs["stderr"] = subprocess.STDOUT
             creation_flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-            if use_visible_console:
+            if use_visible_console and sys.platform == "win32":
                 creation_flags |= getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
             if creation_flags:
                 kwargs["creationflags"] = creation_flags
