@@ -558,45 +558,52 @@ class LastHopeTradingEngine:
             title="[bold cyan]📡 STRATEGY SETUP RADAR & ARMING MATRIX (1m/2m/3m/5m Option Stochastics · S/R Suite)[/bold cyan]",
             box=box.SIMPLE_HEAD, expand=True, padding=(0, 1),
         )
-        for col, style in (("CONTRACT", "bold white"), ("SIDE", "bold white"), ("ARMING STATUS", "bold yellow"),
-                           ("S1 %D (12,3)", "bold white"), ("S3 %D (40,4)", "bold white"), ("S4 %D (50,10)", "bold white"),
-                           ("FLAG / SUPER SETUP", "bold magenta"), ("NEAREST S/R LEVEL", "bold cyan"),
-                           ("S/R DIST", "bold white"), ("ATR(10) / SL DIST", "bold white"), ("LTP", "bold yellow")):
+        for col, style in (("STRIKE", "bold white"), ("TYPE", "bold white"), ("ARMING STATUS", "bold yellow"),
+                           ("1m STOCH (S1/S3/S4)", "bold white"), ("2m/3m/5m S4", "bold white"),
+                           ("ACTIVE TF SETUPS / SIGNALS", "bold magenta"), ("NEAREST S/R LEVEL", "bold cyan"),
+                           ("S/R PROXIMITY", "bold white"), ("RISK / ATR", "bold white"), ("LTP", "bold yellow")):
             mon_table.add_column(col, style=style, justify="center")
 
         for key, cs in self.engine.contracts.items():
             s1_val = cs.tf_trackers[1].last_s1
             s3_val = cs.tf_trackers[1].last_s3
             s4_val = cs.tf_trackers[1].last_s4
+            s4_2m = cs.tf_trackers[2].last_s4
+            s4_3m = cs.tf_trackers[3].last_s4
+            s4_5m = cs.tf_trackers[5].last_s4
             bar_count = len(cs.bars)
+
+            # Concise Contract Display: e.g. 24650 CE
+            contract_clean = f"{cs.strike} {cs.side}"
 
             # Arming state string with countdown
             if cs.flag_armed or cs.super_armed:
                 arm_age = max(0, bar_count - max(cs.flag_arm_bar, cs.super_arm_bar))
                 arm_rem = max(0, ARM_WINDOW - arm_age)
-                armed_str = f"[bold green]ARMED ({arm_rem}/10 bars left)[/bold green]"
+                armed_str = f"[bold green]ARMED ({arm_rem}/10 bars)[/bold green]"
             else:
-                armed_str = "[dim]FLAT (S1 > 25)[/dim]"
+                armed_str = "[dim]FLAT (S1>25)[/dim]"
 
-            fmt = lambda v: f"{v:.1f}" if isinstance(v, (int, float)) else "--"
+            fmt = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) else "--"
 
-            # Setup Forming Readiness Check
-            setup_forming = []
-            if s4_val is not None and s1_val is not None:
-                if s4_val >= M6_S4 and s1_val < M6_S1:
-                    setup_forming.append("[bold green]FLAG (M6) READY[/bold green]")
-                elif s4_val >= 70.0:
-                    setup_forming.append(f"[yellow]Flag Forming (S4={s4_val:.0f})[/yellow]")
+            # Multi-TF Setup Forming Check across 1m, 2m, 3m, 5m
+            tf_signals = []
+            for tf, trk in cs.tf_trackers.items():
+                t_s1, t_s3, t_s4 = trk.last_s1, trk.last_s3, trk.last_s4
+                if t_s4 is not None and t_s1 is not None:
+                    if t_s4 >= M6_S4 and t_s1 < M6_S1:
+                        tf_signals.append(f"[bold green]FLAG {tf}m[/bold green]")
+                    elif t_s4 >= 72.0:
+                        tf_signals.append(f"[yellow]Flag {tf}m (S4={t_s4:.0f})[/yellow]")
+                if t_s1 is not None and t_s3 is not None and t_s4 is not None:
+                    if t_s1 < SUPER_THRESH and t_s3 < SUPER_THRESH and t_s4 < SUPER_THRESH:
+                        is_rise = t_s1 > (trk.prev_s1 or 0)
+                        if is_rise:
+                            tf_signals.append(f"[bold green]SUPER {tf}m (S1↑)[/bold green]")
+                        else:
+                            tf_signals.append(f"[yellow]Super {tf}m[/yellow]")
 
-            if s1_val is not None and s3_val is not None and s4_val is not None:
-                if s1_val < SUPER_THRESH and s3_val < SUPER_THRESH and s4_val < SUPER_THRESH:
-                    rising = cs.tf_trackers[1].last_s1 > (cs.tf_trackers[1].prev_s1 or 0)
-                    if rising:
-                        setup_forming.append("[bold green]SUPER READY (S1↑)[/bold green]")
-                    else:
-                        setup_forming.append("[yellow]Super (Waiting S1↑)[/yellow]")
-
-            setup_str = " | ".join(setup_forming) if setup_forming else "[dim]Scanning...[/dim]"
+            setup_str = " | ".join(tf_signals) if tf_signals else "[dim]Scanning (1m/2m/3m/5m)...[/dim]"
 
             # Nearest S/R Level Proximity
             ltp = self._last_ltp.get(key, 0.0)
@@ -619,12 +626,15 @@ class LastHopeTradingEngine:
 
             dist_pts = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
             side_color = "bold green" if cs.side == "CE" else "bold red"
+            stoch_1m = f"{fmt(s1_val)}/{fmt(s3_val)}/{fmt(s4_val)}"
+            stoch_macro = f"{fmt(s4_2m)} / {fmt(s4_3m)} / {fmt(s4_5m)}"
 
             mon_table.add_row(
-                cs.symbol,
-                f"[{side_color}]{cs.side} {cs.strike}[/{side_color}]",
+                f"[{side_color}]{contract_clean}[/{side_color}]",
+                f"[{side_color}]{cs.side}[/{side_color}]",
                 armed_str,
-                fmt(s1_val), fmt(s3_val), fmt(s4_val),
+                stoch_1m,
+                stoch_macro,
                 setup_str,
                 nearest_sr_name,
                 nearest_sr_dist,

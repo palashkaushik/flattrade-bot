@@ -310,8 +310,8 @@ class OptionContractState:
         active_sr["VWAP"] = vwap_val
 
         # 2. Multi-TF Stochastics Push (1m, 2m, 3m, 5m)
-        m6_trigger = False
-        super_trigger = False
+        m6_tfs: List[str] = []
+        super_tfs: List[str] = []
         s1_1m = None
 
         for tf, tracker in self.tf_trackers.items():
@@ -322,12 +322,15 @@ class OptionContractState:
             if s1 is not None and s4 is not None:
                 # FLAG (M6): S4 >= 79.5 and S1 < 79.5
                 if s4 >= M6_S4 and s1 < M6_S1:
-                    m6_trigger = True
+                    m6_tfs.append(f"{tf}m")
 
             if s1 is not None and s3 is not None and s4 is not None:
                 # SUPER: S3 < 25 and S4 < 25 and S1 < 25 and S1 is rising
                 if s3 < SUPER_THRESH and s4 < SUPER_THRESH and s1 < SUPER_THRESH and is_rising:
-                    super_trigger = True
+                    super_tfs.append(f"{tf}m")
+
+        m6_trigger = bool(m6_tfs)
+        super_trigger = bool(super_tfs)
 
         # 3. Arming State Machine: S1 <= 25 arms setup for up to 10 bars
         if s1_1m is not None and s1_1m <= ARM_S1:
@@ -381,8 +384,9 @@ class OptionContractState:
         be_hardened_sl = round(entry_price + BE_BUFFER_PTS, 2)
 
         trigger_name = "FLAG" if flag_signal else "SUPER"
+        trigger_tf_str = ",".join(m6_tfs if flag_signal else super_tfs) or "1m"
         logger.info(
-            f"🔥 {self.side} {trigger_name} TRIGGERED @ {entry_price:.2f} on {self.symbol} | "
+            f"🔥 {self.side} {trigger_name} [{trigger_tf_str}] TRIGGERED @ {entry_price:.2f} on {self.symbol} | "
             f"SR={bounced_level} | dist={dist:.2f} SL={sl_price:.2f} TP={tp_price:.2f} BE_trig={be_trigger_px:.2f}"
         )
 
@@ -396,6 +400,7 @@ class OptionContractState:
             "token": self.token,
             "strike": self.strike,
             "trigger": trigger_name,
+            "tf": trigger_tf_str,
             "level": bounced_level,
             "entry": entry_price,
             "dist": dist,
