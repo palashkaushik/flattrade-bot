@@ -362,8 +362,17 @@ class LastHopeTradingEngine:
         if self.live_orders and self.executor is not None:
             # Sync SL if Breakeven triggered
             if self.engine.active_trade and self.executor.position:
-                if self.engine.active_trade.get("be_done"):
+                if self.engine.active_trade.get("be_done") and not self.executor.position.get("be_notified"):
+                    self.executor.position["be_notified"] = True
                     self.executor.position["sl"] = self.engine.active_trade["sl"]
+                    asyncio.create_task(
+                        self.discord.notify_breakeven_locked(
+                            symbol=self.executor.position["symbol"],
+                            entry=float(self.executor.position["entry"]),
+                            new_sl=float(self.engine.active_trade["sl"]),
+                            ltp=ltp,
+                        )
+                    )
 
             res = await self.executor.check_exit(ltp, now)
             if res.get("accepted"):
@@ -381,6 +390,14 @@ class LastHopeTradingEngine:
             pos["be_done"] = True
             pos["sl"] = pos["be_hardened_sl"]
             logger.info(f"🔒 Paper Breakeven Triggered on {pos['symbol']}: SL moved to {pos['sl']:.2f}")
+            asyncio.create_task(
+                self.discord.notify_breakeven_locked(
+                    symbol=pos["symbol"],
+                    entry=float(pos["entry"]),
+                    new_sl=float(pos["sl"]),
+                    ltp=ltp,
+                )
+            )
 
         reason = None
         if ltp <= pos["sl"]:       # SL priority over TP (backtest rule)

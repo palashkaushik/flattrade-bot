@@ -62,24 +62,25 @@ def _format_status(status) -> str:
         started = status.started_at.strftime("%Y-%m-%d %H:%M:%S") if status.started_at else "unknown"
         suffix = " (stop requested)" if status.stop_requested else ""
         origin = "externally attached" if status.external else "managed"
-        orders = "🟢 REAL ORDERS ACTIVE" if status.live_orders else "🟡 SIMULATION MODE"
+        orders = "🟢 REAL ORDERS ACTIVE" if status.live_orders else "🟣 SIMULATION / PAPER MODE"
         if not status.responsive:
             return f"⚠️ **Unresponsive bot**, PID `{status.pid}`, {origin}, last heartbeat is stale."
         
         spot_str = f"Rs {extra.get('spot_price', 0.0):.2f}" if extra.get("spot_price") else "Live Feed Active"
-        side_str = extra.get("filter_side") or extra.get("trend_15m", "NEUTRAL")
-        pos_str = "🟢 Open Option Trade" if extra.get("active_position") else "⚪ Flat (Zero Exposure)"
-        trades_cnt = extra.get("trades_count", 0)
-        strategy_name = extra.get("strategy_name", "Pocket Money Strategy")
+        atm_str = str(int(round(extra.get("spot_price", 0.0) / 50.0) * 50)) if extra.get("spot_price") else "--"
+        pos_str = f"🟢 Open Trade ({extra.get('active_position')})" if extra.get("active_position") else "⚪ Flat (Zero Exposure)"
+        trades_cnt = extra.get("trades_count", len(extra.get("trades", [])))
+        strategy_name = extra.get("strategy_name", "Last Hope GPU Winner Strategy")
 
         return (
-            f"💰 **{strategy_name} Bot is RUNNING**\n"
+            f"🏆 **{strategy_name} Bot is RUNNING**\n"
             f"• **Execution:** `{orders}` (PID `{status.pid}`)\n"
             f"• **Started:** `{started}`{suffix}\n"
-            f"• **Spot Price:** `{spot_str}` | **Filter Side:** `{side_str}`\n"
+            f"• **Spot Price:** `{spot_str}` | **ATM:** `{atm_str}`\n"
             f"• **Position:** `{pos_str}` | **Trades Today:** `{trades_cnt}`\n"
-            f"• **Window:** 09:20-15:00 IST | SL/TP = ±7 pts (SL priority)\n"
-            f"• **Risk Guard:** Block after 4 consecutive losses | No daily Rs cap"
+            f"• **Session:** 09:15-15:00 IST | Multi-TF Stoch (1m/2m/3m/5m) + S/R Bounce\n"
+            f"• **Risk Geometry:** ATR(10)×1.5 SL/TP | Breakeven Stop @ +70% target move\n"
+            f"• **Execution:** 5.0 pt aggressive limit buffer | Broker PositionBook verified"
         )
     if status.returncode is None:
         return "⏹️ **Bot is STOPPED.** (Use `/trading start` or `/trading start-visible` to launch)"
@@ -115,7 +116,7 @@ def create_client(manager: TradingProcessManager):
     intents.guilds = True
     client = discord.Client(intents=intents, application_id=int(settings.DISCORD_APPLICATION_ID))
     tree = app_commands.CommandTree(client)
-    trading = app_commands.Group(name="trading", description="Control the Pocket Money Trading Bot")
+    trading = app_commands.Group(name="trading", description="Control the Last Hope GPU Winner Trading Bot")
     guild = discord.Object(id=int(settings.DISCORD_GUILD_ID))
     allowed_users = parse_id_list(settings.DISCORD_ALLOWED_USER_IDS)
     start_min = parse_hhmm(settings.BOT_START_TIME)
@@ -166,12 +167,12 @@ def create_client(manager: TradingProcessManager):
             await interaction.followup.send(f"Bot start failed: {exc}", ephemeral=True)
             return
         started_message = (
-            "🚀 **Live Pocket Money Bot started in visible terminal window.**"
+            "🚀 **Live Last Hope Winner Bot started in visible terminal window.**"
             if visible_console
-            else "🚀 **Live Pocket Money Bot started in background.**"
+            else "🚀 **Live Last Hope Winner Bot started in background.**"
         )
         await interaction.followup.send(
-            started_message if started else "⚠️ Pocket Money Bot is already running.",
+            started_message if started else "⚠️ Last Hope Winner Bot is already running.",
             ephemeral=True,
         )
 
@@ -187,7 +188,7 @@ def create_client(manager: TradingProcessManager):
             ephemeral=True,
         )
 
-    @trading.command(name="start", description="Start the live Pocket Money Bot in background")
+    @trading.command(name="start", description="Start the live Last Hope Winner Bot in background")
     async def trading_start(interaction: discord.Interaction):
         if not authorized(interaction):
             await reply(interaction, "🚫 Not authorized for this control channel.")
@@ -201,7 +202,7 @@ def create_client(manager: TradingProcessManager):
             return
         await run_start(interaction, visible_console=True)
 
-    @trading.command(name="stop", description="Gracefully stop the Pocket Money Bot")
+    @trading.command(name="stop", description="Gracefully stop the Last Hope Winner Bot")
     async def trading_stop(interaction: discord.Interaction):
         if not authorized(interaction):
             await reply(interaction, "🚫 Not authorized for this control channel.")
@@ -215,26 +216,27 @@ def create_client(manager: TradingProcessManager):
             return
         await run_stop(interaction)
 
-    @trading.command(name="status", description="Show live Pocket Money Bot status and risk metrics")
+    @trading.command(name="status", description="Show live Last Hope Winner Bot status and risk metrics")
     async def trading_status(interaction: discord.Interaction):
         if not authorized(interaction):
             await reply(interaction, "🚫 Not authorized for this control channel.")
             return
         await reply(interaction, _format_status(manager.status()))
 
-    @trading.command(name="levels", description="View Pocket Money strategy spec (strikes, triggers, filter)")
+    @trading.command(name="levels", description="View Last Hope Winner strategy spec (strikes, stochastics, S/R bounce, BE stop)")
     async def trading_levels(interaction: discord.Interaction):
         if not authorized(interaction):
             await reply(interaction, "🚫 Not authorized for this control channel.")
             return
         msg = (
-            "💰 **Pocket Money Strategy Spec (10s bars | Backtest-Verified)**\n"
-            "• **Triggers:** FLAG (S1%D <= 20.5 while S4%D >= 79.5) | SUPER (S1 crosses > 20 + bullish trough divergence)\n"
-            "• **Stochastics:** S1(9,3) S2(14,3) S3(40,4) S4(60,10) on each option's own chart\n"
-            "• **Strikes:** 2nd ITM only — CE = ATM - 100 / PE = ATM + 100 (ATM±50 rollover watch kept warm)\n"
-            "• **Filter:** Index UT Bot + LinReg white line — UT green & close > white = CE only; red & below = PE only\n"
-            "• **Exits:** SL = entry - 7 pts (priority) | TP = entry + 7 pts | EOD flat at 15:00 IST\n"
-            "• **Session:** Entries 09:20–14:59 IST | One position at a time"
+            "🏆 **Last Hope GPU Winner Strategy Spec (1m bars | Backtest-Verified)**\n"
+            "• **Triggers:** FLAG (S4%D >= 79.5 & S1 < 79.5) | SUPER (S3, S4, S1 < 25 & S1 rising)\n"
+            "• **Stochastics:** S1(12,3) S3(40,4) S4(50,10) evaluated across 1m, 2m, 3m, 5m bars\n"
+            "• **Arming:** S1 <= 25.0 arms the setup for up to 10 bars\n"
+            "• **S/R Bounce Gate:** Strict touch_buffer=0.0 (Low <= Level & Close >= Level - 0.5) on CPR/Camarilla/EMA/VWAP\n"
+            "• **Strikes:** 2nd ITM only — CE = ATM - 100 / PE = ATM + 100\n"
+            "• **Exits:** SL & TP = min(ATR(10) * 1.5, 15 pts) | Breakeven stop locked to Entry + 1.0 pt at +70% target move\n"
+            "• **Session:** 09:15–15:00 IST | 1 position at a time"
         )
         await reply(interaction, msg)
 
@@ -243,9 +245,9 @@ def create_client(manager: TradingProcessManager):
         if not authorized(interaction):
             await reply(interaction, "🚫 Not authorized for this control channel.")
             return
-        log_file = Path("logs/pocket_money_bot.log")
+        log_file = Path("logs/last_hope_bot.log")
         if not log_file.exists():
-            log_file = Path("logs/combined_supreme_bot.log")
+            log_file = Path("logs/pocket_money_bot.log")
         if not log_file.exists():
             log_file = Path("logs/bot.log")
         if not log_file.exists():
