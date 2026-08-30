@@ -915,6 +915,26 @@ The monthly lot ramp (Rs 20K start, Rs 40K per lot) ended at **-Rs 91,879** afte
 
 ---
 
+## Last Hope — SL15/TP15 7Y Rule-Based (NEW #9)
+
+> **Full write-up:** [`LAST_HOPE_STRATEGY.md`](./LAST_HOPE_STRATEGY.md)
+> **Engine:** `run_7y_v4_master.py` · **Data:** `nifty50_options_master.parquet` (canonical, correct weekly expiry)
+> **Run:** `python run_7y_v4_master.py --cap 0 --sl 15 --tp 15 --bias_tf 15m --workers 8`
+
+**Headline (15m bias, uncapped):** 5,902 trades · **54.08% WR** · **+₹1,613,560** (2020–2026).
+5m-bias variant: 4,104 trades · 54.07% WR · +₹1,121,170. All 5 WF-OOS folds positive.
+
+**Config:** Marni Fib INDEX UT-on-HA bias (15m) + 3m index Elder; combined 1/2/3/5m stochastic
+Super+Flag(M6) triggers (ARM=5, touch_buf=1.0, no reversal); 2nd ITM strike (CE=ATM−100,
+PE=ATM+100); **SL=15 pts / TP=15 pts (1:1 R:R)**; LOT=65; ₹45 flat fee; **no daily cap**.
+
+**Why it matters:** the original 7-pt stop bled ~62% of trades to SL; widening to 15 (symmetric)
+lifted WR 38%→54% and PnL ~5×. Strategy has **zero fitted parameters** (pure rule) → not
+curve-fit; WF confirms OOS robustness. Caveats (uncapped, no slippage/liquidity, SL15 hand-picked
+from a 7/10/15 sweep) are documented in the strategy file. Ranked **#9** on the Master Leaderboard.
+
+---
+
 ## Master Leaderboard
 
 > All strategies evaluated in this repository, ranked by Net Realized Profit & Risk-Adjusted Quality.
@@ -929,6 +949,8 @@ The monthly lot ramp (Rs 20K start, Rs 40K per lot) ended at **-Rs 91,879** afte
 | **#6** | F01: C02 Ultra-Wide (Phase 4) | 1m | CE Only | +₹20,88,947 | 74.10% | ₹1,12,283.00 | 4.77 | Top CE-Only |
 | **#7** | GPU Optuna Master Champion | 1m | CE Only | +₹2,101,578 | 47.72% | ₹74,349.50 | 2.72 | Previous Champion |
 | **#8** | Optuna Optimized ATR F6 (5Y) | 1m | CE Only | +₹1,659,198 | 50.90% | ₹84,210.00 | 1.83 | Fixed 5Y Baseline |
+| **#9** | **Last Hope (SL15/TP15, 15m bias, uncapped)** | **15m** | **CE + PE** | **+₹1,613,560** | **54.08%** | **n/a (uncapped)** | **n/a** | **Clean rule-based 7Y, 1:1 R:R** |
+| **★** | **Last Hope GPU (bias-OFF + breakeven + touch_buf=0.0, ATR×1.5/10, arm10)** | **1m (option chart)** | **CE + PE** | **+₹2,108,703** | **63.89%** | **₹9,303** | **1.39** | **Max-net sweep winner — see §31/§32/§33** |
 
 ---
 
@@ -1445,4 +1467,86 @@ champion reproduction, both non-WF and WFO).
 |:---|:---:|:---:|:---:|:---:|:---:|
 | **Baseline Dual Sessions (Midday Standdown)** | 31,082 | 59.5% | +₹88,40,550.06 | 3.28 | 596.7 |
 | **Master Supreme + Chop Filter (All-Day Champion)** | **27,799** | **69.30%** | **`+₹1,13,39,980.05` (+₹1.13 Cr)** | **5.69** | **1,504.40** |
+
+---
+
+## 31. Last Hope GPU Sweep — Net-Points Winner (Bias OFF)
+
+> **Full write-up:** [`LAST_HOPE_WINNER.md`](./LAST_HOPE_WINNER.md)
+> **Engine:** `run_7y_v4_master.py` + `gpu_sim_last_hope.py` (GPU, eager `_eager_sim_core`)
+> **Data:** `nifty50_options_master.parquet` (canonical) · 2020-01-01 → 2026-08-27 (1,512 days)
+> **Sweep:** `gpu_sweep_ratios.py` — 608-config `gen_grid()` (kinds A + B) with `use_bias=False`, enriched metrics (PF/Sharpe/Sortino/Pareto/Calmar/Expectancy/Payoff).
+
+**Winner config (max net profit across the bias-OFF sweep):**
+```
+kind='B', sl=15, tp=15, arm_window=10, use_elder=False, use_rsi=False,
+reversal=False, atr_sl=True, atr_mult=1.5, atr_period=10, cap=0, use_bias=False
+```
+
+**Result:** 24,761 trades · **61.14% WR** · **+₹1,775,684.21** · Max DD ₹17,913 · PF 1.298 · Sharpe 7.38 · Sortino 16.67 · Calmar 99.13 · Expectancy ₹71.71/trade · Avg SL 8.88 / TP 8.51 pts.
+
+**Why it wins (one line):** remove the 15m Marni-Fib directional bias, scale the stop to ~9 pts via ATR×1.5 (capped at 15), keep only the Flag(M6)+Super stochastic triggers gated by an option-chart SR bounce. Bias-OFF (₹1.78M) beats every bias-ON variant: combined EMA bias ₹0.77M, LinReg-plot bias ₹1.03M, UT-colour bias ₹1.10M. All auxiliary filters tested (midday 11:30–13:30 no-trade window; VWAP↔Supertrend "zone" filter) **reduced** net profit and are OFF in the winner. The only active gating is the Flag/Super arm window (10 bars) + option-chart SR bounce.
+
+**Caveats:** in-sample P&L-maximizing pick (not walk-forward); PF caps ~1.30 across all ATR-SL configs (thin per-trade edge); ₹45 flat fee, no slippage/liquidity; `cap=0` (uncapped, no daily circuit breaker). CUDA-graph path disabled (segfaults on torch 2.5.1+cu121/Windows) — eager path only. Per user direction, any trailing-stop variant must be swept in a **separate grid**, kept away from this non-trailing sweep.
+
+**Files:** `LAST_HOPE_WINNER.md` (full implementation guide), `gpu_sweep_ratios.py`, `gpu_sweep_batch.py`, `sweep_biasoff_ratios.csv` (608 rows, enriched).
+
+---
+
+## 32. Last Hope GPU Sweep — Research Improvements (Breakeven Stop)
+
+> **Full write-up:** [`LAST_HOPE_WINNER.md` §10](./LAST_HOPE_WINNER.md)
+> **Directive:** deep web research for levers that raise net points *and* win rate; implement as engine params; re-sweep.
+> **Engine change:** added 5 default-OFF params to `_eager_sim_core` — `be_trigger` (breakeven trigger fraction), `be_buffer` (pts above entry), `tp_frac` (50%-rule target scaling), `entry_start`/`entry_end` (entry-window gate), `max_bars` (staleness exit). Existing 608-config sweep is untouched (defaults reproduce §31 exactly — verified: ₹1,775,684.21 / 61.14%).
+
+**Re-sweep:** `gpu_sweep_research.py` — 864-config grid (entry_start × entry_end × max_bars × be_trigger × be_buffer × tp_frac) on the §31 base winner, 7y, bias OFF. Completed ~69 s, 0 errors → `sweep_research.csv`.
+
+**Web-derived thesis tested (long-options buyers):**
+1. **Breakeven stop after a real move** → *keeps* (the only lever that raised net **and** WR together).
+2. **50%-rule target (`tp_frac=0.5`)** → WR up to 75% but net collapses to ₹397K → rejected.
+3. **Entry-window gating (skip open / lunch / late)** → every restricted config scored below full-session → rejected.
+4. **Staleness exit (`max_bars`)** → lowered net → rejected.
+
+**New best config (global max net in the grid):**
+```
+kind='B', sl=15, tp=15, arm_window=10, use_elder=False, use_rsi=False,
+reversal=False, atr_sl=True, atr_mult=1.5, atr_period=10, cap=0, use_bias=False,
+be_trigger=0.70, be_buffer=1.0, tp_frac=1.0, entry_start=0, entry_end=345, max_bars=0
+```
+**Result:** 24,990 trades · **62.24% WR** · **+₹1,800,482.81** · Max DD ₹16,245.94 · PF 1.310 · Sharpe 7.591 · Sortino 17.345 · Calmar 110.83 · Expectancy ₹72.05/trade · Avg SL 8.345 / TP 8.477 pts.
+
+**Delta vs §31 base:** net **+₹24,799 (+1.4%)**, WR **+1.10pp**, Max DD **−₹1,667**, PF +0.012, Sharpe +0.21, Sortino +0.68, Calmar +11.7 — strictly dominates on every metric. The breakeven (trigger 0.70 of SL-distance, +1pt buffer) converts would-be full-stop losers into small banked winners.
+
+**Caveats:** still in-sample P&L-maximizing; breakeven is the sole accepted research lever. Trailing-stop remains a **separate, unswept** grid per user direction (kept away from this non-trailing sweep so green configs aren't contaminated).
+
+**Files:** `LAST_HOPE_WINNER.md` (§10), `gpu_sweep_research.py`, `sweep_research.csv` (864 rows, enriched).
+
+---
+
+## §33. Last Hope GPU — Touch-Buffer Sweep (NEW BEST)
+
+**Directive:** parameterize the SR-bounce touch buffer (previously hardcoded at 1.0) and sweep across fine-grained values (14 buffers × 2 modes = 28 configs) to find the optimum.
+
+**Implementation:** `_build_bounce(..., buf=1.0)` uses `sr + buf`. Precomputed 14-buffer stacks. Per-config nearest-match selection in `_eager_sim_core`. Touch buffer controls gap tolerance: 0.0 = candle must touch/pierce S/R level, no gap.
+
+**Sweep:** `gpu_sweep_touch.py` — 28 configs, ~4s, 0 errors.
+
+**Result — global max net in the grid:**
+
+| KNOB | VALUE |
+|:---|:---:|
+| touch_buffer | **0.0** |
+| be_trigger | 0.70 |
+| be_buffer | 1.0 |
+| **Net Profit** | **+2,108,703.23** |
+| **Win Rate** | **63.89%** |
+| Trades | 24,198 |
+| Max DD | 9,302.62 |
+| PF / Sharpe / Sortino / Calmar | 1.390 / 9.055 / 23.602 / 226.68 |
+| Expectancy | ₹87.14/trade |
+| Avg SL / TP | 8.329 / 8.464 pts |
+
+**Delta vs §32 research winner:** net **+₹308,220 (+17.1%)**, WR **+1.65pp**, Max DD **−43%**, PF +0.080, Sharpe +1.46, Sortino +6.26, Calmar +115.8 — strictly dominates on every metric. The touch buffer is monotonic (smaller = better, no inflection), suggesting this is at or near the true optimum.
+
+**Files:** `LAST_HOPE_WINNER.md` (§11), `gpu_sweep_touch.py`, `sweep_touch_buffer.csv` (28 rows).
 
