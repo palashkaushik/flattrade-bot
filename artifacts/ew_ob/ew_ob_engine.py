@@ -28,6 +28,7 @@ RISK_MODE_OB_W5 = "ob_w5"
 RISK_MODE_OB_SAME_TF = "ob_same_tf"
 RISK_MODE_ATR = "atr"
 RISK_MODE_OPTION_FIXED = "option_fixed"
+RISK_MODE_FIB = "fib"
 DEFAULT_SL_MULT = 3.0
 DEFAULT_TP_PTS = 60.0
 POST_B_OB_DELAY = 12  # Aug 20 arm at 14:00, first C-wave OB at 14:12
@@ -47,6 +48,13 @@ GST_PCT = 18.0
 # candle colors
 RED = 0
 GREEN = 1
+
+
+def fib_price(high: float, low: float, level: float, orientation: str) -> float:
+    span = high - low
+    if orientation == "high_to_low":
+        return high - level * span
+    return low + level * span
 
 
 def candle_color(open_, close):
@@ -615,7 +623,7 @@ class EWOBEngine:
                  tp_atr_mult: Optional[float] = None,
                  option_sl_pts: float = 12.0,
                  option_tp_pts: float = 36.0):
-        if risk_mode not in (RISK_MODE_OB_W5, RISK_MODE_OB_SAME_TF, RISK_MODE_ATR, RISK_MODE_OPTION_FIXED):
+        if risk_mode not in (RISK_MODE_OB_W5, RISK_MODE_OB_SAME_TF, RISK_MODE_ATR, RISK_MODE_OPTION_FIXED, RISK_MODE_FIB):
             raise ValueError(f"unsupported risk mode: {risk_mode}")
         self.tol = tol
         self.sl_mult = sl_mult
@@ -879,6 +887,30 @@ class EWOBEngine:
             if self.risk_mode == RISK_MODE_OPTION_FIXED:
                 sl = prem - self.option_sl_pts
                 tp = prem + self.option_tp_pts
+            elif self.risk_mode == RISK_MODE_FIB:
+                imp = self._active_impulse
+                if imp is not None:
+                    # origin bar
+                    origin_bar = None
+                    for b in reversed(self._bars):
+                        if b.gi == imp.start_gi:
+                            origin_bar = b
+                            break
+                    if c.side == "bull":
+                        fib_high = imp.w5.peak
+                        fib_low = origin_bar.low if origin_bar is not None else min(imp.w1.trough, imp.w5.trough)
+                        orientation = "high_to_low"
+                        tp = fib_price(fib_high, fib_low, 0.0, orientation)
+                        sl = fib_price(fib_high, fib_low, 1.25, orientation)
+                    else:
+                        fib_high = origin_bar.high if origin_bar is not None else imp.w1.peak
+                        fib_low = imp.w5.trough
+                        orientation = "low_to_high"
+                        tp = fib_price(fib_high, fib_low, 0.0, orientation)
+                        sl = fib_price(fib_high, fib_low, 1.25, orientation)
+                else:
+                    tp = bar.close + (self.tp_pts if c.side == "bull" else -self.tp_pts)
+                    sl = bar.close - (self.sl_mult * atr if c.side == "bull" else -self.sl_mult * atr)
             elif c.side == "bull":
                 if self.risk_mode == RISK_MODE_ATR:
                     sl = bar.close - self.sl_mult * atr

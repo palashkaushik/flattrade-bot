@@ -1,0 +1,51 @@
+Master V4 Engine | Device: cuda (NVIDIA GeForce RTX 3060) | TF32: high
+Total Trading Days: 1509
+Elder lookup built: 520605 min-bars (USE_ELDER=True)
+5m Marni Fib bias lookup built: 1075742 min-bars (INDEX UT-on-HA TV parity, USE_BIAS=True)
+Loading 7-Year Parquet Data (D=1509, T1=345)...
+Front-weekly expiry per day (e.g. 26 Aug -> 01SEP26); all selected: ['01APR21', '01AUG24', '01DEC22', '01FEB24', '01JUL21', '01JUN23', '01OCT20', '01SEP22', '01SEP26', '02DEC21', '02DEC25', '02FEB23', '02JAN20', '02JAN25', '02JUL20', '02JUN22', '02MAR23', '02MAY24', '02NOV23', '02SEP21', '02SEP25', '03APR25', '03AUG23', '03DEC20', '03FEB22', '03FEB26', '03JUL25', '03JUN21', '03MAR22', '03NOV22', '03OCT24', '03SEP20', '04APR24', '04AUG22', '04FEB21', '04JAN24', '04JUL24', '04JUN20', '04MAR21', '04MAY23', '04NOV25', '05AUG21', '05DEC24', '05JAN23', '05JUN25', '05MAR20', '05MAY22', '05MAY26', '05NOV20', '05OCT23', '05SEP24', '06APR23', '06AUG20', '06FEB20', '06FEB25', '06JAN22', '06JAN26', '06JUL23', '06JUN24', '06MAR25', '06MAY21', '06OCT22', '07APR22', '07APR26', '07AUG25', '07DEC23', '07JAN21', '07JUL22', '07MAR24', '07MAY20', '07NOV24', '07OCT21', '07OCT25', '07SEP23', '08APR21', '08AUG24', '08DEC22', '08FEB24', '08JUL21', '08JUN23', '08MAY25', '08OCT20', '08SEP22', '09APR20', '09DEC21', '09DEC25', '09FEB23', '09JAN20', '09JAN25', '09JUL20', '09JUN22', '09MAR23', '09MAY24', '09NOV23', '09SEP21', '09SEP25', '10AUG23', '10DEC20', '10FEB22', '10FEB26', '10JUL25', '10JUN21', '10MAR22', '10MAR26', '10NOV22', '10OCT24', '10SEP20', '11AUG22', '11FEB21', '11JAN24', '11JUL24', '11JUN20', '11MAY23', '11NOV21', '11NOV25', '12AUG21', '12DEC24', '12JAN23', '12JUN25', '12MAR20', '12MAY22', '12NOV20', '12OCT23', '12SEP24', '13APR23', '13AUG20', '13FEB20', '13FEB25', '13JAN22', '13JAN26', '13JUL23', '13JUN24', '13MAR25', '13OCT22', '14AUG25', '14DEC23', '14JAN21', '14JUL22', '14MAR24', '14MAY20', '14NOV24', '14OCT21', '14OCT25', '14SEP23', '15APR21', '15DEC22', '15FEB24', '15JUL21', '15JUN23', '15MAY25', '15OCT20', '15SEP22', '16APR20', '16DEC21', '16DEC25', '16FEB23', '16JAN20', '16JAN25', '16JUL20', '16JUN22', '16MAR23', '16MAY24', '16NOV23', '16SEP21', '16SEP25', '17APR25', '17AUG23', '17DEC20', '17FEB22', '17FEB26', '17JUL25', '17JUN21', '17MAR22', '17MAR26', '17NOV22', '17OCT24', '17SEP20', '18APR24', '18AUG22', '18FEB21', '18JAN24', '18JUL24', '18JUN20', '18MAR21', '18MAY23', '18NOV21', '18NOV25', '19DEC24', '19JAN23', '19JUN25', '19MAR20', '19MAY22', '19NOV20', '19OCT23', '19SEP24', '20APR23', '20AUG20', '20FEB20', '20FEB25', '20JAN22', '20JAN26', '20JUL23', '20JUN24', '20MAR25', '20MAY21', '20OCT22', '21APR22', '21APR26', '21AUG25', '21DEC23', '21JAN21', '21JUL22', '21MAR24', '21MAY20', '21NOV24', '21OCT21', '21SEP23', '22APR21', '22AUG24', '22DEC22', '22FEB24', '22JUL21', '22JUN23', '22MAY25', '22OCT20', '22SEP22', '23APR20', '23DEC21', '23DEC25', '23FEB23', '23JAN20', '23JAN25', '23JUL20', '23JUN22', '23MAR23', '23MAY24', '23NOV23', '23SEP21', '23SEP25', '24APR25', '24AUG23', '24DEC20', '24FEB22', '24FEB26', '24JUL25', '24JUN21', '24MAR22', '24MAR26', '24NOV22', '24OCT24', '24SEP20', '25APR24', '25AUG22', '25FEB21', '25JAN24', '25JUL24', '25JUN20', '25MAR21', '25MAY23', '25NOV21', '25NOV25', '26AUG21', '26DEC24', '26JUN25', '26MAR20', '26MAY22', '26NOV20', '26OCT23', '26SEP24', '27APR23', '27AUG20', '27FEB20', '27FEB25', '27JAN22', '27JAN26', '27JUL23', '27JUN24', '27MAR25', '27MAY21', '27OCT22', '28APR22', '28APR26', '28AUG25', '28DEC23', '28JAN21', '28JUL22', '28MAR24', '28MAY20', '28NOV24', '28OCT21', '28OCT25', '28SEP23', '29APR21', '29AUG24', '29DEC22', '29FEB24', '29JUL21', '29JUN23', '29MAY25', '29OCT20', '29SEP22', '30APR20', '30DEC21', '30DEC25', '30JAN20', '30JAN25', '30JUL20', '30JUN22', '30MAY24', '30NOV23', '30SEP21', '30SEP25', '31AUG23', '31DEC20', '31JUL25', '31MAR22', '31OCT24']
+Calculating GPU indicators (S1, S3, S4, EMA20, EMA200, VWAP)...
+
+=====================================================================================
+ EXECUTING 7-YEAR NON-WALK FORWARD RUN (CAP = 0)
+=====================================================================================
+Backtest Completed in 1.95s | Total Trades: 4792
+
+-------------------------------------------------------------------------------------
+OVERALL RESULTS (2020 - 2026):
+  * Total Trades:   4,792
+  * Wins / Losses:  1,809 / 2,983
+  * Win Rate:       37.75%
+  * Total Net PnL:  Rs.+190,870
+  * Avg PnL / Trade:Rs.+39.8
+-------------------------------------------------------------------------------------
+
+YEARLY PERFORMANCE BREAKDOWN:
+      trades  wins   win_rate  net_pnl
+day                                   
+2020     742   276  37.196765  23680.0
+2021     662   257  38.821752  36510.0
+2022     827   330  39.903265  58400.0
+2023     738   274  37.127371  22820.0
+2024     761   286  37.582129  28480.0
+2025     801   286  35.705368   8480.0
+2026     261   100  38.314176  12500.0
+
+SIDE PERFORMANCE BREAKDOWN (PE vs CE):
+      trades  wins   win_rate   net_pnl
+side                                   
+CE      2457   912  37.118437   75660.0
+PE      2335   897  38.415418  115210.0
+
+Saved trade ledger to: artifacts/f6_hybrid/trades_7y_v4_master_5m_cap0_sl7_tp15.csv
+
+=====================================================================================
+ EXECUTING 5-FOLD WALK-FORWARD OUT-OF-SAMPLE VALIDATION
+=====================================================================================
+     Fold Test Period  OOS Trades OOS Win Rate OOS Net PnL
+F1 (Train        2022         827        39.9%  Rs.+58,400
+F2 (Train        2023         738        37.1%  Rs.+22,820
+F3 (Train        2024         761        37.6%  Rs.+28,480
+F4 (Train        2025         801        35.7%   Rs.+8,480
+F5 (Train        2026         261        38.3%  Rs.+12,500
+=====================================================================================

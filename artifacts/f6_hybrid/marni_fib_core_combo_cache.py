@@ -584,7 +584,7 @@ class Index5mFilter:
 
 def build_index_filter(previous_rows, current_rows, period=FILTER_PERIOD):
     feed = Index5mFilter(period=period)
-    for row in sorted(previous_rows, key=lambda item: item["minute"]):
+    for row in sorted(previous_rows, key=lambda item: (item["time"], item["minute"])):
         feed.push(row)
 
     snapshots = {}
@@ -782,8 +782,9 @@ def extract_day_events(
             key=lambda item: item["completion_minute"],
         ):
             setup_id = (setup["pattern"], setup["completion_minute"])
-            if setup_id in consumed_index_setups:
-                continue
+            # Multi-touch: same fib leg can fire multiple entries
+            # as price oscillates through the zone. One-position-at-a-time
+            # is enforced downstream by simulate(concurrent=False).
             if setup["completion_minute"] >= m:
                 continue
             if setup["fib_high"] - setup["fib_low"] < min_span:

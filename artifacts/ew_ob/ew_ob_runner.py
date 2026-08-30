@@ -260,7 +260,7 @@ def main():
     ap.add_argument("--tol", type=float, default=0.5)
     ap.add_argument("--sl-mult", dest="sl_mult", type=float, default=3.0)
     ap.add_argument("--tp", dest="tp_pts", type=float, default=60.0)
-    ap.add_argument("--risk-mode", choices=("ob_w5", "ob_same_tf", "atr", "option_fixed"), default="ob_w5")
+    ap.add_argument("--risk-mode", choices=("ob_w5", "ob_same_tf", "atr", "option_fixed", "fib"), default="ob_w5")
     ap.add_argument("--tp-atr-mult", type=float, default=None)
     ap.add_argument("--option-sl", type=float, default=12.0)
     ap.add_argument("--option-tp", type=float, default=36.0)

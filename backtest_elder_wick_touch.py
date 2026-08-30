@@ -113,8 +113,15 @@ def parse_option_file(fpath: Path):
         dt = pd.to_datetime(d_str)
         day_key = dt.strftime("%Y-%m-%d")
 
-        df["datetime"] = pd.to_datetime(df["date"])
-        df["minute"] = df["datetime"].dt.hour * 60 + df["datetime"].dt.minute
+        # Option CSVs have separate 'time' column (HH:MM:SS format)
+        if "time" in df.columns:
+            def to_minutes(t):
+                parts = str(t).split(":")
+                return int(parts[0]) * 60 + int(parts[1])
+            df["minute"] = df["time"].apply(to_minutes)
+        else:
+            df["datetime"] = pd.to_datetime(df["date"])
+            df["minute"] = df["datetime"].dt.hour * 60 + df["datetime"].dt.minute
         return (day_key, df)
     except Exception:
         return None

@@ -31,7 +31,8 @@
 21. [Next-Gen 3D Batched GPU Optimization (Ask-and-Tell + TF32 Tensor Cores)](#21-next-gen-3d-batched-gpu-optimization-ask-and-tell--tf32-tensor-cores)
 22. [Advanced HPC & GitHub GPU Optimization Blueprint (Triton Fusion, Parallel Prefix Scan Trailing SL)](#22-advanced-hpc--github-gpu-optimization-blueprint-triton-fusion-parallel-prefix-scan-trailing-sl)
 23. [Phase 2: 3D Batch Vectorized Simulation Engine (Verified Causal + Live Parity)](#23-phase-2-3d-batch-vectorized-simulation-engine-verified-causal--live-parity)
-24. [Appendix: Agent Quick-Start Checklist](#appendix-agent-quick-start-checklist)
+24. [Porting CPU Reference → GPU: Parity Pitfalls](#24-porting-cpu-reference--gpu-parity-pitfalls)
+25. [Appendix: Agent Quick-Start Checklist](#appendix-agent-quick-start-checklist)
 
 ---
 
@@ -993,7 +994,203 @@ def simulate_gpu_with_limits(entries_mask, sl_tensor, tp_tensor, ...):
 
 ---
 
-## Appendix: Agent Quick-Start Checklist
+## 24. Porting CPU Reference → GPU: Parity Pitfalls (`run_7y_v4_master.py` ↔ `gpu_sim_last_hope.py`)
+
+> **Context.** The canonical CPU engine is `run_7y_v4_master.py` (function
+> `process_days_chunk`). The GPU port is `gpu_sim_last_hope.py` (function
+> `gpu_sim` → `_gpu_sim_core`). The GPU version must reproduce the CPU trades
+> **bar-for-bar** before any sweep result can be trusted. The following were the
+> actual traps hit during the port and the exact fixes. Read this before you
+> "just vectorize the loop."
+
+### Parity Target (verified reference values)
+
+| Config | Trades | Win Rate | Net Pts | Max DD |
+|:---|---:|---:|---:|---:|
+| `sl=7, tp=15, arm_window=5, use_elder=True, use_rsi=False, reversal=False, cap=0` | **7321** | 38.08% | 10088.9998 | 27770.0 |
+
+If your GPU port does not return exactly these numbers (and the sorted trade
+list is byte-identical after stripping the GPU's debug exit-bar element), **stop
+and fix parity — do not run the sweep.** A few-points or a few-trades drift is
+not "close enough"; it means a control-flow asymmetry.
+
+---
+
+### 🔴 BUG #1 (the big one): the CPU PE-gate `continue` silently suppresses CE
+
+In `run_7y_v4_master.py` the per-day loop is:
+
+```python
+for ci in range(Cd):
+    if in_pos[ci] or cap_hit[ci]: continue
+    # PE block
+    if pe_m6[ci] or pe_super[ci] or rev_buy_pe[ci]:
+        if USE_ELDER and ec == 'green': continue     # <-- continues out of the ci loop
+        if USE_BIAS  and not bear:    continue     # <-- continues out of the ci loop
+        if USE_RSI   and not (rsi < LO): continue
+        ... pe_b bounce ...
+        if pe_b: enter PE; continue                 # <-- continues out of the ci loop
+    # CE block  (NEVER REACHED if PE branch did a `continue`)
+    if ce_m6[ci] or ce_super[ci] or rev_buy_ce[ci]:
+        ...
+```
+
+**The trap:** a naive "independent PE mask + independent CE mask" GPU
+vectorization evaluates CE **even when the PE branch was entered and then
+gate-blocked**. On 2026-02-02 this fired CE at bar **169** on GPU vs bar **172**
+on CPU — a 3-bar-early CE entry — and also produced stray extra CE entries
+(281, 282, 300). Trade counts matched closely (7482 vs 7321) so the bug is
+invisible at the aggregate level.
+
+**The fix (replicate the CPU's `continue` in the GPU):**
+```python
+pe_outer = pe_m6 | pe_super | pe_rev_sig                       # CPU outer `if`
+pe_gate_blocked = (UE and elder_state==1) | (~bias_bear) | (UR and ~(rsi<LO))
+ce_cand &= ~(pe_outer & pe_gate_blocked)                       # CE skipped iff PE was live & gate-blocked
+```
+i.e. GPU must skip CE on any bar where PE had an *outer* candidate (`pe_m6 |
+pe_super | rev`) **and** was blocked by Elder-green / bias-not-bear / RSI. This
+single line made the full 7-year trade list byte-identical to the CPU
+(7321 trades, all metrics equal to 1e-4).
+
+> **Lesson:** When porting a CPU `for ci` loop that uses `continue` after a
+> gate check, that `continue` skips everything after it (including the other
+> side's evaluation). The GPU must mirror it with an explicit mask, not assume
+> the two sides are independent.
+
+---
+
+### 🟠 BUG #2: `pos_side` is a GHOST flag — never reset on exit
+
+In `run_7y_v4_master.py`, on exit only `in_pos[ci] = False` is set; `pos_side[ci]`
+is **never cleared**. So after a PE position closes, `pos_side[ci]` still reads
+`'PE'` forever. Any instrumentation that records `pos_side == 'PE'` will show a
+"position" that is not actually open (in_pos is False). **Always gate position
+state on `in_pos`, not `pos_side`.** This bit us when building position-timeline
+debug traces (they showed PE "open" from bar 11 to 172 — a ghost).
+
+> Also note: `in_pos` is correctly False when flat, so it is the reliable flag
+> for arming/entry gating.
+
+---
+
+### 🟡 BUG #3: GPU trade tuples carry a 7th element (exit bar) — strip before compare
+
+`gpu_sim` (debug build) appends the exit bar `t` as a 7th tuple element:
+`(day, side, result, entry, exit, pnl, t_exit)`. The CPU `process_days_chunk`
+returns a strict 6-tuple. When diffing trade lists, **strip the 7th element from
+GPU trades first**, otherwise every tuple compares unequal and you get a false
+"mismatch in trade lists" while metrics still match. For `_metrics_from_trades`
+compatibility the production GPU tuples should stay 6-element.
+
+---
+
+### 🟢 BUG #4: aggregate parity is NOT enough — compare ENTRY bars
+
+A count/WR/net-pts match can still hide a 3-bar entry-timing drift. Always dump
+and compare **entry event lists** `(bar, side)` per day:
+
+```python
+# CPU side (set module globals before running):
+M.M_ENT_TRACE = []          # appended (t,'PE'/'CE') on each entry
+# GPU side:
+G.G_ENT_TRACE = []          # appended (t,'PE'/'CE') on each entry (dbg_di day)
+```
+
+For 2026-02-02 the correct, CPU-matching entry list is:
+`[(10,'PE'),(12,'PE'),(172,'CE'),(173,'CE'),(285,'CE'),(286,'CE'),(324,'CE'),(330,'CE')]`.
+PE entries are **identical** between CPU and GPU (10, 12) — there is **no** PE
+timing offset. The only divergence was CE (169→172 etc., fixed by BUG #1).
+
+---
+
+### 🔴 BUG #5: OneDrive-synced data paths STALL the parquet read (looks like a hang)
+
+Both `C:\Users\user\Desktop\nifty50 data\…` **and** the repo
+`C:\Websites\FLATTRADE BOT` are **OneDrive-synced**. Reading the 472 MB
+`nifty50_options_master.parquet` from either location stalls on the OneDrive/AV
+scan that intercepts the file-open — `pandas`/`pyarrow` reads hang 90 s+ with no
+CPU/RAM usage, and the process has to be killed. `attrib` shows only `A`
+(Archive), i.e. the file is fully local, **not** a cloud placeholder — the stall
+is the *sync filter on open*, not a missing download.
+
+**Symptom vs. cause:** it loaded in ~9 s once, then hung later. OneDrive had
+re-hydrated/de-hydrated the file and the next open re-triggered the scan.
+
+**Fix (working cache, canonical source untouched):** copy the parquet + index to
+a path that is **not** a OneDrive-known-folder and point the code at it:
+
+```python
+# run_7y_v4_master.py  (imported by gpu_sim_last_hope.py, so this fixes both)
+_LOCAL = r"C:\Users\user\AppData\Local\Temp\opencode\data"   # NOT synced
+PARQUET  = _LOCAL + r"\nifty50_options_master.parquet"
+IDX_PATH = _LOCAL + r"\NIFTY 50_minute.csv"
+```
+
+**Proof:** same file reads in **0.7 s** via `pyarrow` from
+`AppData\Local\Temp\opencode\data` but hangs from Desktop / repo. After the
+repoint, the full 7-year load completes and `gpu_sim()` returns **7321 trades**
+(exact parity).
+
+> **Lesson:** if a parquet read "hangs" with no CPU/RAM, suspect OneDrive/AV sync
+> on the path **before** blaming the data or the loader. Read from a non-synced
+> cache. Re-copy the cache from the canonical Desktop source after any
+> `build_canonical_parquet.py` rebuild (the temp copy goes stale on reboot).
+
+---
+
+### 🔧 Debug recipe that found BUG #1 (keep for next time)
+
+1. Add a per-bar `[TRIG]` print: is the `for ci` even reaching the CE block at
+   the suspect bars? (We saw it was **absent** at 166–171 → the PE `continue`
+   was skipping CE.)
+2. Add a `[PEBLK]` print inside the PE branch: `pe_super`, `ec`, `bear`.
+   (Showed `pe_super=True, ec=blue, bear=False` → `USE_BIAS and not bear`
+   triggered the `continue`.)
+3. Add an `[ARM]` print in the arming loop: `ce_flag_armed`, `ce_arm_t`,
+   `ce_m6_full`. (Showed CPU *does* arm CE at 169 — so the gap was purely the
+   gate `continue`, not arming.)
+
+All three debug hooks are guarded by `if M_TRACE_DAY is not None and
+trading_days[idxs[ci]] == M_TRACE_DAY` so they are silent in production.
+
+---
+
+### 🚀 Utilization: sweep with the BATCH (B-dim) API, not single config
+
+The single-config `gpu_sim()` runs the 345-bar loop over `D=1509` days with
+small per-kernel tensor sizes → low GPU occupancy. To lift utilization toward
+85–95% and make a 3D parameter sweep practical, `gpu_sim_last_hope.py` exposes:
+
+```python
+def gpu_sim_batch(params_list):
+    """One GPU pass over B configs. State tensors are (B, D); all per-bar
+    ops broadcast over B. Returns a list of trade-lists (one per config)."""
+    return _gpu_sim_core(params_list)
+```
+
+* All config state (`in_pos`, `pos_side`, `entry/sl/tp_price`, flags, `arm_t`,
+  `daily_pts`, `cap_hit`) is shaped `(B, D)`.
+* Indicator tensors `(D, T1)` are sliced per bar as `x[None, :, t]` → `(1, D)`
+  and broadcast against `(B, D)`.
+* Per-config scalars (`sl`, `tp`, `atr_mult`, `cap`, `arm_window`) are `(B,)`
+  tensors.
+* ATR is computed once (period 14) and tiled; `atr_sl` configs read `a*atr_mult`
+  capped at `M.TP_PTS` (mirrors the CPU's `min(a*atr_mult, TP_PTS)` cap).
+
+**Call `gpu_sim_batch([...])` with as many configs as fit in VRAM** (start at
+B=32) and watch `nvidia-smi -l 1` — occupancy should climb sharply vs
+single-config. Do **not** loop single `gpu_sim()` calls; that defeats the
+purpose.
+
+> **Caveat:** the B-dim rewrite preserves the exact single-config logic
+> (including the BUG #1 fix above), so bar-exact parity holds by construction.
+> Re-run the entry-list diff (BUG #4) on a sample config after any future edit
+> to `_gpu_sim_core`.
+
+---
+
+## 25. Appendix: Agent Quick-Start Checklist
 
 ```
 [ ] 1. Read AGENTS.md for project-specific rules (god nodes, smoke test mandate)
