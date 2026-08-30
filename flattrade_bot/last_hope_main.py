@@ -42,10 +42,16 @@ from flattrade_bot.control import touch_runtime_record
 from flattrade_bot.execution import TradeExecutor
 from flattrade_bot.risk.manager import RiskManager
 from flattrade_bot.strategies.last_hope_winner import (
+    ARM_WINDOW,
+    ATR_MULT,
     LastHopeWinnerEngine,
+    M6_S1,
+    M6_S4,
     OptionContractState,
     SESSION_END_MIN,
     SESSION_START_MIN,
+    SUPER_THRESH,
+    TP_PTS_CAP,
 )
 from flattrade_bot.utils.discord import DiscordNotifier
 
