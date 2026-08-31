@@ -393,7 +393,7 @@ def _eager_sim_core(params_list):
         ent_pe = pe_cand & (pos_side == 0)
         pe_ep = pe_c[:, t].unsqueeze(0).expand(B, D)
         atr_pe_t = atr_pe_sel[:, :, t]                       # (B,D)
-        atr_pe_b = torch.minimum(atr_pe_t * atr_mult_b.unsqueeze(1), TP_PTS_t)
+        atr_pe_b = torch.clamp(torch.minimum(atr_pe_t * atr_mult_b.unsqueeze(1), TP_PTS_t), min=2.0)
         sl_dist_pe = torch.where(atr_sl_b.unsqueeze(1), atr_pe_b, torch.minimum(sl_b.unsqueeze(1), TP_PTS_t))
         tp_dist_pe = torch.where(atr_sl_b.unsqueeze(1), atr_pe_b, torch.minimum(tp_b.unsqueeze(1), TP_PTS_t))
         entry_price[ent_pe] = pe_ep[ent_pe]
@@ -424,7 +424,7 @@ def _eager_sim_core(params_list):
         ent_ce = ce_cand & (pos_side == 0)
         ce_ep = ce_c[:, t].unsqueeze(0).expand(B, D)
         atr_ce_t = atr_ce_sel[:, :, t]                       # (B,D)
-        atr_ce_b = torch.minimum(atr_ce_t * atr_mult_b.unsqueeze(1), TP_PTS_t)
+        atr_ce_b = torch.clamp(torch.minimum(atr_ce_t * atr_mult_b.unsqueeze(1), TP_PTS_t), min=2.0)
         sl_dist_ce = torch.where(atr_sl_b.unsqueeze(1), atr_ce_b, torch.minimum(sl_b.unsqueeze(1), TP_PTS_t))
         tp_dist_ce = torch.where(atr_sl_b.unsqueeze(1), atr_ce_b, torch.minimum(tp_b.unsqueeze(1), TP_PTS_t))
         entry_price[ent_ce] = ce_ep[ent_ce]

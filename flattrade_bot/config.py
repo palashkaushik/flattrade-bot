@@ -91,6 +91,7 @@ class Settings:
     BOT_POSITION_FILE: Path = Path(os.getenv("BOT_POSITION_FILE", str(PROJECT_DIR / "logs" / "bot.position.json")))
     BOT_VISIBLE_CONSOLE: bool = _env_bool("BOT_VISIBLE_CONSOLE", False)
     BOT_VISIBLE_TASK_NAME: str = os.getenv("BOT_VISIBLE_TASK_NAME", "\\Flattrade Bot Visible")
+    LIVE_TRADING: bool = _env_bool("LIVE_TRADING", False)
     MAX_DAILY_LOSS_POINTS: float = float(os.getenv("MAX_DAILY_LOSS_POINTS", "30.0"))
     MAX_DAILY_LOSS_RS: float = float(os.getenv("MAX_DAILY_LOSS_RS", str(MAX_DAILY_LOSS_POINTS * LOT_SIZE)))
     CONSECUTIVE_LOSS_LIMIT: int = 8

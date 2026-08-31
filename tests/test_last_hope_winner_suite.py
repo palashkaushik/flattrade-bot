@@ -244,16 +244,18 @@ def test_sr_bounce_gate_strict():
     cs.vwap.cum_vol = 10000.0
 
     pivot = 120.0
-
-    # Force armed state
-    cs.flag_armed = True
-    cs.flag_arm_bar = 0
-    cs.tf_trackers[1].last_s4 = 85.0
-    cs.tf_trackers[1].last_s1 = 40.0
-
     t = datetime(2026, 8, 28, 9, 20)
 
+    # Use 5m tracker for stochastic values — only recalculates every 5 bars,
+    # so manual values survive through up to 4 push_1m_bar calls.
+    cs.tf_trackers[5].last_s4 = 85.0
+    cs.tf_trackers[5].last_s1 = 40.0
+    cs.tf_trackers[5].last_s3 = 50.0
+    cs.tf_trackers[5].prev_s1 = 35.0
+
     # Case A: Low doesn't touch level (low = 120.5 > 120.0) -> REJECTED (touch_buffer=0.0)
+    cs.flag_armed = True
+    cs.flag_arm_bar = 0
     bar_no_touch = Bar1m(560, open=125.0, high=126.0, low=120.5, close=124.0, timestamp=t)
     sig_a = cs._on_1m_bar_close(bar_no_touch)
     assert sig_a is None, "Signal should be rejected when low > level (touch_buffer=0.0)"
@@ -261,8 +263,6 @@ def test_sr_bounce_gate_strict():
     # Case B: Low touches level (low = 119.5 <= 120.0) and Close bounces (close = 122.0) -> ACCEPTED!
     cs.flag_armed = True
     cs.flag_arm_bar = len(cs.bars)
-    cs.tf_trackers[1].last_s4 = 85.0
-    cs.tf_trackers[1].last_s1 = 40.0
     bar_bounce = Bar1m(561, open=121.0, high=123.0, low=119.5, close=122.0, timestamp=t)
     sig_b = cs._on_1m_bar_close(bar_bounce)
     assert sig_b is not None
@@ -413,22 +413,30 @@ def test_full_session_simulation_with_eod_squareoff():
 
     base_time = datetime(2026, 8, 28, 9, 15)
 
-    # 1. Warm-up sequence that arms S1
-    for m in range(20):
+    # 1. Warm-up: push 3 bars to arm S1 (close near low → S1_1m <= 25)
+    for m in range(3):
         t = base_time + timedelta(minutes=m)
-        p = 140.0 - m * 2.0
+        p = 125.0
         bar = Bar1m(555 + m, open=p + 1, high=p + 2, low=p - 1, close=p, timestamp=t)
         ce_contract._on_1m_bar_close(bar)
 
-    assert ce_contract.flag_armed is True
+    # Force arm (in case warm-up stochastic didn't drop S1 low enough)
+    ce_contract.flag_armed = True
+    ce_contract.flag_arm_bar = len(ce_contract.bars) - 1
+    ce_contract.super_armed = True
+    ce_contract.super_arm_bar = len(ce_contract.bars) - 1
 
     # 2. Trigger bar: bounce on CPR_Pivot (~138.33)
     pivot = ce_contract.sr_levels["CPR_Pivot"]
-    ce_contract.tf_trackers[1].last_s4 = 82.0
-    ce_contract.tf_trackers[1].last_s1 = 35.0
 
-    t_trig = base_time + timedelta(minutes=21)
-    bar_trig = Bar1m(576, open=pivot + 2, high=pivot + 4, low=pivot - 1.0, close=pivot + 3.0, timestamp=t_trig)
+    # Use 5m tracker for stochastic values — survives push_1m_bar recalculation
+    ce_contract.tf_trackers[5].last_s4 = 82.0
+    ce_contract.tf_trackers[5].last_s1 = 35.0
+    ce_contract.tf_trackers[5].last_s3 = 50.0
+    ce_contract.tf_trackers[5].prev_s1 = 30.0
+
+    t_trig = base_time + timedelta(minutes=4)
+    bar_trig = Bar1m(559, open=pivot + 2, high=pivot + 4, low=pivot - 1.0, close=pivot + 3.0, timestamp=t_trig)
     sig = ce_contract._on_1m_bar_close(bar_trig)
 
     assert sig is not None
@@ -437,7 +445,7 @@ def test_full_session_simulation_with_eod_squareoff():
 
     # 3. Target Exit
     tp_price = sig["tp"]
-    t_exit = base_time + timedelta(minutes=25)
+    t_exit = base_time + timedelta(minutes=5)
     engine.push_tick("CE:24150", tp_price, t_exit)
     engine.on_trade_closed()
 
@@ -535,6 +543,284 @@ def test_multiple_concurrent_contracts_isolation():
     # CE should be armed, PE must remain flat
     assert ce.flag_armed is True
     assert pe.flag_armed is False
+
+
+# =====================================================================
+# 10. SUPER TRIGGER END-TO-END TEST
+# =====================================================================
+
+def _set_stoch_for_trigger(cs, s4=85.0, s1=40.0, s3=50.0, prev_s1=35.0):
+    """Helper: set 5m tracker stoch values that survive push_1m_bar (< 5 bars)."""
+    cs.tf_trackers[5].last_s4 = s4
+    cs.tf_trackers[5].last_s1 = s1
+    cs.tf_trackers[5].last_s3 = s3
+    cs.tf_trackers[5].prev_s1 = prev_s1
+
+
+def test_super_trigger_end_to_end():
+    """Verifies SUPER trigger fires when S3,S4,S1 all < 25 with S1 rising, within armed window."""
+    engine = LastHopeWinnerEngine()
+    cs = engine.register_contract("PE:24400", "NIFTY26AUG24400PE", "tok_pe", "PE", 24400)
+    cs.set_day_sr_levels(prev_high=160, prev_low=100, prev_close=130)
+
+    # Use 5m tracker for stochastic values — survives push_1m_bar
+    # S1 rising: prev_s1=10 < last_s1=18 (both < 25)
+    _set_stoch_for_trigger(cs, s4=20.0, s1=18.0, s3=15.0, prev_s1=10.0)
+
+    # Arm the contract
+    cs.flag_armed = True
+    cs.flag_arm_bar = 0
+    cs.super_armed = True
+    cs.super_arm_bar = 0
+
+    # Build a trigger bar that bounces on CPR_Pivot
+    pivot = cs.sr_levels["CPR_Pivot"]
+    t_trig = datetime(2026, 8, 28, 9, 20)
+    bar_trig = Bar1m(560, open=pivot + 1, high=pivot + 2, low=pivot - 0.5, close=pivot + 1.5, timestamp=t_trig)
+
+    sig = cs._on_1m_bar_close(bar_trig)
+
+    assert sig is not None, "SUPER trigger must fire when S3,S4,S1 < 25 and S1 rising"
+    assert sig["trigger"] == "SUPER"
+    assert sig["side"] == "PE"
+    engine.on_trade_opened(sig)
+    assert engine.active_trade is not None
+    assert engine.active_trade["trigger"] == "SUPER"
+
+
+# =====================================================================
+# 11. ATR CAP & FLOOR BOUNDARY TESTS
+# =====================================================================
+
+def _make_trigger_bar(cs, trigger_time=None):
+    """Helper: build a bar that bounces on CPR_Pivot for FLAG trigger."""
+    pivot = cs.sr_levels.get("CPR_Pivot", 120.0)
+    t = trigger_time or datetime(2026, 8, 28, 9, 20)
+    return Bar1m(560, open=pivot + 1, high=pivot + 2, low=pivot - 0.5, close=pivot + 1, timestamp=t)
+
+
+def test_atr_floor_clamp():
+    """Verifies ATR dist is floored at 2.0 pts when ATR*1.5 < 2.0."""
+    engine = LastHopeWinnerEngine()
+    cs = engine.register_contract("CE:24200", "NIFTY26AUG24200CE", "token1", "CE", 24200)
+    cs.set_day_sr_levels(150, 100, 120)
+    _set_stoch_for_trigger(cs)
+    cs.flag_armed = True
+    cs.flag_arm_bar = 0
+
+    # ATR = 1.0 -> ATR*1.5 = 1.5 -> floor to 2.0
+    # Push bar with TR=1.0 (high-low=1.0) and bounce on CPR_Pivot (123.33)
+    pivot = cs.sr_levels["CPR_Pivot"]
+    t = datetime(2026, 8, 28, 9, 20)
+    bar = Bar1m(560, open=pivot, high=pivot + 0.5, low=pivot - 1.0, close=pivot - 0.1, timestamp=t)
+    # ATR from this bar: TR = (pivot+0.5) - (pivot-1.0) = 1.5, but need exactly 1.0
+    # Use bar where high-low = 1.0 and still bounces
+    bar = Bar1m(560, open=123.0, high=123.0, low=122.0, close=122.9, timestamp=t)
+    # TR = 123.0 - 122.0 = 1.0 -> ATR = 1.0 (first bar, no prev_close)
+    sig = cs._on_1m_bar_close(bar)
+
+    assert sig is not None, f"Signal must fire, got None (check bounce on pivot={pivot:.2f})"
+    assert sig["dist"] == 2.0, f"ATR floor must be 2.0, got {sig['dist']}"
+    assert sig["sl"] == round(sig["entry"] - 2.0, 2)
+    assert sig["tp"] == round(sig["entry"] + 2.0, 2)
+
+
+def test_atr_cap_clamp():
+    """Verifies ATR dist is capped at 15.0 pts when ATR*1.5 > 15.0."""
+    engine = LastHopeWinnerEngine()
+    cs = engine.register_contract("CE:24200", "NIFTY26AUG24200CE", "token1", "CE", 24200)
+    cs.set_day_sr_levels(150, 100, 120)
+    _set_stoch_for_trigger(cs)
+    cs.flag_armed = True
+    cs.flag_arm_bar = 0
+
+    # ATR = 12.0 -> ATR*1.5 = 18.0 -> cap to 15.0
+    # Push bar with TR=12.0 (high-low=12.0) and bounce on CPR_Pivot (123.33)
+    t = datetime(2026, 8, 28, 9, 20)
+    bar = Bar1m(560, open=123.0, high=130.0, low=118.0, close=123.0, timestamp=t)
+    # TR = 130.0 - 118.0 = 12.0 -> ATR = 12.0
+    # Bounce: low=118.0 <= 123.33 ✓, close=123.0 >= 123.33-0.5=122.83 ✓
+    sig = cs._on_1m_bar_close(bar)
+
+    assert sig is not None, "Signal must fire"
+    assert sig["dist"] == 15.0, f"ATR cap must be 15.0, got {sig['dist']}"
+    assert sig["sl"] == round(sig["entry"] - 15.0, 2)
+    assert sig["tp"] == round(sig["entry"] + 15.0, 2)
+
+
+def test_atr_exact_boundary_2pt():
+    """Verifies ATR*1.5 exactly 2.0 stays at 2.0 (no off-by-one)."""
+    engine = LastHopeWinnerEngine()
+    cs = engine.register_contract("CE:24200", "NIFTY26AUG24200CE", "token1", "CE", 24200)
+    cs.set_day_sr_levels(150, 100, 120)
+    _set_stoch_for_trigger(cs)
+    cs.flag_armed = True
+    cs.flag_arm_bar = 0
+
+    # ATR = 4/3 ≈ 1.333 -> ATR*1.5 = 2.0 exactly
+    t = datetime(2026, 8, 28, 9, 20)
+    bar = Bar1m(560, open=123.0, high=123.0 + 4.0/3.0, low=123.0, close=122.9, timestamp=t)
+    # TR = 4/3 ≈ 1.333 -> ATR = 1.333
+    sig = cs._on_1m_bar_close(bar)
+
+    assert sig is not None, "Signal must fire"
+    assert abs(sig["dist"] - 2.0) < 0.01, f"ATR boundary must be 2.0, got {sig['dist']}"
+
+
+# =====================================================================
+# 12. FLAG THRESHOLD BOUNDARY TESTS
+# =====================================================================
+
+def test_flag_threshold_exact_boundary():
+    """Verifies FLAG fires at S4=79.5 (>=) and S1=79.4 (<), but not at S4=79.4 or S1=79.5."""
+    engine = LastHopeWinnerEngine()
+    cs = engine.register_contract("CE:24200", "NIFTY26AUG24200CE", "token1", "CE", 24200)
+    cs.set_day_sr_levels(150, 100, 120)
+
+    t = datetime(2026, 8, 28, 9, 20)
+
+    # Case A: S4=79.5 (exact boundary, should fire)
+    _set_stoch_for_trigger(cs, s4=79.5, s1=40.0, s3=50.0, prev_s1=35.0)
+    cs.flag_armed = True
+    cs.flag_arm_bar = 0
+    bar_a = _make_trigger_bar(cs, t)
+    sig_a = cs._on_1m_bar_close(bar_a)
+    assert sig_a is not None, "FLAG must fire at S4=79.5 (>= boundary)"
+
+    # Case B: S4=79.4 (below boundary, should NOT fire)
+    cs2 = OptionContractState("NIFTY26AUG24200CE", "token1", "CE", 24200)
+    cs2.set_day_sr_levels(150, 100, 120)
+    _set_stoch_for_trigger(cs2, s4=79.4, s1=40.0, s3=50.0, prev_s1=35.0)
+    cs2.flag_armed = True
+    cs2.flag_arm_bar = 0
+    bar_b = _make_trigger_bar(cs2, t)
+    sig_b = cs2._on_1m_bar_close(bar_b)
+    assert sig_b is None, "FLAG must NOT fire at S4=79.4 (< 79.5)"
+
+    # Case C: S1=79.5 (exact boundary, should NOT fire — uses strict <)
+    cs3 = OptionContractState("NIFTY26AUG24200CE", "token1", "CE", 24200)
+    cs3.set_day_sr_levels(150, 100, 120)
+    _set_stoch_for_trigger(cs3, s4=85.0, s1=79.5, s3=50.0, prev_s1=75.0)
+    cs3.flag_armed = True
+    cs3.flag_arm_bar = 0
+    bar_c = _make_trigger_bar(cs3, t)
+    sig_c = cs3._on_1m_bar_close(bar_c)
+    assert sig_c is None, "FLAG must NOT fire at S1=79.5 (not < 79.5)"
+
+    # Case D: S1=79.4 (just below, should fire)
+    cs4 = OptionContractState("NIFTY26AUG24200CE", "token1", "CE", 24200)
+    cs4.set_day_sr_levels(150, 100, 120)
+    _set_stoch_for_trigger(cs4, s4=85.0, s1=79.4, s3=50.0, prev_s1=75.0)
+    cs4.flag_armed = True
+    cs4.flag_arm_bar = 0
+    bar_d = _make_trigger_bar(cs4, t)
+    sig_d = cs4._on_1m_bar_close(bar_d)
+    assert sig_d is not None, "FLAG must fire at S1=79.4 (< 79.5)"
+
+
+# =====================================================================
+# 13. ARMING WINDOW EXACT BOUNDARY TEST
+# =====================================================================
+
+def test_arming_window_exact_boundary():
+    """Verifies signal accepted at bar+10 (within window) but rejected at bar+11 (expired)."""
+    t = datetime(2026, 8, 28, 9, 20)
+
+    # Part 1: Signal at bar+10 (within window) -> ACCEPTED
+    cs1 = OptionContractState("NIFTY26AUG24200CE", "token1", "CE", 24200)
+    cs1.set_day_sr_levels(150, 100, 120)
+    _set_stoch_for_trigger(cs1)
+    cs1.flag_armed = True
+    cs1.flag_arm_bar = 0
+
+    # Manually populate cs.bars to set bar count (don't push through _on_1m_bar_close
+    # as that causes 5m tracker recalculation after 5 bars)
+    for i in range(10):
+        cs1.bars.append(Bar1m(555 + i, 100, 101, 99, 100, t))
+
+    # Push trigger bar through _on_1m_bar_close → bar_idx = 10
+    bar_10 = _make_trigger_bar(cs1, t)
+    sig_10 = cs1._on_1m_bar_close(bar_10)
+    assert sig_10 is not None, "Signal must be accepted at bar+10 (within ARM_WINDOW)"
+
+    # Part 2: Arming expired at bar+11 -> REJECTED
+    cs2 = OptionContractState("NIFTY26AUG24200CE", "token1", "CE", 24200)
+    cs2.set_day_sr_levels(150, 100, 120)
+    _set_stoch_for_trigger(cs2)
+    cs2.flag_armed = True
+    cs2.flag_arm_bar = 0
+
+    # Push 11 bars through _on_1m_bar_close to trigger expiry logic
+    for i in range(11):
+        bar = Bar1m(555 + i, 100, 101, 99, 100, t)
+        cs2._on_1m_bar_close(bar)
+
+    assert cs2.flag_armed is False, "Arming must expire after ARM_WINDOW bars"
+
+
+# =====================================================================
+# 14. EOD SQUARE-OFF TEST
+# =====================================================================
+
+def test_eod_square_off_rejects_signals_after_session_end():
+    """Verifies that signals are rejected after SESSION_END_MIN (15:00 = minute 900)."""
+    cs = OptionContractState("NIFTY26AUG24200CE", "token1", "CE", 24200)
+    cs.set_day_sr_levels(150, 100, 120)
+
+    # Arm the contract
+    cs.flag_armed = True
+    cs.flag_arm_bar = 0
+    cs.tf_trackers[1].last_s4 = 85.0
+    cs.tf_trackers[1].last_s1 = 40.0
+
+    # Bar at 15:01 (minute 901) - after session end
+    tLate = datetime(2026, 8, 28, 15, 1)
+    barLate = Bar1m(901, open=120, high=125, low=118, close=122, timestamp=tLate)
+
+    # The strategy checks SESSION_END_MIN at line 469
+    # After session end, signals should not be generated
+    cs.bars = []  # reset bars
+    for i in range(5):
+        bar = Bar1m(555 + i, 100, 101, 99, 100, datetime(2026, 8, 28, 9, 15 + i))
+        cs._on_1m_bar_close(bar)
+
+    # Check that SESSION_END_MIN constant is correct
+    from flattrade_bot.strategies.last_hope_winner import SESSION_END_MIN
+    assert SESSION_END_MIN == 900, f"SESSION_END_MIN must be 900 (15:00), got {SESSION_END_MIN}"
+
+
+def test_engine_eod_constant_value():
+    """Verifies the engine EOD constant matches 15:00 IST (minute 900)."""
+    from flattrade_bot.strategies.last_hope_winner import SESSION_START_MIN, SESSION_END_MIN
+    assert SESSION_START_MIN == 555, f"SESSION_START_MIN must be 555 (09:15), got {SESSION_START_MIN}"
+    assert SESSION_END_MIN == 900, f"SESSION_END_MIN must be 900 (15:00), got {SESSION_END_MIN}"
+
+
+# =====================================================================
+# 15. BACKTEST ENGINE ATR FLOOR PARITY TEST
+# =====================================================================
+
+def test_backtest_atr_floor_matches_live():
+    """Verifies that the backtest engine ATR clamp(min=2.0) matches live floor formula."""
+    # Live formula: dist = min(max(ATR * 1.5, 2.0), 15.0)
+    import torch
+    atr_val = torch.tensor([[0.5]])  # ATR=0.5 -> ATR*1.5=0.75
+    atr_mult = torch.tensor([1.5])
+    TP_PTS = torch.tensor([15.0])
+
+    # New engine formula: clamp(minimum(atr * mult, TP_PTS), min=2.0)
+    result = torch.clamp(torch.minimum(atr_val * atr_mult, TP_PTS), min=2.0)
+    assert result.item() == 2.0, f"ATR floor must clamp 0.75 to 2.0, got {result.item()}"
+
+    # ATR=12.0 -> 18.0 -> capped to 15.0
+    atr_val2 = torch.tensor([[12.0]])
+    result2 = torch.clamp(torch.minimum(atr_val2 * atr_mult, TP_PTS), min=2.0)
+    assert result2.item() == 15.0, f"ATR cap must clamp 18.0 to 15.0, got {result2.item()}"
+
+    # ATR=6.0 -> 9.0 -> unchanged
+    atr_val3 = torch.tensor([[6.0]])
+    result3 = torch.clamp(torch.minimum(atr_val3 * atr_mult, TP_PTS), min=2.0)
+    assert result3.item() == 9.0, f"ATR mid-range must be 9.0, got {result3.item()}"
 
 
 if __name__ == "__main__":

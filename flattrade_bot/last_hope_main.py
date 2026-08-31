@@ -162,18 +162,21 @@ class LastHopeTradingEngine:
 
             await self.ensure_contracts(force=True)
 
+        # Start Discord retry loop (retries failed notifications every 30s)
+        self.discord.start_retry_loop()
+
         asyncio.create_task(
             self.discord._post_embed({
-                "title": "🟢 FLATTRADE LAST HOPE WINNER BOT ONLINE",
+                "title": "FLATTRADE LAST HOPE WINNER BOT ONLINE",
                 "color": 0x2ECC71,
                 "fields": [
-                    {"name": "Strategy", "value": "Last Hope GPU Winner (FLAG/SUPER · 1m OHLC)", "inline": True},
+                    {"name": "Strategy", "value": "Last Hope GPU Winner (FLAG/SUPER 1m OHLC)", "inline": True},
                     {"name": "Session", "value": "09:15 - 15:00 IST", "inline": True},
-                    {"name": "Risk Geometry", "value": "ATR(10)×1.5 · Breakeven at +70% move", "inline": True},
-                    {"name": "Mode", "value": "🔴 LIVE ORDERS" if self.live_orders else "🟣 PAPER / SIM", "inline": True},
-                    {"name": "Nifty Spot", "value": f"₹{self.spot_price:,.2f}" if self.spot_price else "--", "inline": True},
+                    {"name": "Risk Geometry", "value": "ATR(10)x1.5 Breakeven at +70% move", "inline": True},
+                    {"name": "Mode", "value": "LIVE ORDERS" if self.live_orders else "PAPER SIM", "inline": True},
+                    {"name": "Nifty Spot", "value": f"Rs {self.spot_price:,.2f}" if self.spot_price else "--", "inline": True},
                 ],
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "footer": {"text": "Flattrade Last Hope Bot"},
             })
         )
@@ -363,20 +366,18 @@ class LastHopeTradingEngine:
             fill = entry
 
         self.active_position_key = f"{sig['side']}:{sig['strike']}"
-        logger.info(f"🚨 {sig['trigger']} ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} BE_trig={sig['be_trigger_px']:.2f}")
+        logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} BE_trig={sig['be_trigger_px']:.2f}")
 
-        asyncio.create_task(
-            self.discord.send_trade_alert(
-                strategy=STRATEGY_LABEL,
-                direction="LONG",
-                symbol=display,
-                entry_price=fill,
-                sl_price=sl,
-                tp_price=tp,
-                notes=f"{sig['trigger']} trigger | SR={sig['level']} | dist={dist:.2f} | BE at {sig['be_trigger_px']:.2f}",
-                lot_size=settings.LOT_SIZE,
-                mode="LIVE" if self.live_orders else "PAPER",
-            )
+        await self.discord.send_trade_alert(
+            strategy=STRATEGY_LABEL,
+            direction="LONG",
+            symbol=display,
+            entry_price=fill,
+            sl_price=sl,
+            tp_price=tp,
+            notes=f"{sig['trigger']} trigger | SR={sig['level']} | dist={dist:.2f} | BE at {sig['be_trigger_px']:.2f}",
+            lot_size=settings.LOT_SIZE,
+            mode="LIVE" if self.live_orders else "PAPER",
         )
 
     async def _record_close(self, trade: Dict[str, Any]):
@@ -402,13 +403,11 @@ class LastHopeTradingEngine:
                 if self.engine.active_trade.get("be_done") and not self.executor.position.get("be_notified"):
                     self.executor.position["be_notified"] = True
                     self.executor.position["sl"] = self.engine.active_trade["sl"]
-                    asyncio.create_task(
-                        self.discord.notify_breakeven_locked(
-                            symbol=self.executor.position["symbol"],
-                            entry=float(self.executor.position["entry"]),
-                            new_sl=float(self.engine.active_trade["sl"]),
-                            ltp=ltp,
-                        )
+                    await self.discord.notify_breakeven_locked(
+                        symbol=self.executor.position["symbol"],
+                        entry=float(self.executor.position["entry"]),
+                        new_sl=float(self.engine.active_trade["sl"]),
+                        ltp=ltp,
                     )
 
             res = await self.executor.check_exit(ltp, now)
@@ -426,14 +425,12 @@ class LastHopeTradingEngine:
         if not pos.get("be_done") and ltp >= pos["be_trigger_px"]:
             pos["be_done"] = True
             pos["sl"] = pos["be_hardened_sl"]
-            logger.info(f"🔒 Paper Breakeven Triggered on {pos['symbol']}: SL moved to {pos['sl']:.2f}")
-            asyncio.create_task(
-                self.discord.notify_breakeven_locked(
-                    symbol=pos["symbol"],
-                    entry=float(pos["entry"]),
-                    new_sl=float(pos["sl"]),
-                    ltp=ltp,
-                )
+            logger.info(f"Paper Breakeven Triggered on {pos['symbol']}: SL moved to {pos['sl']:.2f}")
+            await self.discord.notify_breakeven_locked(
+                symbol=pos["symbol"],
+                entry=float(pos["entry"]),
+                new_sl=float(pos["sl"]),
+                ltp=ltp,
             )
 
         reason = None
@@ -460,7 +457,7 @@ class LastHopeTradingEngine:
             "reason": reason,
         }
         await self._record_close(trade_info)
-        asyncio.create_task(self.discord.notify_trade_close(trade_info))
+        await self.discord.notify_trade_close(trade_info)
 
     async def recover_open_positions(self):
         """On startup, squares off orphaned broker positions from a previous crash."""
