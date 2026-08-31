@@ -210,13 +210,13 @@ class LastHopeTradingEngine:
 
             if valid_prev_days:
                 last_trading_day = valid_prev_days[-1]
-                # Filter to normal market hours (09:15 to 15:30 IST)
+                # Filter to regular market trading hours (09:15 to 15:29 IST, minute 555 to 929)
                 parsed_y_rows = []
                 for x in by_day[last_trading_day]:
                     try:
                         x_dt = datetime.strptime(str(x["time"]), "%d-%m-%Y %H:%M:%S")
                         x_m = x_dt.hour * 60 + x_dt.minute
-                        if 555 <= x_m <= 930:
+                        if 555 <= x_m <= 929:
                             parsed_y_rows.append((x_dt, x))
                     except Exception:
                         pass
