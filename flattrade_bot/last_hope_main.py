@@ -921,22 +921,19 @@ class LastHopeTradingEngine:
         has_tty = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
 
         if has_tty:
-            # Suppress StreamHandler so Rich Live doesn't conflict with logger output
-            root_logger = logging.getLogger()
-            for h in root_logger.handlers:
-                if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler):
-                    h.setLevel(logging.WARNING)
-
-            # Interactive terminal: full Rich dashboard
-            with Live(self.render_dashboard(), console=console, refresh_per_second=1, vertical_overflow="visible") as live:
-                while True:
-                    try:
-                        elapsed = await self._main_loop_body()
-                        live.update(self.render_dashboard())
-                        await asyncio.sleep(max(0.0, 1.0 - elapsed))
-                    except Exception as e:
-                        logger.error(f"Error in main loop: {e}", exc_info=True)
-                        await asyncio.sleep(2.0)
+            # Interactive terminal: clear + print each frame (no Rich Live thread)
+            loop_count = 0
+            while True:
+                try:
+                    elapsed = await self._main_loop_body()
+                    loop_count += 1
+                    if loop_count % 2 == 0:
+                        console.clear()
+                        console.print(self.render_dashboard())
+                    await asyncio.sleep(max(0.0, 1.0 - elapsed))
+                except Exception as e:
+                    logger.error(f"Error in main loop: {e}", exc_info=True)
+                    await asyncio.sleep(2.0)
         else:
             # Headless mode (systemd): log status every 10 seconds
             loop_count = 0
