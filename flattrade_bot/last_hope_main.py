@@ -553,8 +553,8 @@ class LastHopeTradingEngine:
         now = ist_now()
         time_str = now.strftime("%H:%M:%S")
         header = Text.from_markup(
-            f" [bold bright_yellow]🏆 LAST HOPE GPU WINNER STRATEGY[/bold bright_yellow] "
-            f"| [bold white]2nd ITM · Multi-TF Stoch (1m/2m/3m/5m) · S/R Bounce · ATR×1.5 + BE[/bold white] "
+            f" [bold bright_yellow]🏆 LAST HOPE GPU WINNER[/bold bright_yellow] "
+            f"| [bold white]2nd ITM · Multi-TF Stoch · S/R Bounce · ATR×1.5 + BE[/bold white] "
             f"| [cyan]{time_str} IST[/cyan]"
         )
         banner = Panel(Align.center(header), box=box.ROUNDED, style="bright_blue", padding=(0, 1))
@@ -568,26 +568,28 @@ class LastHopeTradingEngine:
         total_trades = len(self.trades_today)
         wr = (self._wins_today / total_trades * 100.0) if total_trades > 0 else 0.0
 
-        # ── 1. System Telemetry Bar ──────────────────────────────────────────
+        # ── 1. Compact System Telemetry Bar (Responsive on split-screen) ─────
         sys_table = Table(box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
-        for col, style in (("BROKER SESSION", "bold green"), ("EXEC MODE", "bold white"), ("SESSION STATUS", "bold white"),
-                           ("NIFTY 50 SPOT", "bold yellow"), ("ATM STRIKE", "bold white"), ("2nd ITM CE", "bold green"),
-                           ("2nd ITM PE", "bold red"), ("TRADES (W/L)", "bold white"), ("WIN RATE", "bold white"),
-                           ("NET PTS", "bold white"), ("NET P&L (₹)", "bold white")):
-            sys_table.add_column(col, style=style, justify="center")
+        for col, style in (
+            ("MODE", "bold white"),
+            ("SPOT (ATM)", "bold yellow"),
+            ("2nd ITM (CE / PE)", "bold cyan"),
+            ("SESSION", "bold green"),
+            ("TRADES (W/L)", "bold white"),
+            ("NET P&L (₹)", "bold white"),
+        ):
+            sys_table.add_column(col, style=style, justify="center", no_wrap=True)
+
+        spot_atm_str = f"₹{self.spot_price:,.1f} ({atm})" if self.spot_price else "--"
+        itm_pair_str = f"₹{atm - 100} CE / ₹{atm + 100} PE" if isinstance(atm, int) else "--"
 
         sys_table.add_row(
-            self._broker_status,
             mode_str,
-            "[bold green]ACTIVE (09:15-15:00)[/bold green]" if sess_active else "[yellow]MARKET CLOSED[/yellow]",
-            f"₹{self.spot_price:,.2f}" if self.spot_price else "--",
-            str(atm),
-            f"₹{atm - 100}" if isinstance(atm, int) else "--",
-            f"₹{atm + 100}" if isinstance(atm, int) else "--",
-            f"{total_trades} ({self._wins_today}W / {total_trades - self._wins_today}L)",
-            f"[bold cyan]{wr:.1f}%[/bold cyan]",
-            f"[{pnl_color}]{net_pts:+.2f} pts[/{pnl_color}]",
-            f"[{pnl_color}]₹{net_rs:+,.2f}[/{pnl_color}]",
+            spot_atm_str,
+            itm_pair_str,
+            "[bold green]ACTIVE[/bold green]" if sess_active else "[yellow]CLOSED[/yellow]",
+            f"{total_trades} ({self._wins_today}W/{total_trades - self._wins_today}L | {wr:.0f}%)",
+            f"[{pnl_color}]₹{net_rs:+,.2f} ({net_pts:+.1f}p)[/{pnl_color}]",
         )
 
         # ── 2. Strategy Setup Forming & Arming Radar ─────────────────────────
@@ -595,11 +597,17 @@ class LastHopeTradingEngine:
             title="[bold cyan]📡 STRATEGY SETUP RADAR & ARMING MATRIX (1m/2m/3m/5m Option Stochastics · S/R Suite)[/bold cyan]",
             box=box.SIMPLE_HEAD, expand=True, padding=(0, 1),
         )
-        for col, style in (("STRIKE", "bold white"), ("TYPE", "bold white"), ("ARMING STATUS", "bold yellow"),
-                           ("1m STOCH (S1/S3/S4)", "bold white"), ("2m/3m/5m S4", "bold white"),
-                           ("ACTIVE TF SETUPS / SIGNALS", "bold magenta"), ("NEAREST S/R LEVEL", "bold cyan"),
-                           ("S/R PROXIMITY", "bold white"), ("RISK / ATR", "bold white"), ("LTP", "bold yellow")):
-            mon_table.add_column(col, style=style, justify="center")
+        for col, style, j in (
+            ("STRIKE", "bold white", "left"),
+            ("ARMING", "bold yellow", "center"),
+            ("1m S1/S3/S4", "bold white", "center"),
+            ("2m/3m/5m S4", "bold white", "center"),
+            ("ACTIVE TF SETUPS", "bold magenta", "left"),
+            ("S/R LEVEL (PROXIMITY)", "bold cyan", "left"),
+            ("SL / TP", "bold white", "center"),
+            ("LTP", "bold yellow", "right"),
+        ):
+            mon_table.add_column(col, style=style, justify=j, no_wrap=True)
 
         for key, cs in self.engine.contracts.items():
             s1_val = cs.tf_trackers[1].last_s1
@@ -610,16 +618,15 @@ class LastHopeTradingEngine:
             s4_5m = cs.tf_trackers[5].last_s4
             bar_count = len(cs.bars)
 
-            # Concise Contract Display: e.g. 24650 CE
             contract_clean = f"{cs.strike} {cs.side}"
 
             # Arming state string with countdown
             if cs.flag_armed or cs.super_armed:
                 arm_age = max(0, bar_count - max(cs.flag_arm_bar, cs.super_arm_bar))
                 arm_rem = max(0, ARM_WINDOW - arm_age)
-                armed_str = f"[bold green]ARMED ({arm_rem}/10 bars)[/bold green]"
+                armed_str = f"[bold green]ARMED ({arm_rem}b)[/bold green]"
             else:
-                armed_str = "[dim]FLAT (S1>25)[/dim]"
+                armed_str = "[dim]FLAT[/dim]"
 
             fmt = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) else "--"
 
@@ -631,51 +638,46 @@ class LastHopeTradingEngine:
                     if t_s4 >= M6_S4 and t_s1 < M6_S1:
                         tf_signals.append(f"[bold green]FLAG {tf}m[/bold green]")
                     elif t_s4 >= 72.0:
-                        tf_signals.append(f"[yellow]Flag {tf}m (S4={t_s4:.0f})[/yellow]")
+                        tf_signals.append(f"[yellow]Flag {tf}m[/yellow]")
                 if t_s1 is not None and t_s3 is not None and t_s4 is not None:
                     if t_s1 < SUPER_THRESH and t_s3 < SUPER_THRESH and t_s4 < SUPER_THRESH:
                         is_rise = t_s1 > (trk.prev_s1 or 0)
                         if is_rise:
-                            tf_signals.append(f"[bold green]SUPER {tf}m (S1↑)[/bold green]")
+                            tf_signals.append(f"[bold green]SUPER {tf}m↑[/bold green]")
                         else:
                             tf_signals.append(f"[yellow]Super {tf}m[/yellow]")
 
-            setup_str = " | ".join(tf_signals) if tf_signals else "[dim]Scanning (1m/2m/3m/5m)...[/dim]"
+            setup_str = ", ".join(tf_signals) if tf_signals else "[dim]Scanning...[/dim]"
 
             # Nearest S/R Level Proximity
             ltp = self._last_ltp.get(key, 0.0)
-            nearest_sr_name = "--"
-            nearest_sr_dist = "--"
+            nearest_sr_str = "--"
             if cs.sr_levels and ltp > 0:
                 active_sr = dict(cs.sr_levels)
                 if cs.ema20.value: active_sr["EMA20"] = cs.ema20.value
                 if cs.ema200.value: active_sr["EMA200"] = cs.ema200.value
                 if cs.vwap.value: active_sr["VWAP"] = cs.vwap.value
 
-                # Find closest level
                 closest_lvl = min(active_sr.items(), key=lambda item: abs(ltp - item[1]))
-                nearest_sr_name = f"{closest_lvl[0]} ({closest_lvl[1]:.1f})"
                 diff = ltp - closest_lvl[1]
                 if abs(diff) <= 0.5:
-                    nearest_sr_dist = f"[bold green]TOUCHED ({diff:+.1f})[/bold green]"
+                    nearest_sr_str = f"{closest_lvl[0]} [bold green](TOUCH {diff:+.1f})[/bold green]"
                 else:
-                    nearest_sr_dist = f"{diff:+.1f} pts"
+                    nearest_sr_str = f"{closest_lvl[0]} ({diff:+.1f}p)"
 
             dist_pts = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
             side_color = "bold green" if cs.side == "CE" else "bold red"
             stoch_1m = f"{fmt(s1_val)}/{fmt(s3_val)}/{fmt(s4_val)}"
-            stoch_macro = f"{fmt(s4_2m)} / {fmt(s4_3m)} / {fmt(s4_5m)}"
+            stoch_macro = f"{fmt(s4_2m)}/{fmt(s4_3m)}/{fmt(s4_5m)}"
 
             mon_table.add_row(
                 f"[{side_color}]{contract_clean}[/{side_color}]",
-                f"[{side_color}]{cs.side}[/{side_color}]",
                 armed_str,
                 stoch_1m,
                 stoch_macro,
                 setup_str,
-                nearest_sr_name,
-                nearest_sr_dist,
-                f"±{dist_pts:.1f} pts",
+                nearest_sr_str,
+                f"±{dist_pts:.1f}",
                 f"₹{ltp:.2f}" if ltp > 0 else "--",
             )
 
