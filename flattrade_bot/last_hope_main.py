@@ -772,87 +772,130 @@ class LastHopeTradingEngine:
 
         return Group(*tables)
 
+    async def _main_loop_body(self) -> float:
+        """Execute one iteration of the trading loop. Returns elapsed seconds."""
+        started = time.time()
+        now = ist_now()
+
+        # 1. Dynamic Contract Rollover Watch (runs async warmup in background)
+        await self.ensure_contracts()
+
+        # 2. Poll Spot and all Option Quotes concurrently in a single parallel burst
+        poll_keys = sorted(self.engine.contracts.keys())
+        if self.active_position_key and self.active_position_key not in poll_keys:
+            poll_keys.append(self.active_position_key)
+
+        tasks = [self.client.get_quotes(exchange="NSE", token="26000")]
+        for key in poll_keys:
+            cs = self.engine.contracts.get(key)
+            if cs:
+                tasks.append(self.client.get_quotes(exchange="NFO", token=cs.token))
+            else:
+                tasks.append(asyncio.sleep(0))
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Process Spot Quote
+        spot_res = results[0] if results else None
+        if isinstance(spot_res, dict):
+            if await self._renew_token_if_expired(spot_res):
+                pass
+            elif spot_res.get("stat") == "Ok" and "lp" in spot_res:
+                try:
+                    self.spot_price = float(spot_res["lp"])
+                    self.engine.set_spot_price(self.spot_price)
+                    self._broker_status = "LIVE CONNECTED"
+                except (ValueError, TypeError):
+                    pass
+
+        # Process Option Quotes
+        for idx, key in enumerate(poll_keys, start=1):
+            if idx >= len(results):
+                break
+            oq = results[idx]
+            if not isinstance(oq, dict):
+                continue
+            if is_session_expired_response(oq):
+                await self._renew_token_if_expired(oq)
+                continue
+            if oq.get("stat") != "Ok" or "lp" not in oq:
+                continue
+            try:
+                opt_ltp = float(oq["lp"])
+            except (ValueError, TypeError):
+                continue
+            if opt_ltp <= 0:
+                continue
+            self._last_ltp[key] = opt_ltp
+
+            # Push tick to strategy engine
+            sig = self.engine.push_tick(key, opt_ltp, now)
+            if sig and not self._has_position():
+                await self._try_enter(sig)
+
+        # 3. Check Exits (SL, TP, Breakeven, EOD)
+        await self._manage_exit()
+
+        # 4. EOD Safety Square-Off at 15:15 IST
+        cur_min = minute_of(now)
+        if cur_min >= 915 and not self._eod_done:
+            self._eod_done = True
+            logger.warning("15:15 IST - triggering EOD safety square-off.")
+            await self._force_eod_square_off()
+
+        touch_runtime_record()
+        return time.time() - started
+
+    def _log_status_line(self):
+        """One-line status summary for headless (systemd) mode."""
+        now = ist_now()
+        total = len(self.trades_today)
+        wr = (self._wins_today / total * 100) if total else 0
+        net = sum(float(t.get("rs", 0.0)) for t in self.trades_today)
+        pos = "FLAT"
+        if self._has_position():
+            sym = self.active_position_key or "?"
+            ltp = self._last_ltp.get(self.active_position_key, 0)
+            pos = f"IN {sym} LTP={ltp:.2f}"
+        logger.info(
+            "[STATUS] %s | spot=%.1f | %s | trades=%d (%dW/%dL %.0f%%) | net=Rs %+.2f",
+            now.strftime("%H:%M:%S"),
+            self.spot_price or 0,
+            pos,
+            total,
+            self._wins_today,
+            total - self._wins_today,
+            wr,
+            net,
+        )
+
     async def run(self):
         await self.initialize()
         await self.recover_open_positions()
 
-        with Live(self.render_dashboard(), console=console, refresh_per_second=1, screen=True) as live:
+        has_tty = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+
+        if has_tty:
+            # Interactive terminal: full Rich dashboard
+            with Live(self.render_dashboard(), console=console, refresh_per_second=1, screen=True) as live:
+                while True:
+                    try:
+                        elapsed = await self._main_loop_body()
+                        live.update(self.render_dashboard())
+                        await asyncio.sleep(max(0.0, 1.0 - elapsed))
+                    except Exception as e:
+                        logger.error(f"Error in main loop: {e}", exc_info=True)
+                        await asyncio.sleep(2.0)
+        else:
+            # Headless mode (systemd): log status every 10 seconds
+            loop_count = 0
             while True:
                 try:
-                    started = time.time()
-                    now = ist_now()
-
-                    # 1. Dynamic Contract Rollover Watch (runs async warmup in background)
-                    await self.ensure_contracts()
-
-                    # 2. Poll Spot and all Option Quotes concurrently in a single parallel burst
-                    poll_keys = sorted(self.engine.contracts.keys())
-                    if self.active_position_key and self.active_position_key not in poll_keys:
-                        poll_keys.append(self.active_position_key)
-
-                    tasks = [self.client.get_quotes(exchange="NSE", token="26000")]
-                    for key in poll_keys:
-                        cs = self.engine.contracts.get(key)
-                        if cs:
-                            tasks.append(self.client.get_quotes(exchange="NFO", token=cs.token))
-                        else:
-                            tasks.append(asyncio.sleep(0))
-
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-
-                    # Process Spot Quote
-                    spot_res = results[0] if results else None
-                    if isinstance(spot_res, dict):
-                        if await self._renew_token_if_expired(spot_res):
-                            pass
-                        elif spot_res.get("stat") == "Ok" and "lp" in spot_res:
-                            try:
-                                self.spot_price = float(spot_res["lp"])
-                                self.engine.set_spot_price(self.spot_price)
-                                self._broker_status = "[bold green]LIVE CONNECTED[/bold green]"
-                            except (ValueError, TypeError):
-                                pass
-
-                    # Process Option Quotes
-                    for idx, key in enumerate(poll_keys, start=1):
-                        if idx >= len(results):
-                            break
-                        oq = results[idx]
-                        if not isinstance(oq, dict):
-                            continue
-                        if is_session_expired_response(oq):
-                            await self._renew_token_if_expired(oq)
-                            continue
-                        if oq.get("stat") != "Ok" or "lp" not in oq:
-                            continue
-                        try:
-                            opt_ltp = float(oq["lp"])
-                        except (ValueError, TypeError):
-                            continue
-                        if opt_ltp <= 0:
-                            continue
-                        self._last_ltp[key] = opt_ltp
-
-                        # Push tick to strategy engine
-                        sig = self.engine.push_tick(key, opt_ltp, now)
-                        if sig and not self._has_position():
-                            await self._try_enter(sig)
-
-                    # 4. Check Exits (SL, TP, Breakeven, EOD)
-                    await self._manage_exit()
-
-                    # 5. EOD Safety Square-Off at 15:15 IST
-                    cur_min = minute_of(now)
-                    if cur_min >= 915 and not self._eod_done:
-                        self._eod_done = True
-                        logger.warning("15:15 IST — triggering EOD safety square-off.")
-                        await self._force_eod_square_off()
-
-                    live.update(self.render_dashboard())
-                    touch_runtime_record()
-                    elapsed = time.time() - started
+                    elapsed = await self._main_loop_body()
+                    loop_count += 1
+                    if loop_count % 10 == 0:
+                        self._log_status_line()
                     await asyncio.sleep(max(0.0, 1.0 - elapsed))
-
                 except Exception as e:
                     logger.error(f"Error in main loop: {e}", exc_info=True)
                     await asyncio.sleep(2.0)
