@@ -387,7 +387,9 @@ class TradingProcessManager:
                 return True
 
             if use_visible_console and sys.platform != "win32":
-                # On Linux VPS: launch in a persistent detached screen session 'bot'
+                # On Linux VPS: clean up stale sessions and launch exactly one screen session 'bot'
+                subprocess.run(["pkill", "-f", "flattrade_bot.main"], check=False)
+                subprocess.run(["screen", "-wipe"], check=False)
                 screen_cmd = ["screen", "-S", "bot", "-dm", *args]
                 try:
                     subprocess.run(screen_cmd, cwd=str(self.project_root), check=True)

@@ -861,10 +861,66 @@ class LastHopeTradingEngine:
                     await asyncio.sleep(2.0)
 
 
+class ProcessSingletonLock:
+    """Guarantees only ONE instance of the bot can ever run at a time."""
+
+    def __init__(self, lockfile_path: Path):
+        self.lockfile_path = lockfile_path
+        self.fp = None
+
+    def acquire(self) -> bool:
+        try:
+            self.lockfile_path.parent.mkdir(parents=True, exist_ok=True)
+            self.fp = open(self.lockfile_path, "a+")
+            if sys.platform == "win32":
+                import msvcrt
+                try:
+                    msvcrt.locking(self.fp.fileno(), msvcrt.LK_NBLCK, 1)
+                except OSError:
+                    return False
+            else:
+                import fcntl
+                try:
+                    fcntl.flock(self.fp.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except (OSError, IOError):
+                    return False
+            self.fp.seek(0)
+            self.fp.truncate()
+            self.fp.write(str(os.getpid()))
+            self.fp.flush()
+            return True
+        except Exception:
+            return False
+
+    def release(self):
+        if self.fp:
+            try:
+                if sys.platform == "win32":
+                    import msvcrt
+                    self.fp.seek(0)
+                    msvcrt.locking(self.fp.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(self.fp.fileno(), fcntl.LOCK_UN)
+                self.fp.close()
+            except Exception:
+                pass
+            self.fp = None
+
+
 async def main():
-    live_mode = "--live" in sys.argv or "--live-orders" in sys.argv or settings.LIVE_TRADING
-    engine = LastHopeTradingEngine(live_orders=live_mode)
-    await engine.run()
+    lock = ProcessSingletonLock(ROOT / "logs" / "trading_bot.lock")
+    if not lock.acquire():
+        logger.warning("⚠️ Another trading bot instance is already active and running! Exiting duplicate process.")
+        print("\n[!] Another trading bot instance is already running. Please attach to the existing session via: screen -r bot\n")
+        return
+
+    try:
+        live_mode = "--live" in sys.argv or "--live-orders" in sys.argv or settings.LIVE_TRADING
+        engine = LastHopeTradingEngine(live_orders=live_mode)
+        await engine.run()
+    finally:
+        lock.release()
 
 
 if __name__ == "__main__":
