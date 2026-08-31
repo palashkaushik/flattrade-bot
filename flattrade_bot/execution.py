@@ -192,7 +192,7 @@ class TradeExecutor:
             quantity=self.quantity,
             ltp=entry_price,
             product="MIS",
-            slippage_buffer=1.0,
+            slippage_buffer=3.0,  # 3.0 pt aggressive buffer guarantees instant fill across the spread
         )
         if not self._accepted(response):
             return {

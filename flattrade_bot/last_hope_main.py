@@ -97,6 +97,8 @@ class LastHopeTradingEngine:
             max_daily_loss_points=math.inf,
             quantity=settings.LOT_SIZE,
             consecutive_loss_limit=4,
+            session_start_min=SESSION_START_MIN,
+            session_end_min=SESSION_END_MIN,
         )
         self.executor = (
             TradeExecutor(self.client, self.risk, self.discord, quantity=settings.LOT_SIZE, live_orders=True)

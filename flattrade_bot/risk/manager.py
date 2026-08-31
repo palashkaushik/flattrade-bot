@@ -27,7 +27,7 @@ class RiskManager:
         max_daily_loss_points: float = settings.MAX_DAILY_LOSS_POINTS,
         quantity: int = settings.LOT_SIZE,
         consecutive_loss_limit: int = settings.CONSECUTIVE_LOSS_LIMIT,
-        session_start_min: int = 9 * 60 + 20,   # 09:20
+        session_start_min: int = 9 * 60 + 15,   # 09:15
         session_end_min: int = 15 * 60 + 0,     # 15:00
     ):
         self.quantity = int(quantity)
