@@ -210,12 +210,25 @@ class LastHopeTradingEngine:
 
             if valid_prev_days:
                 last_trading_day = valid_prev_days[-1]
-                yesterday_rows = by_day[last_trading_day]
-                yh = max(float(x.get("high", x.get("inth", 0.0))) for x in yesterday_rows)
-                yl = min(float(x.get("low", x.get("intl", 0.0))) for x in yesterday_rows if float(x.get("low", x.get("intl", 0.0))) > 0)
-                yc = float(yesterday_rows[-1].get("close", yesterday_rows[-1].get("intc", 0.0)))
-                contract_state.set_day_sr_levels(yh, yl, yc)
-                logger.info(f"Initialized Day S/R for {symbol} from {last_trading_day}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
+                # Filter to normal market hours (09:15 to 15:30 IST)
+                parsed_y_rows = []
+                for x in by_day[last_trading_day]:
+                    try:
+                        x_dt = datetime.strptime(str(x["time"]), "%d-%m-%Y %H:%M:%S")
+                        x_m = x_dt.hour * 60 + x_dt.minute
+                        if 555 <= x_m <= 930:
+                            parsed_y_rows.append((x_dt, x))
+                    except Exception:
+                        pass
+
+                parsed_y_rows.sort(key=lambda item: item[0])
+                if parsed_y_rows:
+                    yesterday_rows = [item[1] for item in parsed_y_rows]
+                    yh = max(float(x.get("high", x.get("inth", 0.0))) for x in yesterday_rows)
+                    yl = min(float(x.get("low", x.get("intl", 0.0))) for x in yesterday_rows if float(x.get("low", x.get("intl", 0.0))) > 0)
+                    yc = float(yesterday_rows[-1].get("close", yesterday_rows[-1].get("intc", 0.0)))
+                    contract_state.set_day_sr_levels(yh, yl, yc)
+                    logger.info(f"Initialized Day S/R for {symbol} from {last_trading_day}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
 
             # Collect completed 1m bars from previous days for macro stochastics / ATR warmup
             prior_bars: List[Bar1m] = []
@@ -230,7 +243,7 @@ class LastHopeTradingEngine:
                     h = float(r.get("high", r.get("inth", 0.0)))
                     l = float(r.get("low", r.get("intl", 0.0)))
                     c = float(r.get("close", r.get("intc", 0.0)))
-                    v = float(r.get("v", r.get("volume", 100.0)))
+                    v = float(r.get("volume", r.get("intv", r.get("v", 100.0))))
                     if h >= l > 0:
                         prior_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt, volume=v))
 
@@ -249,7 +262,7 @@ class LastHopeTradingEngine:
                         h = float(r.get("high", r.get("inth", 0.0)))
                         l = float(r.get("low", r.get("intl", 0.0)))
                         c = float(r.get("close", r.get("intc", 0.0)))
-                        v = float(r.get("v", r.get("volume", 100.0)))
+                        v = float(r.get("volume", r.get("intv", r.get("v", 100.0))))
                         if h >= l > 0:
                             today_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt, volume=v))
 

@@ -109,7 +109,7 @@ class FlattradeHistoryFetcher:
                         "high": float(row.get("inth", 0.0)),
                         "low": float(row.get("intl", 0.0)),
                         "close": float(row.get("intc", 0.0)),
-                        "volume": float(row.get("v", 0.0)),
+                        "volume": float(row.get("intv", row.get("v", row.get("vol", 0.0)))),
                     })
                 # Flattrade TPSeries returns candles in reverse chronological order (newest first).
                 # Reverse list so candles are in strict chronological order (oldest first, newest last).
