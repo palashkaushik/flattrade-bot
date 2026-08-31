@@ -25,7 +25,11 @@ class FlattradeClient:
     def _get_client(self) -> httpx.AsyncClient:
         """Returns the persistent connection-pooled client (created once)."""
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=5.0)
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(2.5, connect=1.0),
+                limits=httpx.Limits(max_keepalive_connections=30, max_connections=50, keepalive_expiry=30.0),
+                http2=False,
+            )
         return self._client
 
     async def _post(self, url: str, body: str) -> Dict[str, Any]:

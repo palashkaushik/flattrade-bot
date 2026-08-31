@@ -40,7 +40,10 @@ class FlattradeHistoryFetcher:
     def _get_client(self) -> httpx.AsyncClient:
         """Returns the persistent connection-pooled client (created once)."""
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=10.0)
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(10.0, connect=2.0),
+                limits=httpx.Limits(max_keepalive_connections=30, max_connections=50, keepalive_expiry=30.0),
+            )
         return self._client
 
     async def aclose(self) -> None:
