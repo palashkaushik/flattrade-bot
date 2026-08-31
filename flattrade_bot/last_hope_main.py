@@ -810,7 +810,7 @@ class LastHopeTradingEngine:
 
 
 async def main():
-    live_mode = "--live" in sys.argv
+    live_mode = "--live" in sys.argv or "--live-orders" in sys.argv or settings.LIVE_TRADING
     engine = LastHopeTradingEngine(live_orders=live_mode)
     await engine.run()
 
