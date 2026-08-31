@@ -232,9 +232,9 @@ class LastHopeTradingEngine:
                         prev_days = [d for d in sorted(by_day.keys()) if d != today_str]
                         if prev_days:
                             yesterday_rows = by_day[prev_days[-1]]
-                            yh = max(float(x["into"]) for x in yesterday_rows if "into" in x)
-                            yl = min(float(x["intl"]) for x in yesterday_rows if "intl" in x)
-                            yc = float(yesterday_rows[-1]["intc"])
+                            yh = max(float(x.get("high", x.get("inth", 0.0))) for x in yesterday_rows)
+                            yl = min(float(x.get("low", x.get("intl", 0.0))) for x in yesterday_rows if float(x.get("low", x.get("intl", 0.0))) > 0)
+                            yc = float(yesterday_rows[-1].get("close", yesterday_rows[-1].get("intc", 0.0)))
                             contract_state.set_day_sr_levels(yh, yl, yc)
                             logger.info(f"Initialized Day S/R for {scrip['tsym']}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
 
@@ -247,10 +247,14 @@ class LastHopeTradingEngine:
                                 except (TypeError, ValueError):
                                     continue
                                 if (dt.hour * 60 + dt.minute) < cur_m:
-                                    contract_state.push_tick(float(r["into"]), dt)
-                                    contract_state.push_tick(float(r["inth"]), dt)
-                                    contract_state.push_tick(float(r["intl"]), dt)
-                                    contract_state.push_tick(float(r["intc"]), dt)
+                                    o = float(r.get("open", r.get("into", 0.0)))
+                                    h = float(r.get("high", r.get("inth", 0.0)))
+                                    l = float(r.get("low", r.get("intl", 0.0)))
+                                    c = float(r.get("close", r.get("intc", 0.0)))
+                                    contract_state.push_tick(o, dt)
+                                    contract_state.push_tick(h, dt)
+                                    contract_state.push_tick(l, dt)
+                                    contract_state.push_tick(c, dt)
                 except Exception as e:
                     logger.warning(f"Warmup fetch failed for {key}: {e}")
 
@@ -800,6 +804,7 @@ class LastHopeTradingEngine:
                         logger.warning("15:15 IST — triggering EOD safety square-off.")
                         await self._force_eod_square_off()
 
+                    live.update(self.render_dashboard())
                     touch_runtime_record()
                     elapsed = time.time() - started
                     await asyncio.sleep(max(0.0, 1.0 - elapsed))
