@@ -554,25 +554,32 @@ class LastHopeTradingEngine:
         if not is_session_expired_response(response):
             return False
         now_ts = time.time()
-        if now_ts - getattr(self, "_last_token_renew", 0.0) < 300:
+        if now_ts - getattr(self, "_last_token_renew", 0.0) < 60:
             return True
-        self._last_token_renew = now_ts
         logger.warning("Session expired. Renewing token via REST API...")
         try:
             from flattrade_bot.broker.auto_login import automated_flattrade_login_rest
-            new_token = automated_flattrade_login_rest(
-                user_id=settings.FLATTRADE_USER_ID,
-                password=settings.FLATTRADE_PASSWORD,
-                totp_key=settings.FLATTRADE_TOTP_KEY,
-                api_key=settings.FLATTRADE_API_KEY,
-                api_secret=settings.FLATTRADE_API_SECRET,
+            loop = asyncio.get_running_loop()
+            new_token = await loop.run_in_executor(
+                None,
+                lambda: automated_flattrade_login_rest(
+                    user_id=settings.FLATTRADE_USER_ID,
+                    password=settings.FLATTRADE_PASSWORD,
+                    totp_key=settings.FLATTRADE_TOTP_KEY,
+                    api_key=settings.FLATTRADE_API_KEY,
+                    api_secret=settings.FLATTRADE_API_SECRET,
+                ),
             )
             if new_token:
                 self.client.set_token(new_token)
                 self.history.set_token(new_token)
+                self._last_token_renew = time.time()
+                logger.info("Token renewed successfully.")
                 return True
+            else:
+                logger.error("Token renewal returned empty — will retry in 60s")
         except Exception as e:
-            logger.error(f"Token renewal failed: {e}")
+            logger.error(f"Token renewal failed: {e} — will retry in 60s")
         return True
 
     def render_dashboard(self) -> Group:
@@ -799,11 +806,17 @@ class LastHopeTradingEngine:
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
+        # Log any exceptions from the gather (timeouts, connection errors, etc.)
+        for idx, result in enumerate(results):
+            if isinstance(result, Exception):
+                label = "spot" if idx == 0 else f"option[{poll_keys[idx-1] if idx-1 < len(poll_keys) else '?'}]"
+                logger.warning("Quote poll exception for %s: %s", label, result)
+
         # Process Spot Quote
         spot_res = results[0] if results else None
         if isinstance(spot_res, dict):
             if await self._renew_token_if_expired(spot_res):
-                pass
+                pass  # Token renewed; next iteration will use it
             elif spot_res.get("stat") == "Ok" and "lp" in spot_res:
                 try:
                     self.spot_price = float(spot_res["lp"])
@@ -823,6 +836,8 @@ class LastHopeTradingEngine:
                 await self._renew_token_if_expired(oq)
                 continue
             if oq.get("stat") != "Ok" or "lp" not in oq:
+                if oq.get("stat") != "Ok":
+                    logger.debug("Quote %s stat=%s emsg=%s", key, oq.get("stat"), oq.get("emsg", ""))
                 continue
             try:
                 opt_ltp = float(oq["lp"])

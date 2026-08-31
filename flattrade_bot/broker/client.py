@@ -26,7 +26,7 @@ class FlattradeClient:
         """Returns the persistent connection-pooled client (created once)."""
         if self._client is None:
             self._client = httpx.AsyncClient(
-                timeout=httpx.Timeout(2.5, connect=1.0),
+                timeout=httpx.Timeout(5.0, connect=2.0),
                 limits=httpx.Limits(max_keepalive_connections=30, max_connections=50, keepalive_expiry=30.0),
                 http2=False,
             )
@@ -163,7 +163,8 @@ class FlattradeClient:
     async def get_quotes(self, exchange: str = "NSE", token: str = "26000") -> Dict[str, Any]:
         """Fetches live real-time market quote / LTP for an instrument token."""
         if not self.auth_token:
-            return {"stat": "Ok", "lp": "24240.00"}
+            logger.warning("get_quotes called with no auth_token — returning Not_Ok")
+            return {"stat": "Not_Ok", "emsg": "no_auth_token"}
 
         url = f"{self.base_url}GetQuotes"
         payload = {
