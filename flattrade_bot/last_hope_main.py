@@ -679,8 +679,46 @@ class LastHopeTradingEngine:
                 f"₹{ltp:.2f}" if ltp > 0 else "--",
             )
 
-        # ── 3. Active Trade Cockpit (if position is open) ─────────────────────
-        tables = [banner, sys_table, mon_table]
+        # ── 3. Option S/R Suite & Technical Indicators Table ─────────────────
+        sr_table = Table(
+            title="[bold cyan]📐 OPTION S/R SUITE & TECHNICAL INDICATORS (CPR · Camarilla · EMA20/200 · VWAP · ATR)[/bold cyan]",
+            box=box.SIMPLE_HEAD, expand=True, padding=(0, 1),
+        )
+        for col, style, j in (
+            ("STRIKE", "bold white", "left"),
+            ("LTP", "bold yellow", "right"),
+            ("PDH / PDL", "bold white", "center"),
+            ("CPR (BC / PIVOT / TC)", "bold cyan", "center"),
+            ("EMA20 / EMA200", "bold white", "center"),
+            ("VWAP", "bold magenta", "center"),
+            ("ATR (DIST)", "bold green", "right"),
+        ):
+            sr_table.add_column(col, style=style, justify=j, no_wrap=True)
+
+        for key, cs in self.engine.contracts.items():
+            ltp = self._last_ltp.get(key, 0.0)
+            f2 = lambda v: f"{v:.1f}" if isinstance(v, (int, float)) and v else "--"
+            pdh = f2(cs.sr_levels.get("PDH"))
+            pdl = f2(cs.sr_levels.get("PDL"))
+            cpr = f"{f2(cs.sr_levels.get('CPR_BC'))} / {f2(cs.sr_levels.get('CPR_Pivot'))} / {f2(cs.sr_levels.get('CPR_TC'))}"
+            ema = f"{f2(cs.ema20.value)} / {f2(cs.ema200.value)}"
+            vwap = f2(cs.vwap.value)
+            atr = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
+            side_color = "bold green" if cs.side == "CE" else "bold red"
+            contract_clean = f"{cs.strike} {cs.side}"
+
+            sr_table.add_row(
+                f"[{side_color}]{contract_clean}[/{side_color}]",
+                f"₹{ltp:.2f}" if ltp > 0 else "--",
+                f"{pdh} / {pdl}",
+                cpr,
+                ema,
+                vwap,
+                f"±{atr:.1f} pts",
+            )
+
+        # ── 4. Active Trade Cockpit (if position is open) ─────────────────────
+        tables = [banner, sys_table, mon_table, sr_table]
         pos = self.paper_position or (self.executor.position if self.executor else None)
         if pos:
             ltp = self._last_ltp.get(self.active_position_key, pos["entry"])
