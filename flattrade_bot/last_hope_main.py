@@ -943,6 +943,12 @@ class LastHopeTradingEngine:
         has_tty = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
 
         if has_tty:
+            # Suppress StreamHandler so Rich Live doesn't conflict with logger output
+            root_logger = logging.getLogger()
+            for h in root_logger.handlers:
+                if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler):
+                    h.setLevel(logging.WARNING)
+
             # Interactive terminal: full Rich dashboard
             with Live(self.render_dashboard(), console=console, refresh_per_second=1, screen=True) as live:
                 while True:
