@@ -44,6 +44,7 @@ from flattrade_bot.risk.manager import RiskManager
 from flattrade_bot.strategies.last_hope_winner import (
     ARM_WINDOW,
     ATR_MULT,
+    Bar1m,
     LastHopeWinnerEngine,
     M6_S1,
     M6_S4,
@@ -177,6 +178,70 @@ class LastHopeTradingEngine:
             })
         )
 
+    async def _warmup_contract(self, contract_state: OptionContractState, token: str, symbol: str, today_str: str, now: datetime):
+        """Asynchronously warms up historical candles and S/R levels without blocking quote polling."""
+        try:
+            seed_rows = await self.history.fetch_historical_candles(
+                token=token, exchange="NFO", interval="1", days_back=3
+            )
+            if not seed_rows:
+                return
+            by_day: Dict[str, List[Dict[str, Any]]] = {}
+            for r in seed_rows:
+                t_str = str(r.get("time", ""))
+                d_part = t_str.split(" ")[0] if " " in t_str else t_str
+                by_day.setdefault(d_part, []).append(r)
+
+            prev_days = [d for d in sorted(by_day.keys()) if d != today_str]
+            if prev_days:
+                yesterday_rows = by_day[prev_days[-1]]
+                yh = max(float(x.get("high", x.get("inth", 0.0))) for x in yesterday_rows)
+                yl = min(float(x.get("low", x.get("intl", 0.0))) for x in yesterday_rows if float(x.get("low", x.get("intl", 0.0))) > 0)
+                yc = float(yesterday_rows[-1].get("close", yesterday_rows[-1].get("intc", 0.0)))
+                contract_state.set_day_sr_levels(yh, yl, yc)
+                logger.info(f"Initialized Day S/R for {symbol}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
+
+            # Collect completed 1m bars from previous days and today
+            warmup_bars: List[Bar1m] = []
+            cur_m = minute_of(now)
+
+            # Prior days candles for 50-bar stoch/EMA/ATR warmup
+            for d in prev_days[-2:]:
+                for r in by_day[d]:
+                    try:
+                        dt = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
+                    except (TypeError, ValueError):
+                        continue
+                    m = dt.hour * 60 + dt.minute
+                    o = float(r.get("open", r.get("into", 0.0)))
+                    h = float(r.get("high", r.get("inth", 0.0)))
+                    l = float(r.get("low", r.get("intl", 0.0)))
+                    c = float(r.get("close", r.get("intc", 0.0)))
+                    if h >= l > 0:
+                        warmup_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt))
+
+            # Today's completed candles
+            if today_str in by_day:
+                for r in by_day[today_str]:
+                    try:
+                        dt = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
+                    except (TypeError, ValueError):
+                        continue
+                    m = dt.hour * 60 + dt.minute
+                    if m < cur_m:
+                        o = float(r.get("open", r.get("into", 0.0)))
+                        h = float(r.get("high", r.get("inth", 0.0)))
+                        l = float(r.get("low", r.get("intl", 0.0)))
+                        c = float(r.get("close", r.get("intc", 0.0)))
+                        if h >= l > 0:
+                            warmup_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt))
+
+            if warmup_bars:
+                contract_state.seed_1m_bars(warmup_bars)
+                logger.info(f"✅ Fully seeded {len(warmup_bars)} 1m warmup bars for {symbol} — Stochastics (S1/S3/S4) and ATR active.")
+        except Exception as e:
+            logger.warning(f"Async warmup failed for {symbol}: {e}")
+
     async def ensure_contracts(self, force: bool = False):
         """Resolves 2nd ITM contracts + rollover watch pairs and warms up indicators & daily S/R levels."""
         if not self.history.auth_token or self.spot_price is None:
@@ -194,9 +259,16 @@ class LastHopeTradingEngine:
             ("CE", desired["CE_WATCH_MINUS50"]),
             ("PE", desired["PE_WATCH_MINUS50"]),
         ]
+        desired_keys = {f"{side}:{strike}" for side, strike in pairs}
 
         now = ist_now()
         today_str = now.strftime("%d-%m-%Y")
+
+        # Prune stale contracts not in desired_keys or active position
+        for k in list(self.engine.contracts.keys()):
+            if k not in desired_keys and k != self.active_position_key:
+                del self.engine.contracts[k]
+                self._last_ltp.pop(k, None)
 
         for side, strike in pairs:
             key = f"{side}:{strike}"
@@ -215,49 +287,10 @@ class LastHopeTradingEngine:
                     strike=strike,
                 )
 
-                # Fetch historical 1m bars for warm-up and Daily CPR / Camarilla initialization
-                try:
-                    seed_rows = await self.history.fetch_historical_candles(
-                        token=scrip["token"], exchange="NFO", interval="1", days_back=3
-                    )
-                    if seed_rows:
-                        # Group rows by day
-                        by_day: Dict[str, List[Dict[str, Any]]] = {}
-                        for r in seed_rows:
-                            t_str = str(r.get("time", ""))
-                            d_part = t_str.split(" ")[0] if " " in t_str else t_str
-                            by_day.setdefault(d_part, []).append(r)
-
-                        # Find previous day to build CPR / Camarilla
-                        prev_days = [d for d in sorted(by_day.keys()) if d != today_str]
-                        if prev_days:
-                            yesterday_rows = by_day[prev_days[-1]]
-                            yh = max(float(x.get("high", x.get("inth", 0.0))) for x in yesterday_rows)
-                            yl = min(float(x.get("low", x.get("intl", 0.0))) for x in yesterday_rows if float(x.get("low", x.get("intl", 0.0))) > 0)
-                            yc = float(yesterday_rows[-1].get("close", yesterday_rows[-1].get("intc", 0.0)))
-                            contract_state.set_day_sr_levels(yh, yl, yc)
-                            logger.info(f"Initialized Day S/R for {scrip['tsym']}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
-
-                        # Warm up 1m bars from today's past completed bars
-                        if today_str in by_day:
-                            cur_m = minute_of(now)
-                            for r in by_day[today_str]:
-                                try:
-                                    dt = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
-                                except (TypeError, ValueError):
-                                    continue
-                                if (dt.hour * 60 + dt.minute) < cur_m:
-                                    o = float(r.get("open", r.get("into", 0.0)))
-                                    h = float(r.get("high", r.get("inth", 0.0)))
-                                    l = float(r.get("low", r.get("intl", 0.0)))
-                                    c = float(r.get("close", r.get("intc", 0.0)))
-                                    contract_state.push_tick(o, dt)
-                                    contract_state.push_tick(h, dt)
-                                    contract_state.push_tick(l, dt)
-                                    contract_state.push_tick(c, dt)
-                except Exception as e:
-                    logger.warning(f"Warmup fetch failed for {key}: {e}")
-
+                # Launch async warmup in background without blocking main loop
+                asyncio.create_task(
+                    self._warmup_contract(contract_state, scrip["token"], scrip["tsym"], today_str, now)
+                )
             except Exception as e:
                 logger.warning(f"Contract resolution failed for {key}: {e}")
 
@@ -750,32 +783,44 @@ class LastHopeTradingEngine:
                     started = time.time()
                     now = ist_now()
 
-                    # 1. Fetch live Nifty spot price
-                    if self.client.auth_token:
-                        quote = await self.client.get_quotes(exchange="NSE", token="26000")
-                        if await self._renew_token_if_expired(quote):
+                    # 1. Dynamic Contract Rollover Watch (runs async warmup in background)
+                    await self.ensure_contracts()
+
+                    # 2. Poll Spot and all Option Quotes concurrently in a single parallel burst
+                    poll_keys = sorted(self.engine.contracts.keys())
+                    if self.active_position_key and self.active_position_key not in poll_keys:
+                        poll_keys.append(self.active_position_key)
+
+                    tasks = [self.client.get_quotes(exchange="NSE", token="26000")]
+                    for key in poll_keys:
+                        cs = self.engine.contracts.get(key)
+                        if cs:
+                            tasks.append(self.client.get_quotes(exchange="NFO", token=cs.token))
+                        else:
+                            tasks.append(asyncio.sleep(0))
+
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                    # Process Spot Quote
+                    spot_res = results[0] if results else None
+                    if isinstance(spot_res, dict):
+                        if await self._renew_token_if_expired(spot_res):
                             pass
-                        elif quote.get("stat") == "Ok" and "lp" in quote:
+                        elif spot_res.get("stat") == "Ok" and "lp" in spot_res:
                             try:
-                                self.spot_price = float(quote["lp"])
+                                self.spot_price = float(spot_res["lp"])
                                 self.engine.set_spot_price(self.spot_price)
                                 self._broker_status = "[bold green]LIVE CONNECTED[/bold green]"
                             except (ValueError, TypeError):
                                 pass
 
-                    # 2. Dynamic Contract Rollover Watch
-                    await self.ensure_contracts()
-
-                    # 3. Poll quotes for registered option contracts
-                    poll_keys = set(self.engine.contracts.keys())
-                    if self.active_position_key:
-                        poll_keys.add(self.active_position_key)
-
-                    for key in sorted(poll_keys):
-                        cs = self.engine.contracts.get(key)
-                        if cs is None:
+                    # Process Option Quotes
+                    for idx, key in enumerate(poll_keys, start=1):
+                        if idx >= len(results):
+                            break
+                        oq = results[idx]
+                        if not isinstance(oq, dict):
                             continue
-                        oq = await self.client.get_quotes(exchange="NFO", token=cs.token)
                         if is_session_expired_response(oq):
                             await self._renew_token_if_expired(oq)
                             continue

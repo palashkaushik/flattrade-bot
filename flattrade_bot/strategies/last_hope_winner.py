@@ -248,6 +248,19 @@ class OptionContractState:
             "PDL": prev_low,
         }
 
+    def seed_1m_bars(self, bars: List[Bar1m]):
+        """Seeds historical 1m completed bars to warm up all indicators and multi-TF stochastics."""
+        for bar in bars:
+            self.bars.append(bar)
+            atr_val = self.atr.update(bar.high, bar.low, bar.close)
+            self.ema20.update(bar.close)
+            self.ema200.update(bar.close)
+            self.vwap.update(bar.high, bar.low, bar.close)
+            self.latest_atr = atr_val
+
+            for tf, tracker in self.tf_trackers.items():
+                tracker.push_1m_bar(bar)
+
     def push_tick(self, ltp: float, dt: datetime) -> Optional[Dict[str, Any]]:
         """Processes a live tick quote. Returns a Trigger Signal if a 1m bar closes and triggers."""
         self.latest_ltp = ltp
