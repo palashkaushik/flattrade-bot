@@ -868,6 +868,30 @@ class LastHopeTradingEngine:
             wr,
             net,
         )
+        # Log S/R levels for TradingView verification
+        for key, cs in self.engine.contracts.items():
+            if not cs.sr_levels:
+                continue
+            ltp = self._last_ltp.get(key, 0)
+            sr_parts = []
+            for name, price in cs.sr_levels.items():
+                sr_parts.append(f"{name}={price:.2f}")
+            if cs.ema20.value:
+                sr_parts.append(f"EMA20={cs.ema20.value:.2f}")
+            if cs.ema200.value:
+                sr_parts.append(f"EMA200={cs.ema200.value:.2f}")
+            if cs.vwap.value:
+                sr_parts.append(f"VWAP={cs.vwap.value:.2f}")
+            atr_pts = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
+            logger.info(
+                "[SR] %s %s | LTP=%.2f | ATR=%.2f dist=%.1f | %s",
+                cs.side,
+                cs.strike,
+                ltp,
+                cs.latest_atr,
+                atr_pts,
+                " | ".join(sr_parts),
+            )
 
     async def run(self):
         await self.initialize()
