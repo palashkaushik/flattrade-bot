@@ -63,20 +63,15 @@ class IncrementalStoch:
         self.lows = deque(maxlen=k_period)
         self.raw_k_history = deque(maxlen=d_period)
 
-    def update(self, high: float, low: float, close: float) -> Optional[float]:
+    def update(self, high: float, low: float, close: float) -> float:
         self.highs.append(high)
         self.lows.append(low)
-        if len(self.highs) < self.k_period:
-            return None
 
         hh = max(self.highs)
         ll = min(self.lows)
         denom = max(hh - ll, 1e-6)
         raw_k = ((close - ll) / denom) * 100.0
         self.raw_k_history.append(raw_k)
-
-        if len(self.raw_k_history) < self.d_period:
-            return None
 
         return sum(self.raw_k_history) / len(self.raw_k_history)
 
@@ -118,23 +113,28 @@ class IncrementalEMA:
 
 
 class IncrementalVWAP:
-    """Volume Weighted Average Price (assuming uniform lot volume per 1m bar)."""
+    """Volume Weighted Average Price (intraday session, resets daily)."""
 
     def __init__(self):
         self.cum_pv = 0.0
         self.cum_vol = 0.0
         self.value: Optional[float] = None
 
+    def reset(self):
+        self.cum_pv = 0.0
+        self.cum_vol = 0.0
+        self.value = None
+
     def update(self, high: float, low: float, close: float, volume: float = 100.0) -> float:
         hlc3 = (high + low + close) / 3.0
-        vol = max(volume, 10.0)
+        vol = max(volume, 1.0)
         self.cum_pv += hlc3 * vol
         self.cum_vol += vol
         self.value = self.cum_pv / max(self.cum_vol, 1.0)
         return self.value
 
 
-@dataclass
+@dataclass(frozen=True)
 class Bar1m:
     minute: int
     open: float
@@ -142,6 +142,7 @@ class Bar1m:
     low: float
     close: float
     timestamp: datetime
+    volume: float = 100.0
 
 
 @dataclass
@@ -248,14 +249,26 @@ class OptionContractState:
             "PDL": prev_low,
         }
 
-    def seed_1m_bars(self, bars: List[Bar1m]):
-        """Seeds historical 1m completed bars to warm up all indicators and multi-TF stochastics."""
-        for bar in bars:
+    def seed_1m_bars(self, prior_bars: List[Bar1m], today_bars: Optional[List[Bar1m]] = None):
+        """Seeds prior completed bars for indicator warmup, and today's completed bars with intraday VWAP."""
+        if today_bars is None:
+            today_bars = []
+        for bar in prior_bars:
+            self.bars.append(bar)
+            self.atr.update(bar.high, bar.low, bar.close)
+            self.ema20.update(bar.close)
+            self.ema200.update(bar.close)
+            for tf, tracker in self.tf_trackers.items():
+                tracker.push_1m_bar(bar)
+
+        self.vwap.reset()
+
+        for bar in today_bars:
             self.bars.append(bar)
             atr_val = self.atr.update(bar.high, bar.low, bar.close)
             self.ema20.update(bar.close)
             self.ema200.update(bar.close)
-            self.vwap.update(bar.high, bar.low, bar.close)
+            self.vwap.update(bar.high, bar.low, bar.close, volume=bar.volume)
             self.latest_atr = atr_val
 
             for tf, tracker in self.tf_trackers.items():

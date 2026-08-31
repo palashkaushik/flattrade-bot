@@ -186,7 +186,7 @@ class LastHopeTradingEngine:
         """Asynchronously warms up historical candles and S/R levels without blocking quote polling."""
         try:
             seed_rows = await self.history.fetch_historical_candles(
-                token=token, exchange="NFO", interval="1", days_back=3
+                token=token, exchange="NFO", interval="1", days_back=5
             )
             if not seed_rows:
                 return
@@ -196,21 +196,30 @@ class LastHopeTradingEngine:
                 d_part = t_str.split(" ")[0] if " " in t_str else t_str
                 by_day.setdefault(d_part, []).append(r)
 
-            prev_days = [d for d in sorted(by_day.keys()) if d != today_str]
-            if prev_days:
-                yesterday_rows = by_day[prev_days[-1]]
+            def parse_d(d_str: str) -> datetime:
+                try:
+                    return datetime.strptime(d_str, "%d-%m-%Y")
+                except Exception:
+                    return datetime.min
+
+            # Filter valid trading sessions (with >= 50 candles) and sort strictly chronologically
+            valid_prev_days = sorted(
+                [d for d in by_day.keys() if d != today_str and len(by_day[d]) >= 50],
+                key=parse_d,
+            )
+
+            if valid_prev_days:
+                last_trading_day = valid_prev_days[-1]
+                yesterday_rows = by_day[last_trading_day]
                 yh = max(float(x.get("high", x.get("inth", 0.0))) for x in yesterday_rows)
                 yl = min(float(x.get("low", x.get("intl", 0.0))) for x in yesterday_rows if float(x.get("low", x.get("intl", 0.0))) > 0)
                 yc = float(yesterday_rows[-1].get("close", yesterday_rows[-1].get("intc", 0.0)))
                 contract_state.set_day_sr_levels(yh, yl, yc)
-                logger.info(f"Initialized Day S/R for {symbol}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
+                logger.info(f"Initialized Day S/R for {symbol} from {last_trading_day}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
 
-            # Collect completed 1m bars from previous days and today
-            warmup_bars: List[Bar1m] = []
-            cur_m = minute_of(now)
-
-            # Prior days candles for 50-bar stoch/EMA/ATR warmup
-            for d in prev_days[-2:]:
+            # Collect completed 1m bars from previous days for macro stochastics / ATR warmup
+            prior_bars: List[Bar1m] = []
+            for d in valid_prev_days[-2:]:
                 for r in by_day[d]:
                     try:
                         dt = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
@@ -221,10 +230,13 @@ class LastHopeTradingEngine:
                     h = float(r.get("high", r.get("inth", 0.0)))
                     l = float(r.get("low", r.get("intl", 0.0)))
                     c = float(r.get("close", r.get("intc", 0.0)))
+                    v = float(r.get("v", r.get("volume", 100.0)))
                     if h >= l > 0:
-                        warmup_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt))
+                        prior_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt, volume=v))
 
-            # Today's completed candles
+            # Today's completed candles (intraday session VWAP & live indicators)
+            today_bars: List[Bar1m] = []
+            cur_m = minute_of(now)
             if today_str in by_day:
                 for r in by_day[today_str]:
                     try:
@@ -237,12 +249,13 @@ class LastHopeTradingEngine:
                         h = float(r.get("high", r.get("inth", 0.0)))
                         l = float(r.get("low", r.get("intl", 0.0)))
                         c = float(r.get("close", r.get("intc", 0.0)))
+                        v = float(r.get("v", r.get("volume", 100.0)))
                         if h >= l > 0:
-                            warmup_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt))
+                            today_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt, volume=v))
 
-            if warmup_bars:
-                contract_state.seed_1m_bars(warmup_bars)
-                logger.info(f"✅ Fully seeded {len(warmup_bars)} 1m warmup bars for {symbol} — Stochastics (S1/S3/S4) and ATR active.")
+            if prior_bars or today_bars:
+                contract_state.seed_1m_bars(prior_bars, today_bars)
+                logger.info(f"✅ Fully seeded {len(prior_bars)} prior + {len(today_bars)} today 1m bars for {symbol}")
         except Exception as e:
             logger.warning(f"Async warmup failed for {symbol}: {e}")
 
