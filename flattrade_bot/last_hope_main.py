@@ -596,12 +596,10 @@ class LastHopeTradingEngine:
         )
         for col, style, j in (
             ("STRIKE", "bold white", "left"),
-            ("ARMING", "bold yellow", "center"),
-            ("1m S1/S3/S4", "bold white", "center"),
-            ("2m/3m/5m S4", "bold white", "center"),
-            ("ACTIVE TF SETUPS", "bold magenta", "left"),
-            ("S/R LEVEL (PROXIMITY)", "bold cyan", "left"),
-            ("SL / TP", "bold white", "center"),
+            ("ARM", "bold yellow", "center"),
+            ("STOCH (1m/multi)", "bold white", "center"),
+            ("SETUP", "bold magenta", "left"),
+            ("PROX (S/R)", "bold cyan", "left"),
             ("LTP", "bold yellow", "right"),
         ):
             mon_table.add_column(col, style=style, justify=j, no_wrap=True)
@@ -664,17 +662,14 @@ class LastHopeTradingEngine:
 
             dist_pts = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
             side_color = "bold green" if cs.side == "CE" else "bold red"
-            stoch_1m = f"{fmt(s1_val)}/{fmt(s3_val)}/{fmt(s4_val)}"
-            stoch_macro = f"{fmt(s4_2m)}/{fmt(s4_3m)}/{fmt(s4_5m)}"
+            stoch_combined = f"{fmt(s1_val)}/{fmt(s3_val)}/{fmt(s4_val)} {fmt(s4_2m)}/{fmt(s4_3m)}/{fmt(s4_5m)}"
 
             mon_table.add_row(
                 f"[{side_color}]{contract_clean}[/{side_color}]",
                 armed_str,
-                stoch_1m,
-                stoch_macro,
+                stoch_combined,
                 setup_str,
                 nearest_sr_str,
-                f"±{dist_pts:.1f}",
                 f"₹{ltp:.2f}" if ltp > 0 else "--",
             )
 
@@ -685,13 +680,10 @@ class LastHopeTradingEngine:
         )
         for col, style, j in (
             ("STRIKE", "bold white", "left"),
-            ("LTP", "bold yellow", "right"),
             ("PDH/PDL", "bold white", "center"),
             ("CPR (BC/Piv/TC)", "bold white", "center"),
-            ("Cam (H3/L3)", "bold white", "center"),
-            ("EMA20/200", "bold white", "center"),
-            ("VWAP", "bold white", "center"),
-            ("ATR", "bold white", "center"),
+            ("EMA20/200 VWAP", "bold white", "center"),
+            ("ATR dist", "bold white", "center"),
         ):
             sr_table.add_column(col, style=style, justify=j, no_wrap=True)
 
@@ -700,13 +692,10 @@ class LastHopeTradingEngine:
             f2 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
             side_color = "bold green" if cs.side == "CE" else "bold red"
             sr_table.add_row(
-                f"[{side_color}]{cs.strike} {cs.side}[/{side_color}]",
-                f"₹{ltp:.0f}" if ltp > 0 else "--",
+                f"[{side_color}]{cs.strike} {cs.side} ₹{ltp:.0f}[/{side_color}]",
                 f"{f2(cs.sr_levels.get('PDH'))}/{f2(cs.sr_levels.get('PDL'))}",
                 f"{f2(cs.sr_levels.get('CPR_BC'))}/{f2(cs.sr_levels.get('CPR_Pivot'))}/{f2(cs.sr_levels.get('CPR_TC'))}",
-                f"{f2(cs.sr_levels.get('Cam_H3'))}/{f2(cs.sr_levels.get('Cam_L3'))}",
-                f"{f2(cs.ema20.value)}/{f2(cs.ema200.value)}",
-                f2(cs.vwap.value),
+                f"{f2(cs.ema20.value)}/{f2(cs.ema200.value)} {f2(cs.vwap.value)}",
                 f"±{min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP):.1f}",
             )
 
@@ -939,7 +928,7 @@ class LastHopeTradingEngine:
                     h.setLevel(logging.WARNING)
 
             # Interactive terminal: full Rich dashboard
-            with Live(self.render_dashboard(), console=console, refresh_per_second=1, screen=True, vertical_overflow="visible") as live:
+            with Live(self.render_dashboard(), console=console, refresh_per_second=1, vertical_overflow="visible") as live:
                 while True:
                     try:
                         elapsed = await self._main_loop_body()
