@@ -23,14 +23,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-from rich import box
-from rich.align import Align
-from rich.console import Console, Group
-from rich.live import Live
-from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
-
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -68,7 +60,6 @@ file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)
 
 logging.basicConfig(level=logging.INFO, handlers=[file_handler, logging.StreamHandler()])
 logger = logging.getLogger("flattrade_bot.last_hope_main")
-console = Console(legacy_windows=False, force_terminal=True)
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -546,252 +537,93 @@ class LastHopeTradingEngine:
             logger.error(f"Token renewal failed: {e}")
         return True
 
-    def render_dashboard(self) -> Group:
+    def print_dashboard(self):
+        """Print dashboard using plain print() — no Rich, no threads, works in any SSH."""
         now = ist_now()
         time_str = now.strftime("%H:%M:%S")
-        header = Text.from_markup(
-            f" [bold bright_yellow]🏆 LAST HOPE GPU WINNER[/bold bright_yellow] "
-            f"| [bold white]2nd ITM · Multi-TF Stoch · S/R Bounce · ATR×1.5 + BE[/bold white] "
-            f"| [cyan]{time_str} IST[/cyan]"
-        )
-        banner = Panel(Align.center(header), box=box.ROUNDED, style="bright_blue", padding=(0, 1))
-
         sess_active = SESSION_START_MIN <= minute_of(now) < SESSION_END_MIN
-        mode_str = "[bold white on red] LIVE BROKER [/bold white on red]" if self.live_orders else "[bold white on blue] PAPER SIM [/bold white on blue]"
+        mode = "LIVE" if self.live_orders else "PAPER"
         net_rs = sum(float(t.get("rs", 0.0)) for t in self.trades_today)
         net_pts = sum(float(t.get("pts", 0.0)) for t in self.trades_today)
-        pnl_color = "bold green" if net_rs >= 0 else "bold red"
-        atm = int(round(self.spot_price / 50.0) * 50) if self.spot_price else "--"
-        total_trades = len(self.trades_today)
-        wr = (self._wins_today / total_trades * 100.0) if total_trades > 0 else 0.0
+        atm = int(round(self.spot_price / 50.0) * 50) if self.spot_price else 0
+        total = len(self.trades_today)
+        wr = (self._wins_today / total * 100.0) if total > 0 else 0.0
+        sess = "ACTIVE" if sess_active else "CLOSED"
 
-        # ── 1. Compact System Telemetry Bar (Responsive on split-screen) ─────
-        sys_table = Table(box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
-        for col, style in (
-            ("MODE", "bold white"),
-            ("SPOT (ATM)", "bold yellow"),
-            ("2nd ITM (CE / PE)", "bold cyan"),
-            ("SESSION", "bold green"),
-            ("TRADES (W/L)", "bold white"),
-            ("NET P&L (₹)", "bold white"),
-        ):
-            sys_table.add_column(col, style=style, justify="center", no_wrap=True)
+        # Clear screen
+        print("\033[2J\033[H", end="", flush=True)
 
-        spot_atm_str = f"₹{self.spot_price:,.1f} ({atm})" if self.spot_price else "--"
-        itm_pair_str = f"₹{atm - 100} CE / ₹{atm + 100} PE" if isinstance(atm, int) else "--"
-
-        sys_table.add_row(
-            mode_str,
-            spot_atm_str,
-            itm_pair_str,
-            "[bold green]ACTIVE[/bold green]" if sess_active else "[yellow]CLOSED[/yellow]",
-            f"{total_trades} ({self._wins_today}W/{total_trades - self._wins_today}L | {wr:.0f}%)",
-            f"[{pnl_color}]₹{net_rs:+,.2f} ({net_pts:+.1f}p)[/{pnl_color}]",
-        )
-
-        # ── 2. Strategy Setup Forming & Arming Radar ─────────────────────────
-        mon_table = Table(
-            title="[bold cyan]📡 STRATEGY SETUP RADAR & ARMING MATRIX (1m/2m/3m/5m Option Stochastics · S/R Suite)[/bold cyan]",
-            box=box.SIMPLE_HEAD, expand=True, padding=(0, 1),
-        )
-        for col, style, j in (
-            ("STRIKE", "bold white", "left"),
-            ("ARM", "bold yellow", "center"),
-            ("STOCH (1m/multi)", "bold white", "center"),
-            ("SETUP", "bold magenta", "left"),
-            ("PROX (S/R)", "bold cyan", "left"),
-            ("LTP", "bold yellow", "right"),
-        ):
-            mon_table.add_column(col, style=style, justify=j, no_wrap=True)
+        print(f"{'='*90}")
+        print(f"  LAST HOPE GPU WINNER | 2nd ITM | Multi-TF Stoch | S/R Bounce | ATRx1.5 + BE | {time_str} IST")
+        print(f"{'='*90}")
+        print(f"  MODE: {mode} | SPOT: {self.spot_price:.1f} ({atm}) | ITM: {atm-100} CE / {atm+100} PE | SESSION: {sess}")
+        print(f"  TRADES: {total} ({self._wins_today}W/{total - self._wins_today}L {wr:.0f}%) | NET: Rs {net_rs:+,.2f} ({net_pts:+.1f}p)")
+        print(f"{'-'*90}")
+        print(f"  {'STRIKE':<12} {'ARM':<10} {'STOCH 1m':<12} {'STOCH multi':<14} {'SETUP':<20} {'PROX S/R':<16} {'LTP':>8}")
+        print(f"  {'-'*86}")
 
         for key, cs in self.engine.contracts.items():
-            s1_val = cs.tf_trackers[1].last_s1
-            s3_val = cs.tf_trackers[1].last_s3
-            s4_val = cs.tf_trackers[1].last_s4
-            s4_2m = cs.tf_trackers[2].last_s4
-            s4_3m = cs.tf_trackers[3].last_s4
-            s4_5m = cs.tf_trackers[5].last_s4
+            s1 = cs.tf_trackers[1].last_s1
+            s3 = cs.tf_trackers[1].last_s3
+            s4 = cs.tf_trackers[1].last_s4
+            s4_2 = cs.tf_trackers[2].last_s4
+            s4_3 = cs.tf_trackers[3].last_s4
+            s4_5 = cs.tf_trackers[5].last_s4
             bar_count = len(cs.bars)
+            ltp = self._last_ltp.get(key, 0.0)
+            f0 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
 
-            contract_clean = f"{cs.strike} {cs.side}"
-
-            # Arming state string with countdown
+            arm = "FLAT"
             if cs.flag_armed or cs.super_armed:
                 arm_age = max(0, bar_count - max(cs.flag_arm_bar, cs.super_arm_bar))
                 arm_rem = max(0, ARM_WINDOW - arm_age)
-                armed_str = f"[bold green]ARMED ({arm_rem}b)[/bold green]"
-            else:
-                armed_str = "[dim]FLAT[/dim]"
+                arm = f"ARMED({arm_rem}b)"
 
-            fmt = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) else "--"
-
-            # Multi-TF Setup Forming Check across 1m, 2m, 3m, 5m
             tf_signals = []
             for tf, trk in cs.tf_trackers.items():
                 t_s1, t_s3, t_s4 = trk.last_s1, trk.last_s3, trk.last_s4
                 if t_s4 is not None and t_s1 is not None:
                     if t_s4 >= M6_S4 and t_s1 < M6_S1:
-                        tf_signals.append(f"[bold green]FLAG {tf}m[/bold green]")
+                        tf_signals.append(f"FLAG {tf}m")
                     elif t_s4 >= 72.0:
-                        tf_signals.append(f"[yellow]Flag {tf}m[/yellow]")
+                        tf_signals.append(f"Flag {tf}m")
                 if t_s1 is not None and t_s3 is not None and t_s4 is not None:
                     if t_s1 < SUPER_THRESH and t_s3 < SUPER_THRESH and t_s4 < SUPER_THRESH:
                         is_rise = t_s1 > (trk.prev_s1 or 0)
-                        if is_rise:
-                            tf_signals.append(f"[bold green]SUPER {tf}m↑[/bold green]")
-                        else:
-                            tf_signals.append(f"[yellow]Super {tf}m[/yellow]")
+                        tf_signals.append(f"SUPER {tf}m" + ("+" if is_rise else ""))
+            setup = ", ".join(tf_signals) if tf_signals else "..."
 
-            setup_str = ", ".join(tf_signals) if tf_signals else "[dim]Scanning...[/dim]"
-
-            # Nearest S/R Level Proximity
-            ltp = self._last_ltp.get(key, 0.0)
-            nearest_sr_str = "--"
+            prox = "--"
             if cs.sr_levels and ltp > 0:
                 active_sr = dict(cs.sr_levels)
                 if cs.ema20.value: active_sr["EMA20"] = cs.ema20.value
                 if cs.ema200.value: active_sr["EMA200"] = cs.ema200.value
                 if cs.vwap.value: active_sr["VWAP"] = cs.vwap.value
+                closest = min(active_sr.items(), key=lambda x: abs(ltp - x[1]))
+                diff = ltp - closest[1]
+                prox = f"{closest[0]} ({diff:+.1f}p)"
 
-                closest_lvl = min(active_sr.items(), key=lambda item: abs(ltp - item[1]))
-                diff = ltp - closest_lvl[1]
-                if abs(diff) <= 0.5:
-                    nearest_sr_str = f"{closest_lvl[0]} [bold green](TOUCH {diff:+.1f})[/bold green]"
-                else:
-                    nearest_sr_str = f"{closest_lvl[0]} ({diff:+.1f}p)"
+            stoch1 = f"{f0(s1)}/{f0(s3)}/{f0(s4)}"
+            stochm = f"{f0(s4_2)}/{f0(s4_3)}/{f0(s4_5)}"
 
-            dist_pts = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
-            side_color = "bold green" if cs.side == "CE" else "bold red"
-            stoch_combined = f"{fmt(s1_val)}/{fmt(s3_val)}/{fmt(s4_val)} {fmt(s4_2m)}/{fmt(s4_3m)}/{fmt(s4_5m)}"
+            print(f"  {cs.strike} {cs.side:<4} {arm:<10} {stoch1:<12} {stochm:<14} {setup:<20} {prox:<16} {ltp:>8.2f}")
 
-            mon_table.add_row(
-                f"[{side_color}]{contract_clean}[/{side_color}]",
-                armed_str,
-                stoch_combined,
-                setup_str,
-                nearest_sr_str,
-                f"₹{ltp:.2f}" if ltp > 0 else "--",
-            )
-
-        # ── 2b. Compact S/R Values Panel (TradingView verification) ───────────
-        sr_table = Table(
-            title="[bold cyan]📊 S/R LEVELS (verify against TradingView)[/bold cyan]",
-            box=box.SIMPLE_HEAD, expand=True, padding=(0, 1),
-        )
-        for col, style, j in (
-            ("STRIKE", "bold white", "left"),
-            ("PDH/PDL", "bold white", "center"),
-            ("CPR (BC/Piv/TC)", "bold white", "center"),
-            ("EMA20/200 VWAP", "bold white", "center"),
-            ("ATR dist", "bold white", "center"),
-        ):
-            sr_table.add_column(col, style=style, justify=j, no_wrap=True)
+        print(f"  {'-'*86}")
+        print(f"  S/R LEVELS (TradingView verify)")
+        print(f"  {'STRIKE':<12} {'LTP':>8}  {'PDH/PDL':<14} {'CPR(B/P/T)':<18} {'EMA20/200 VWAP':<20} {'ATR':>6}")
+        print(f"  {'-'*86}")
 
         for key, cs in self.engine.contracts.items():
             ltp = self._last_ltp.get(key, 0.0)
             f2 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
-            side_color = "bold green" if cs.side == "CE" else "bold red"
-            sr_table.add_row(
-                f"[{side_color}]{cs.strike} {cs.side} ₹{ltp:.0f}[/{side_color}]",
-                f"{f2(cs.sr_levels.get('PDH'))}/{f2(cs.sr_levels.get('PDL'))}",
-                f"{f2(cs.sr_levels.get('CPR_BC'))}/{f2(cs.sr_levels.get('CPR_Pivot'))}/{f2(cs.sr_levels.get('CPR_TC'))}",
-                f"{f2(cs.ema20.value)}/{f2(cs.ema200.value)} {f2(cs.vwap.value)}",
-                f"±{min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP):.1f}",
-            )
+            pdh = f2(cs.sr_levels.get("PDH"))
+            pdl = f2(cs.sr_levels.get("PDL"))
+            cpr = f"{f2(cs.sr_levels.get('CPR_BC'))}/{f2(cs.sr_levels.get('CPR_Pivot'))}/{f2(cs.sr_levels.get('CPR_TC'))}"
+            ema = f"{f2(cs.ema20.value)}/{f2(cs.ema200.value)} {f2(cs.vwap.value)}"
+            atr = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
+            print(f"  {cs.strike} {cs.side:<4} {ltp:>8.0f}  {pdh}/{pdl:<12} {cpr:<18} {ema:<20} {atr:>5.1f}")
 
-        tables: List[Any] = [banner, sys_table, mon_table, sr_table]
-
-        # ── 3. Active Trade Live Cockpit (Ongoing Position Telemetry) ────────
-        pos_data = None
-        if self.live_orders and self.executor is not None and self.executor.position:
-            p = self.executor.position
-            be_trig = self.engine.active_trade.get("be_trigger_px", 0.0) if self.engine.active_trade else 0.0
-            be_done = self.engine.active_trade.get("be_done", False) if self.engine.active_trade else False
-            pos_data = {**p, "be_trigger_px": be_trig, "be_done": be_done}
-        elif self.paper_position is not None:
-            pos_data = self.paper_position
-
-        if pos_data is not None:
-            sym = pos_data["symbol"]
-            side = pos_data.get("side", "BUY")
-            entry = float(pos_data["entry"])
-            sl = float(pos_data["sl"])
-            tgt = float(pos_data["target"])
-            be_trig = float(pos_data.get("be_trigger_px", entry + 0.70 * (tgt - entry)))
-            be_done = bool(pos_data.get("be_done", False))
-            ltp = float(self._last_ltp.get(self.active_position_key, entry))
-
-            pts = ltp - entry
-            pnl_rs = pts * pos_data.get("quantity", settings.LOT_SIZE) - 45.0  # Net after ₹45 statutory fee
-            color = "bold green" if pts >= 0 else "bold red"
-
-            # Breakeven Progress Meter
-            total_be_move = max(be_trig - entry, 0.1)
-            current_move = max(0.0, ltp - entry)
-            be_pct = min(100.0, max(0.0, (current_move / total_be_move) * 100.0))
-            bar_len = 10
-            filled = int((be_pct / 100.0) * bar_len)
-            meter = f"[{'█' * filled}{'░' * (bar_len - filled)}] {be_pct:.0f}%"
-
-            if be_done:
-                be_status = "[bold green]🔒 LOCKED (+1.0 pt BE Hardened SL)[/bold green]"
-            elif ltp >= be_trig:
-                be_status = "[bold green]🔒 TRIGGERING BREAKEVEN[/bold green]"
-            else:
-                be_status = f"[yellow]⏳ {meter} (Trig: ₹{be_trig:.2f})[/yellow]"
-
-            # Target & SL Distances
-            dist_to_tp = max(0.0, tgt - ltp)
-            dist_to_sl = max(0.0, ltp - sl)
-
-            opened_at = pos_data.get("opened_at", now)
-            duration_sec = int((now - opened_at).total_seconds()) if isinstance(opened_at, datetime) else 0
-            dur_str = f"{duration_sec // 60:02d}m {duration_sec % 60:02d}s"
-
-            pos_table = Table(
-                title=f"[bold green]🎯 ACTIVE TRADE COCKPIT — {sym} [LONG {side}] | Duration: {dur_str}[/bold green]",
-                box=box.ROUNDED, expand=True, padding=(0, 1),
-            )
-            for col in ("ENTRY PRICE", "CURRENT LTP", "LIVE P&L (PTS)", "NET P&L (₹)", "BREAKEVEN (BE) STATUS",
-                        "CURRENT SL (DIST)", "TARGET (DIST)", "SIGNAL TRIGGER"):
-                pos_table.add_column(col, justify="center")
-
-            pos_table.add_row(
-                f"₹{entry:.2f}",
-                f"[bold yellow]₹{ltp:.2f}[/bold yellow]",
-                f"[{color}]{pts:+.2f} pts[/{color}]",
-                f"[{color}]₹{pnl_rs:+,.2f}[/{color}]",
-                be_status,
-                f"₹{sl:.2f} (-{dist_to_sl:.1f} pts)",
-                f"₹{tgt:.2f} (+{dist_to_tp:.1f} pts)",
-                pos_data.get("signal", "FLAG / SUPER"),
-            )
-            tables.append(pos_table)
-
-        # ── 4. Completed Trades Performance Ledger ───────────────────────────
-        if self.trades_today:
-            tr_table = Table(
-                title=f"[bold green]📜 TODAY'S COMPLETED TRADES ({len(self.trades_today)} Trades | {self._wins_today} Wins | WR: {wr:.1f}% | Net: ₹{net_rs:+,.2f})[/bold green]",
-                box=box.SIMPLE_HEAD, expand=True, padding=(0, 1),
-            )
-            for col in ("#", "TIME", "SIGNAL / SR", "CONTRACT", "ENTRY", "EXIT", "OUTCOME", "PTS", "NET P&L (₹)"):
-                tr_table.add_column(col, justify="center")
-            for i, t in enumerate(self.trades_today, start=1):
-                pts = float(t.get("pts", 0.0))
-                color = "bold green" if pts >= 0 else "bold red"
-                opened = t.get("opened_at")
-                t_str = opened.strftime("%H:%M:%S") if isinstance(opened, datetime) else "--"
-                reason = t.get("reason", "TARGET" if pts > 0 else "STOP_LOSS")
-                tr_table.add_row(
-                    str(i), t_str, t.get("signal", "--"), t.get("symbol", "--"),
-                    f"₹{t.get('entry', 0.0):.2f}", f"₹{t.get('exit', 0.0):.2f}",
-                    f"[{color}]{reason}[/{color}]",
-                    f"[{color}]{pts:+.2f}[/{color}]",
-                    f"[{color}]₹{float(t.get('rs', 0.0)):+,.2f}[/{color}]",
-                )
-            tables.append(tr_table)
-
-        return Group(*tables)
+        print(f"{'='*90}")
 
     async def _main_loop_body(self) -> float:
         """Execute one iteration of the trading loop. Returns elapsed seconds."""
@@ -921,15 +753,14 @@ class LastHopeTradingEngine:
         has_tty = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
 
         if has_tty:
-            # Interactive terminal: clear + print each frame (no Rich Live thread)
+            # Interactive terminal: plain print dashboard (no Rich Live, no threads)
             loop_count = 0
             while True:
                 try:
                     elapsed = await self._main_loop_body()
                     loop_count += 1
                     if loop_count % 2 == 0:
-                        console.clear()
-                        console.print(self.render_dashboard())
+                        self.print_dashboard()
                     await asyncio.sleep(max(0.0, 1.0 - elapsed))
                 except Exception as e:
                     logger.error(f"Error in main loop: {e}", exc_info=True)
