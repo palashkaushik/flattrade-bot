@@ -678,7 +678,50 @@ class LastHopeTradingEngine:
                 f"₹{ltp:.2f}" if ltp > 0 else "--",
             )
 
-        tables: List[Any] = [banner, sys_table, mon_table]
+        # ── 2b. Full S/R Values Panel (TradingView verification) ──────────────
+        sr_table = Table(
+            title="[bold cyan]📊 S/R LEVELS (verify against TradingView)[/bold cyan]",
+            box=box.SIMPLE_HEAD, expand=True, padding=(0, 1),
+        )
+        for col, style, j in (
+            ("STRIKE", "bold white", "left"),
+            ("LTP", "bold yellow", "right"),
+            ("PDH / PDL", "bold white", "center"),
+            ("CPR BC / Pivot / TC", "bold white", "center"),
+            ("Cam H3 / L3", "bold white", "center"),
+            ("EMA20 / EMA200", "bold white", "center"),
+            ("VWAP", "bold white", "center"),
+            ("ATR (dist)", "bold white", "center"),
+        ):
+            sr_table.add_column(col, style=style, justify=j, no_wrap=True)
+
+        for key, cs in self.engine.contracts.items():
+            ltp = self._last_ltp.get(key, 0.0)
+            f2 = lambda v: f"{v:.2f}" if isinstance(v, (int, float)) and v else "--"
+            side_color = "bold green" if cs.side == "CE" else "bold red"
+            pdh = f2(cs.sr_levels.get("PDH"))
+            pdl = f2(cs.sr_levels.get("PDL"))
+            cpr_bc = f2(cs.sr_levels.get("CPR_BC"))
+            cpr_piv = f2(cs.sr_levels.get("CPR_Pivot"))
+            cpr_tc = f2(cs.sr_levels.get("CPR_TC"))
+            cam_h3 = f2(cs.sr_levels.get("Cam_H3"))
+            cam_l3 = f2(cs.sr_levels.get("Cam_L3"))
+            ema20 = f2(cs.ema20.value)
+            ema200 = f2(cs.ema200.value)
+            vwap = f2(cs.vwap.value)
+            atr_pts = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
+            sr_table.add_row(
+                f"[{side_color}]{cs.strike} {cs.side}[/{side_color}]",
+                f"₹{ltp:.2f}" if ltp > 0 else "--",
+                f"{pdh} / {pdl}",
+                f"{cpr_bc} / {cpr_piv} / {cpr_tc}",
+                f"{cam_h3} / {cam_l3}",
+                f"{ema20} / {ema200}",
+                vwap,
+                f"±{atr_pts:.1f}",
+            )
+
+        tables: List[Any] = [banner, sys_table, mon_table, sr_table]
 
         # ── 3. Active Trade Live Cockpit (Ongoing Position Telemetry) ────────
         pos_data = None
