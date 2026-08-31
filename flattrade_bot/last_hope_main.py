@@ -66,7 +66,7 @@ log_file = log_dir / "last_hope_bot.log"
 file_handler = logging.FileHandler(log_file, encoding="utf-8")
 file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
 
-logging.basicConfig(level=logging.INFO, handlers=[file_handler])
+logging.basicConfig(level=logging.INFO, handlers=[file_handler, logging.StreamHandler()])
 logger = logging.getLogger("flattrade_bot.last_hope_main")
 console = Console(legacy_windows=False)
 
