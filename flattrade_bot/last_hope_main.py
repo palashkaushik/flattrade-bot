@@ -48,6 +48,22 @@ from flattrade_bot.strategies.last_hope_winner import (
 )
 from flattrade_bot.utils.discord import DiscordNotifier
 
+# Rich is used OFF-SCREEN ONLY: render tables to a string (no Live thread —
+# that caused the SSH blank screens), then redraw via zero-flicker ANSI.
+from rich import box
+from rich.console import Console, Group
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+
+_offscreen = Console(
+    file=open(os.devnull, "w", encoding="utf-8"),
+    force_terminal=True,
+    color_system="truecolor",
+    width=110,
+    legacy_windows=False,
+)
+
 STRATEGY_LABEL = "Last Hope Winner Strategy"
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -701,62 +717,78 @@ class LastHopeTradingEngine:
             logger.error(f"Token renewal failed: {e} — will retry in 60s")
         return True
 
-    def print_dashboard(self):
-        """Zero-flicker dashboard: redraw in place via ANSI cursor-up + line-erase.
-        Never full-screen clears (that's the blink). No Rich, no threads."""
-        L: List[str] = []
-        p = L.append
-
+    def _render_rich_frame(self) -> List[str]:
+        """Builds the dashboard as Rich tables rendered OFF-SCREEN to a list of
+        plain lines. Rich's Live thread is NEVER used (SSH blank-screen cause)."""
         now = ist_now()
         time_str = now.strftime("%H:%M:%S")
         sess_active = SESSION_START_MIN <= minute_of(now) < SESSION_END_MIN
-        mode = "LIVE" if self.live_orders else "PAPER"
+        mode = "LIVE BROKER" if self.live_orders else "PAPER SIM"
         net_rs = sum(float(t.get("rs", 0.0)) for t in self.trades_today)
         net_pts = sum(float(t.get("pts", 0.0)) for t in self.trades_today)
         atm = int(round(self.spot_price / 50.0) * 50) if self.spot_price else 0
         total = len(self.trades_today)
         wr = (self._wins_today / total * 100.0) if total > 0 else 0.0
         sess = "ACTIVE" if sess_active else "CLOSED"
+        pnl_style = "bold green" if net_rs >= 0 else "bold red"
 
-        p(f"{'='*90}")
-        p(f"  LAST HOPE GPU WINNER | 2nd ITM | Multi-TF Stoch | S/R Bounce | ATRx1.5 + BE | {time_str} IST")
-        p(f"{'='*90}")
-        p(f"  MODE: {mode} | SPOT: {self.spot_price:.1f} ({atm}) | ITM: {atm-100} CE / {atm+100} PE | SESSION: {sess}")
-        p(f"  TRADES: {total} ({self._wins_today}W/{total - self._wins_today}L {wr:.0f}%) | NET: Rs {net_rs:+,.2f} ({net_pts:+.1f}p)")
-        p(f"{'-'*90}")
-        p(f"  {'STRIKE':<12} {'ARM':<10} {'STOCH 1m':<12} {'STOCH multi':<14} {'SETUP':<20} {'PROX S/R':<16} {'LTP':>8}")
-        p(f"  {'-'*86}")
+        header = Text.from_markup(
+            f" [bold bright_yellow]:trophy: LAST HOPE GPU WINNER[/bold bright_yellow] "
+            f"| [bold white]2nd ITM · Multi-TF Stoch · S/R Bounce · ATRx1.5 + BE@50%[/bold white] "
+            f"| [cyan]{time_str} IST[/cyan]"
+        )
+        banner = Panel(header, box=box.ROUNDED, style="bright_blue", padding=(0, 1))
+
+        sys_table = Table(box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
+        for col, style in (("MODE", "bold white"), ("SPOT (ATM)", "bold yellow"),
+                           ("2nd ITM (CE/PE)", "bold cyan"), ("SESSION", "bold green"),
+                           ("TRADES (W/L)", "bold white"), ("NET P&L", "bold white")):
+            sys_table.add_column(col, style=style, justify="center", no_wrap=True)
+        sys_table.add_row(
+            f"[bold {'red' if self.live_orders else 'blue'}]{mode}[/bold {'red' if self.live_orders else 'blue'}]",
+            f"Rs {self.spot_price:,.1f} ({atm})" if self.spot_price else "--",
+            f"Rs {atm-100} CE / Rs {atm+100} PE",
+            "[bold green]ACTIVE[/bold green]" if sess_active else "[yellow]CLOSED[/yellow]",
+            f"{total} ({self._wins_today}W/{total - self._wins_today}L | {wr:.0f}%)",
+            f"[{pnl_style}]Rs {net_rs:+,.2f} ({net_pts:+.1f}p)[/{pnl_style}]",
+        )
+
+        mon_table = Table(
+            title="[bold cyan]:satellite: STRATEGY SETUP RADAR & ARMING MATRIX (S1 12,3 · S3 40,4 · S4 50,10 · SR Suite)[/bold cyan]",
+            box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
+        for col, style, j in (("STRIKE", "bold white", "left"), ("ARMING", "bold yellow", "center"),
+                              ("1m S1/S3/S4", "bold white", "center"), ("2m/3m/5m S4", "bold white", "center"),
+                              ("ACTIVE TF SETUPS", "bold magenta", "left"),
+                              ("S/R LEVEL (PROX)", "bold cyan", "left"), ("LTP", "bold yellow", "right")):
+            mon_table.add_column(col, style=style, justify=j, no_wrap=True)
 
         for key, cs in self.engine.contracts.items():
             s1 = cs.tf_trackers[1].last_s1
             s3 = cs.tf_trackers[1].last_s3
             s4 = cs.tf_trackers[1].last_s4
-            s4_2 = cs.tf_trackers[2].last_s4
-            s4_3 = cs.tf_trackers[3].last_s4
-            s4_5 = cs.tf_trackers[5].last_s4
             bar_count = len(cs.bars)
             ltp = self._last_ltp.get(key, 0.0)
             f0 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
 
-            arm = "FLAT"
+            arm = "[dim]FLAT[/dim]"
             if cs.flag_armed or cs.super_armed:
                 arm_age = max(0, bar_count - max(cs.flag_arm_bar, cs.super_arm_bar))
                 arm_rem = max(0, ARM_WINDOW - arm_age)
-                arm = f"ARMED({arm_rem}b)"
+                arm = f"[bold green]ARMED ({arm_rem}b)[/bold green]"
 
             tf_signals = []
             for tf, trk in cs.tf_trackers.items():
                 t_s1, t_s3, t_s4 = trk.last_s1, trk.last_s3, trk.last_s4
                 if t_s4 is not None and t_s1 is not None:
                     if t_s4 >= M6_S4 and t_s1 < M6_S1:
-                        tf_signals.append(f"FLAG {tf}m")
+                        tf_signals.append(f"[bold green]FLAG {tf}m[/bold green]")
                     elif t_s4 >= 72.0:
-                        tf_signals.append(f"Flag {tf}m")
+                        tf_signals.append(f"[yellow]Flag {tf}m[/yellow]")
                 if t_s1 is not None and t_s3 is not None and t_s4 is not None:
                     if t_s1 < SUPER_THRESH and t_s3 < SUPER_THRESH and t_s4 < SUPER_THRESH:
                         is_rise = t_s1 > (trk.prev_s1 or 0)
-                        tf_signals.append(f"SUPER {tf}m" + ("+" if is_rise else ""))
-            setup = ", ".join(tf_signals) if tf_signals else "..."
+                        tf_signals.append(f"[bold green]SUPER {tf}m{'+' if is_rise else ''}[/bold green]")
+            setup = ", ".join(tf_signals) if tf_signals else "[dim]Scanning...[/dim]"
 
             prox = "--"
             if cs.sr_levels and ltp > 0:
@@ -766,32 +798,87 @@ class LastHopeTradingEngine:
                 if cs.vwap.value: active_sr["VWAP"] = cs.vwap.value
                 closest = min(active_sr.items(), key=lambda x: abs(ltp - x[1]))
                 diff = ltp - closest[1]
-                prox = f"{closest[0]} ({diff:+.1f}p)"
+                if abs(diff) <= 0.5:
+                    prox = f"{closest[0]} [bold green](TOUCH {diff:+.1f})[/bold green]"
+                else:
+                    prox = f"{closest[0]} ({diff:+.1f}p)"
 
-            stoch1 = f"{f0(s1)}/{f0(s3)}/{f0(s4)}"
-            stochm = f"{f0(s4_2)}/{f0(s4_3)}/{f0(s4_5)}"
+            side_color = "bold green" if cs.side == "CE" else "bold red"
+            mon_table.add_row(
+                f"[{side_color}]{cs.strike} {cs.side}[/{side_color}]",
+                arm,
+                f"{f0(s1)}/{f0(s3)}/{f0(s4)}",
+                f"{f0(cs.tf_trackers[2].last_s4)}/{f0(cs.tf_trackers[3].last_s4)}/{f0(cs.tf_trackers[5].last_s4)}",
+                setup, prox,
+                f"Rs {ltp:.2f}" if ltp > 0 else "--",
+            )
 
-            p(f"  {cs.strike} {cs.side:<4} {arm:<10} {stoch1:<12} {stochm:<14} {setup:<20} {prox:<16} {ltp:>8.2f}")
-
-        p(f"  {'-'*86}")
-        p(f"  S/R LEVELS (TradingView verify)")
-        p(f"  {'STRIKE':<12} {'LTP':>8}  {'PDH/PDL':<14} {'CPR(B/P/T)':<18} {'EMA20/200 VWAP':<20} {'ATR':>6}")
-        p(f"  {'-'*86}")
+        sr_table = Table(
+            title="[bold cyan]:bar_chart: S/R LEVELS (TradingView verify)[/bold cyan]",
+            box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
+        for col, style, j in (("STRIKE", "bold white", "left"), ("LTP", "bold yellow", "right"),
+                              ("PDH/PDL", "bold white", "center"), ("CPR (BC/P/T)", "bold white", "center"),
+                              ("EMA20/200", "bold white", "center"), ("VWAP", "bold white", "center"),
+                              ("ATR DIST", "bold white", "center")):
+            sr_table.add_column(col, style=style, justify=j, no_wrap=True)
 
         for key, cs in self.engine.contracts.items():
             ltp = self._last_ltp.get(key, 0.0)
             f2 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
-            pdh = f2(cs.sr_levels.get("PDH"))
-            pdl = f2(cs.sr_levels.get("PDL"))
-            cpr = f"{f2(cs.sr_levels.get('CPR_BC'))}/{f2(cs.sr_levels.get('CPR_Pivot'))}/{f2(cs.sr_levels.get('CPR_TC'))}"
-            ema = f"{f2(cs.ema20.value)}/{f2(cs.ema200.value)} {f2(cs.vwap.value)}"
             atr = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
-            p(f"  {cs.strike} {cs.side:<4} {ltp:>8.0f}  {pdh}/{pdl:<12} {cpr:<18} {ema:<20} {atr:>5.1f}")
+            side_color = "bold green" if cs.side == "CE" else "bold red"
+            sr_table.add_row(
+                f"[{side_color}]{cs.strike} {cs.side}[/{side_color}]",
+                f"Rs {ltp:.0f}" if ltp > 0 else "--",
+                f"{f2(cs.sr_levels.get('PDH'))}/{f2(cs.sr_levels.get('PDL'))}",
+                f"{f2(cs.sr_levels.get('CPR_BC'))}/{f2(cs.sr_levels.get('CPR_Pivot'))}/{f2(cs.sr_levels.get('CPR_TC'))}",
+                f"{f2(cs.ema20.value)}/{f2(cs.ema200.value)}",
+                f"{f2(cs.vwap.value)}",
+                f"+/-{atr:.1f}",
+            )
 
-        p(f"{'='*90}")
+        pos_lines = []
+        pos_data = None
+        if self.live_orders and self.executor is not None and self.executor.position:
+            p = self.executor.position
+            be_trig = self.engine.active_trade.get("be_trigger_px", 0.0) if self.engine.active_trade else 0.0
+            be_done = self.engine.active_trade.get("be_done", False) if self.engine.active_trade else False
+            pos_data = {**p, "be_trigger_px": be_trig, "be_done": be_done}
+        elif self.paper_position is not None:
+            pos_data = self.paper_position
+        if pos_data is not None:
+            ltp = float(self._last_ltp.get(self.active_position_key, pos_data["entry"]))
+            pts = ltp - float(pos_data["entry"])
+            c = "green" if pts >= 0 else "red"
+            be_status = "[bold green]:lock: LOCKED (+1.0pt BE)[/bold green]" if pos_data.get("be_done") \
+                else f"[yellow]trig Rs {float(pos_data.get('be_trigger_px', 0)):.2f}[/yellow]"
+            pos_table = Table(
+                title=f"[bold green]:dart: ACTIVE TRADE — {pos_data['symbol']} | P&L [{c}]{pts:+.2f} pts[/{c}] [/bold green]",
+                box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
+            for col in ("ENTRY", "LTP", "SL", "TP", "BE STATUS", "SIGNAL"):
+                pos_table.add_column(col, justify="center")
+            pos_table.add_row(
+                f"Rs {float(pos_data['entry']):.2f}", f"Rs {ltp:.2f}",
+                f"Rs {float(pos_data['sl']):.2f}", f"Rs {float(pos_data.get('target', pos_data.get('tp', 0))):.2f}",
+                be_status, str(pos_data.get("signal", "--")),
+            )
+            pos_lines = [pos_table]
 
-        # Zero-flicker in-place redraw (SO 34828142 / Rich #2726):
-        # cursor-up N lines, then erase+write each line. Full-screen clear blinks.
+        group = Group(banner, sys_table, mon_table, sr_table, *pos_lines)
+        with _offscreen.capture() as cap:
+            _offscreen.print(group)
+        return cap.get().rstrip("\n").split("\n")
+
+    def print_dashboard(self):
+        """Rich-rendered dashboard with zero-flicker ANSI redraw.
+        Rich draws OFF-SCREEN (no Live thread — the SSH blank-screen cause);
+        the frame is then blitted with cursor-up + line-erase (SO 34828142)."""
+        try:
+            L = self._render_rich_frame()
+        except Exception as e:
+            logger.warning("Rich frame render failed: %s", e)
+            return
+
         if self._dash_lines_drawn == len(L):
             buf = [f"\033[{len(L)}A"]
             buf.extend("\033[2K" + line for line in L)
