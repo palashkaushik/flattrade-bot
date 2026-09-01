@@ -1,19 +1,23 @@
 [Unit]
-Description=Flattrade Last Hope Winner Live Trading Bot
+Description=Flattrade Last Hope Winner Live Trading Bot (tmux attachable)
 After=network.target network-online.target time-sync.target
 Wants=network-online.target time-sync.target
 
 [Service]
-Type=simple
+# tmux daemonizes cleanly: new-session client exits, tmux server keeps running in this cgroup.
+# Bot runs DIRECTLY on the tmux PTY (no tee pipe) so stdout is a real TTY -> dashboard renders.
+# File logging handled by the bot's own FileHandler -> logs/last_hope_bot.log
+Type=forking
 User=ubuntu
 WorkingDirectory=/home/ubuntu/FLATTRADE_BOT
 Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONPATH=/home/ubuntu/FLATTRADE_BOT
-# Runs bot INSIDE a screen session: auto-managed by systemd, attach anytime via `screen -r bot`
-ExecStart=/usr/bin/screen -S bot -D -m bash -c 'python3 -m flattrade_bot.main --live 2>&1 | tee -a /home/ubuntu/FLATTRADE_BOT/logs/last_hope_bot.log'
-Restart=on-failure
+ExecStart=/usr/bin/tmux new-session -s bot -d 'cd /home/ubuntu/FLATTRADE_BOT && python3 -m flattrade_bot.main --live'
+ExecStop=/usr/bin/tmux kill-session -t bot
+# always (not on-failure): tmux server exits 0 even when the bot dies, so
+# on-failure would never fire. 'always' still respects clean 'systemctl stop'.
+Restart=always
 RestartSec=10s
-KillMode=mixed
 TimeoutStopSec=30s
 
 [Install]

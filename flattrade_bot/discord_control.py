@@ -1,9 +1,15 @@
-"""Discord Gateway control plane for the Pocket Money trading process."""
+"""Discord Gateway control plane for the Last Hope trading process.
+
+On the VPS the bot lifecycle is owned by systemd (flattrade-bot.service):
+Discord commands start/stop/restart via systemctl, and status is read from
+the bot.runtime.json heartbeat the live bot writes every tick.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import subprocess
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -12,12 +18,34 @@ from zoneinfo import ZoneInfo
 
 from flattrade_bot.config import settings
 from flattrade_bot.control import (
-    TradingProcessManager,
     is_control_authorized,
     parse_id_list,
+    read_runtime_record,
 )
 
 logger = logging.getLogger("flattrade_bot.discord_control")
+
+SYSTEMD_UNIT = "flattrade-bot.service"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SYSTEMD_AVAILABLE = Path("/etc/systemd/system").is_dir() and Path("/usr/bin/systemctl").exists()
+
+
+def _systemctl(*args: str) -> tuple[int, str]:
+    """Runs a systemctl command (may prompt for sudo rights on the VPS)."""
+    proc = subprocess.run(
+        ["sudo", "-n", "systemctl", *args, SYSTEMD_UNIT],
+        capture_output=True,
+        text=True,
+        timeout=30.0,
+    )
+    return proc.returncode, (proc.stdout + proc.stderr).strip()
+
+
+def _is_systemd_active() -> bool:
+    if not SYSTEMD_AVAILABLE:
+        return False
+    code, _ = _systemctl("is-active")
+    return code == 0
 
 
 def parse_hhmm(value: str) -> int:
@@ -55,36 +83,44 @@ def scheduled_action(
 
 
 def _format_status(status) -> str:
-    from flattrade_bot.control import read_runtime_record
     rec = read_runtime_record(settings.BOT_RUNTIME_FILE) or {}
     extra = rec.get("extra", {})
-    if status.running:
-        started = status.started_at.strftime("%Y-%m-%d %H:%M:%S") if status.started_at else "unknown"
-        suffix = " (stop requested)" if status.stop_requested else ""
-        origin = "externally attached" if status.external else "managed"
-        orders = "🟢 REAL ORDERS ACTIVE" if status.live_orders else "🟣 SIMULATION / PAPER MODE"
-        if not status.responsive:
-            return f"⚠️ **Unresponsive bot**, PID `{status.pid}`, {origin}, last heartbeat is stale."
-        
+    started_at = rec.get("started_at")
+    heartbeat_at = rec.get("heartbeat_at")
+
+    # Heartbeat freshness check (bot writes every ~1s tick)
+    responsive = True
+    if heartbeat_at:
+        try:
+            hb = datetime.fromisoformat(str(heartbeat_at))
+            responsive = (datetime.now() - hb).total_seconds() <= 15.0
+        except (ValueError, TypeError):
+            responsive = False
+
+    pid = rec.get("pid")
+    if pid and responsive:
+        started = started_at.split("T")[0] + " " + started_at.split("T")[1][:8] if isinstance(started_at, str) and "T" in started_at else "unknown"
+        orders = "🟢 REAL ORDERS ACTIVE" if rec.get("live_orders") else "🟣 SIMULATION / PAPER MODE"
         spot_str = f"Rs {extra.get('spot_price', 0.0):.2f}" if extra.get("spot_price") else "Live Feed Active"
         atm_str = str(int(round(extra.get("spot_price", 0.0) / 50.0) * 50)) if extra.get("spot_price") else "--"
         pos_str = f"🟢 Open Trade ({extra.get('active_position')})" if extra.get("active_position") else "⚪ Flat (Zero Exposure)"
         trades_cnt = extra.get("trades_count", len(extra.get("trades", [])))
         strategy_name = extra.get("strategy_name", "Last Hope GPU Winner Strategy")
+        systemd_str = "systemd ✅" if _is_systemd_active() else "systemd ⚠️ INACTIVE"
 
         return (
             f"🏆 **{strategy_name} Bot is RUNNING**\n"
-            f"• **Execution:** `{orders}` (PID `{status.pid}`)\n"
-            f"• **Started:** `{started}`{suffix}\n"
+            f"• **Execution:** `{orders}` (PID `{pid}`)\n"
+            f"• **Supervision:** `{systemd_str}` | **Started:** `{started}`\n"
             f"• **Spot Price:** `{spot_str}` | **ATM:** `{atm_str}`\n"
             f"• **Position:** `{pos_str}` | **Trades Today:** `{trades_cnt}`\n"
             f"• **Session:** 09:15-15:00 IST | Multi-TF Stoch (1m/2m/3m/5m) + S/R Bounce\n"
             f"• **Risk Geometry:** ATR(10)×1.5 SL/TP | Breakeven Stop @ +70% target move\n"
             f"• **Execution:** 5.0 pt aggressive limit buffer | Broker PositionBook verified"
         )
-    if status.returncode is None:
-        return "⏹️ **Bot is STOPPED.** (Use `/trading start` or `/trading start-visible` to launch)"
-    return f"⏹️ **Bot is STOPPED.** (Last exit code: `{status.returncode}`)"
+    if pid and not responsive:
+        return f"⚠️ **Bot is RUNNING but UNRESPONSIVE**, PID `{pid}`. Last heartbeat is stale (>15s). Check: `journalctl -u flattrade-bot -n 50`"
+    return "⏹️ **Bot is STOPPED.** (Use `/trading start` or wait for the 09:05 IST systemd auto-start)"
 
 
 def _validate_configuration() -> None:
@@ -103,9 +139,8 @@ def _validate_configuration() -> None:
     if missing:
         raise RuntimeError("Discord control is not configured: " + ", ".join(missing))
 
-
-def create_client(manager: TradingProcessManager):
-    """Builds the discord.py client lazily."""
+def create_client():
+    """Builds the discord.py client lazily. Bot lifecycle is delegated to systemd."""
     try:
         import discord
         from discord import app_commands
@@ -118,31 +153,14 @@ def create_client(manager: TradingProcessManager):
     tree = app_commands.CommandTree(client)
     trading = app_commands.Group(name="trading", description="Control the Last Hope GPU Winner Trading Bot")
     guild = discord.Object(id=int(settings.DISCORD_GUILD_ID))
+
     allowed_users = parse_id_list(settings.DISCORD_ALLOWED_USER_IDS)
-    start_min = parse_hhmm(settings.BOT_START_TIME)
-    stop_min = parse_hhmm(settings.BOT_STOP_TIME)
-    timezone = ZoneInfo(settings.TRADING_TIMEZONE)
-    schedule_state = {"started_on": None, "stopped_on": None}
-    schedule_task = None
 
     async def reply(interaction, content: str) -> None:
         if interaction.response.is_done():
             await interaction.followup.send(content, ephemeral=True)
         else:
             await interaction.response.send_message(content, ephemeral=True)
-
-    async def acknowledge(interaction) -> bool:
-        if interaction.response.is_done():
-            return True
-        try:
-            await interaction.response.defer(ephemeral=True)
-            return True
-        except discord.NotFound:
-            logger.warning("Discord interaction expired before acknowledgement")
-            return False
-        except discord.HTTPException:
-            logger.exception("Discord interaction acknowledgement failed")
-            return False
 
     def authorized(interaction) -> bool:
         return is_control_authorized(
@@ -154,66 +172,53 @@ def create_client(manager: TradingProcessManager):
             settings.DISCORD_CONTROL_CHANNEL_ID,
         )
 
-    async def run_start(interaction, visible_console: Optional[bool] = None) -> None:
-        if not await acknowledge(interaction):
+    async def run_start(interaction) -> None:
+        if not SYSTEMD_AVAILABLE:
+            await reply(interaction, "⚠️ systemd control not available on this host (local dev machine).")
             return
-        try:
-            if visible_console is None:
-                started = await asyncio.to_thread(manager.start, True)
-            else:
-                started = await asyncio.to_thread(manager.start, True, visible_console=visible_console)
-        except Exception as exc:
-            logger.exception("Discord start command failed")
-            await interaction.followup.send(f"Bot start failed: {exc}", ephemeral=True)
+        if _is_systemd_active():
+            await reply(interaction, "⚠️ Last Hope Winner Bot is already running.")
             return
-        started_message = (
-            "🚀 **Live Last Hope Winner Bot started in visible terminal window.**"
-            if visible_console
-            else "🚀 **Live Last Hope Winner Bot started in background.**"
-        )
-        await interaction.followup.send(
-            started_message if started else "⚠️ Last Hope Winner Bot is already running.",
-            ephemeral=True,
-        )
+        await interaction.response.defer(ephemeral=True)
+        code, out = await asyncio.to_thread(_systemctl, "start")
+        if code == 0:
+            await interaction.followup.send("🚀 **Live Last Hope Winner Bot started** (systemd + tmux dashboard). Attach: `tmux attach -t bot`")
+        else:
+            await interaction.followup.send(f"⚠️ Bot start failed: `{out}`")
 
-    async def run_stop(interaction) -> None:
-        if not await acknowledge(interaction):
+    async def run_stop(interaction, hard: bool = False) -> None:
+        if not SYSTEMD_AVAILABLE:
+            await reply(interaction, "⚠️ systemd control not available on this host (local dev machine).")
             return
-        requested = await asyncio.to_thread(manager.request_stop)
-        if not requested:
-            await interaction.followup.send("⚠️ Bot is already stopped.", ephemeral=True)
-            return
-        await interaction.followup.send(
-            "🛑 **Shutdown requested.** The bot will gracefully exit after any active trade is closed. Use `/trading status` to verify.",
-            ephemeral=True,
-        )
+        await interaction.response.defer(ephemeral=True)
+        code, out = await asyncio.to_thread(_systemctl, "stop")
+        if code == 0:
+            action = "hard-stopped" if hard else "stopped"
+            await interaction.followup.send(f"🛑 **Bot {action}** (systemd unit stopped; tmux session closed).")
+        else:
+            await interaction.followup.send(f"⚠️ Bot stop failed: `{out}`")
 
-    @trading.command(name="start", description="Start the live Last Hope Winner Bot in background")
+    @trading.command(name="start", description="Start the live Last Hope Winner Bot (systemd + tmux dashboard)")
     async def trading_start(interaction: discord.Interaction):
         if not authorized(interaction):
             await reply(interaction, "🚫 Not authorized for this control channel.")
             return
         await run_start(interaction)
 
-    @trading.command(name="start-visible", description="Start the live bot with visible interactive terminal dashboard")
-    async def trading_start_visible(interaction: discord.Interaction):
-        if not authorized(interaction):
-            await reply(interaction, "🚫 Not authorized for this control channel.")
-            return
-        await run_start(interaction, visible_console=True)
-
-    @trading.command(name="stop", description="Gracefully stop the Last Hope Winner Bot")
+    @trading.command(name="stop", description="Stop the live bot via systemd")
     async def trading_stop(interaction: discord.Interaction):
         if not authorized(interaction):
             await reply(interaction, "🚫 Not authorized for this control channel.")
             return
         await run_stop(interaction)
 
-    @trading.command(name="close", description="Close active trade and stop the bot")
+    @trading.command(name="close", description="Close any open trade and stop the bot")
     async def trading_close(interaction: discord.Interaction):
         if not authorized(interaction):
             await reply(interaction, "🚫 Not authorized for this control channel.")
             return
+        # NOTE: /trading stop now performs a clean systemctl stop. The bot's
+        # EOD square-off + graceful SIGTERM handling flatten open trades first.
         await run_stop(interaction)
 
     @trading.command(name="status", description="Show live Last Hope Winner Bot status and risk metrics")
@@ -221,7 +226,7 @@ def create_client(manager: TradingProcessManager):
         if not authorized(interaction):
             await reply(interaction, "🚫 Not authorized for this control channel.")
             return
-        await reply(interaction, _format_status(manager.status()))
+        await reply(interaction, _format_status(None))
 
     @trading.command(name="levels", description="View Last Hope Winner strategy spec (strikes, stochastics, S/R bounce, BE stop)")
     async def trading_levels(interaction: discord.Interaction):
@@ -269,30 +274,31 @@ def create_client(manager: TradingProcessManager):
             await reply(interaction, "🚫 Not authorized for this control channel.")
             return
         msg = (
-            f"🛡️ **Pocket Money Risk Management Protocol**\n"
-            f"• **Stop Loss / Target:** `±7.0 premium pts` (SL priority on same-bar touch)\n"
+            f"🛡️ **Last Hope Winner Risk Management Protocol**\n"
+            f"• **Stop Loss / Target:** `min(ATR(10)×1.5, 15.0 pts)` symmetric (SL priority on same-bar touch)\n"
             f"• **Position Sizing:** `1 lot = {settings.LOT_SIZE} qty`, MIS, long options only\n"
             f"• **Consecutive Loss Cutoff:** `4 losses` blocks trading for the rest of the day\n"
-            f"• **Daily Rs Cap:** None (backtest parity) — EOD flat at 15:00 IST hard rule\n"
-            f"• **Entries:** 09:20–14:59 IST | One position at a time | No averaging\n"
-            f"• **Order Type:** Marketable Aggressive Market Order"
+            f"• **Breakeven:** SL hardens to Entry + 1.0 pt at +70% of target move\n"
+            f"• **Daily Rs Cap:** None (backtest parity) — EOD flat at 15:15 IST hard rule\n"
+            f"• **Entries:** 09:15–15:00 IST | One position at a time | No averaging\n"
+            f"• **Order Type:** Aggressive limit (+5.0 pt buffer) for guaranteed fills"
         )
         await reply(interaction, msg)
 
-    @trading.command(name="restart", description="Cleanly restart the live trading bot")
+    @trading.command(name="restart", description="Cleanly restart the live trading bot via systemd")
     async def trading_restart(interaction: discord.Interaction):
         if not authorized(interaction):
             await reply(interaction, "🚫 Not authorized for this control channel.")
             return
-        if not await acknowledge(interaction):
+        if not SYSTEMD_AVAILABLE:
+            await reply(interaction, "⚠️ systemd control not available on this host (local dev machine).")
             return
-        await asyncio.to_thread(manager.request_stop)
-        await asyncio.to_thread(manager.wait_for_exit, 10.0)
-        started = await asyncio.to_thread(manager.start, True)
-        if started:
-            await interaction.followup.send("🔄 **Bot successfully restarted in live mode.**", ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
+        code, out = await asyncio.to_thread(_systemctl, "restart")
+        if code == 0:
+            await interaction.followup.send("🔄 **Bot successfully restarted in live mode** (fresh day-state + S/R re-seed).")
         else:
-            await interaction.followup.send("⚠️ Restart attempt completed. Use `/trading status` to verify.", ephemeral=True)
+            await interaction.followup.send(f"⚠️ Restart failed: `{out}`")
 
     @trading.command(name="help", description="Show all available Discord control commands")
     async def trading_help(interaction: discord.Interaction):
@@ -301,13 +307,12 @@ def create_client(manager: TradingProcessManager):
             return
         msg = (
             "🎮 **Available Discord Trading Commands:**\n\n"
-            "• `/trading status` — View live engine status, Nifty spot, filter side & active position\n"
-            "• `/trading logs` — Read the latest 15 lines of live bot execution logs\n"
-            "• `/trading levels` — View the Pocket Money spec (triggers, strikes, filter)\n"
-            "• `/trading risk` — View active risk parameters (±7 pts SL/TP, 4-loss block)\n"
-            "• `/trading start` — Launch live bot in background\n"
-            "• `/trading start-visible` — Launch live bot with interactive terminal GUI\n"
-            "• `/trading stop` — Gracefully stop the bot after any active trade closes\n"
+            "• `/trading status` — Live engine status, Nifty spot, position & heartbeat\n"
+            "• `/trading logs` — Latest 15 lines of live bot execution logs\n"
+            "• `/trading levels` — Last Hope Winner spec (triggers, strikes, S/R bounce, BE)\n"
+            "• `/trading risk` — Active risk parameters (ATR×1.5 SL/TP, 4-loss block)\n"
+            "• `/trading start` — Start live bot via systemd (tmux dashboard: `tmux attach -t bot`)\n"
+            "• `/trading stop` — Stop the bot via systemd\n"
             "• `/trading restart` — Cleanly restart the trading engine\n"
             "• `/trading help` — Display this command reference guide"
         )
@@ -315,42 +320,9 @@ def create_client(manager: TradingProcessManager):
 
     client.tree = tree
 
-    async def schedule_loop() -> None:
-        while not client.is_closed():
-            try:
-                now = datetime.now(timezone)
-                action = scheduled_action(
-                    now,
-                    start_min,
-                    stop_min,
-                    schedule_state["started_on"],
-                    schedule_state["stopped_on"],
-                    settings.BOT_START_GRACE_MINUTES,
-                )
-                if action == "start":
-                    if await asyncio.to_thread(manager.start, True):
-                        schedule_state["started_on"] = now.date()
-                        logger.info("Scheduled live bot start completed.")
-                elif action == "stop":
-                    requested = await asyncio.to_thread(manager.request_stop)
-                    exited = True
-                    if requested:
-                        exited = await asyncio.to_thread(manager.wait_for_exit, 45.0)
-                        if not exited:
-                            logger.error("Scheduled stop timed out; no force-kill was performed.")
-                    if exited:
-                        schedule_state["stopped_on"] = now.date()
-                        logger.info("Scheduled bot stop completed.")
-            except Exception:
-                logger.exception("Discord control scheduler iteration failed")
-            await asyncio.sleep(5)
-
     @client.event
     async def on_ready():
-        nonlocal schedule_task
-        if schedule_task is None:
-            schedule_task = asyncio.create_task(schedule_loop())
-        logger.info("Discord control connected as %s", client.user)
+        logger.info("Discord control connected as %s (systemd bridge mode)", client.user)
 
     async def setup_hook():
         tree.add_command(trading, guild=guild)
@@ -370,15 +342,7 @@ def main() -> int:
     )
     try:
         _validate_configuration()
-        manager = TradingProcessManager(
-            project_root=Path(__file__).resolve().parent.parent,
-            python_executable=sys.executable,
-            stop_file=settings.BOT_STOP_FILE,
-            pid_file=settings.BOT_RUNTIME_FILE,
-            visible_console=settings.BOT_VISIBLE_CONSOLE,
-            visible_task_name=settings.BOT_VISIBLE_TASK_NAME,
-        )
-        client = create_client(manager)
+        client = create_client()
         client.run(settings.DISCORD_BOT_TOKEN)
     except Exception as exc:
         logger.error("Discord control stopped: %s", exc)

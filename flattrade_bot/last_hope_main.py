@@ -908,7 +908,18 @@ class LastHopeTradingEngine:
             logger.warning("15:15 IST - triggering EOD safety square-off.")
             await self._force_eod_square_off()
 
-        touch_runtime_record()
+        touch_runtime_record(
+            extra={
+                "strategy_name": STRATEGY_LABEL,
+                "spot_price": self.spot_price or 0.0,
+                "active_position": self.active_position_key if self._has_position() else None,
+                "trades_count": len(self.trades_today),
+                "wins": self._wins_today,
+                "net_rs": round(sum(float(t.get("rs", 0.0)) for t in self.trades_today), 2),
+                "broker_status": self._broker_status,
+            },
+            live_orders=self.live_orders,
+        )
         return time.time() - started
 
     def _log_status_line(self):
