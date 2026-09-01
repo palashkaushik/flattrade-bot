@@ -108,7 +108,9 @@ class LastHopeTradingEngine:
         self._eod_done = False
         self._current_day: Optional[date] = None
         self._contract_task: Optional[asyncio.Task] = None
+        self._exit_task: Optional[asyncio.Task] = None
         self._entering: bool = False
+        self._dash_lines_drawn: int = 0
 
     async def initialize(self):
         logger.info("Initializing %s (live_orders=%s)...", STRATEGY_LABEL, self.live_orders)
@@ -464,6 +466,19 @@ class LastHopeTradingEngine:
             )
         )
 
+    async def _execute_close(self, ltp: float, now: datetime, reason: str):
+        """Background: performs the broker close + fill confirmation (may take seconds).
+        The tick loop keeps running while this executes."""
+        try:
+            res = await self.executor.close_position(ltp, now, reason)
+            if res.get("accepted"):
+                await self._record_close(res.get("trade", {}))
+                logger.info(f"✅ Position Closed on Flattrade: {res.get('trade', {}).get('reason')}")
+            else:
+                logger.warning("Background close not accepted: %s — will retrigger next tick", res.get("reason"))
+        except Exception as e:
+            logger.error("Background close failed: %s — will retrigger next tick", e, exc_info=True)
+
     async def _record_close(self, trade: Dict[str, Any]):
         self.trades_today.append(trade)
         if float(trade.get("pts", 0.0)) > 0:
@@ -516,14 +531,19 @@ class LastHopeTradingEngine:
                         )
                     )
 
-            res = await self.executor.check_exit(ltp, now)
-            if res.get("accepted"):
-                await self._record_close(res.get("trade", {}))
-                logger.info(f"✅ Position Closed on Flattrade: {res.get('trade', {}).get('reason')}")
-            elif "backoff" in str(res.get("reason", "")).lower() or "retry" in str(res.get("reason", "")).lower():
-                pass  # already retrying
-            else:
-                logger.warning("Exit attempt not accepted: %s", res.get("reason"))
+            # SL/TP/EOD detection (pure CPU — fast). Exit EXECUTION (broker order +
+            # up to 12x0.3s order-book polls) runs as a guarded background task so
+            # the tick loop NEVER blocks on fill confirmation (the 10s freeze bug).
+            res = await self.executor.check_exit(ltp, now, dry_run=True)
+            if res.get("exit_reason"):
+                reason = res["exit_reason"]
+                if self._exit_task is None or self._exit_task.done():
+                    logger.info("EXIT triggered (%s) — dispatching broker close in background", reason)
+                    self._exit_task = asyncio.create_task(
+                        self._execute_close(ltp, now, reason)
+                    )
+                else:
+                    logger.warning("EXIT signal (%s) while close already in flight — skipped", reason)
             return
 
         # Paper Position Exit
@@ -669,7 +689,11 @@ class LastHopeTradingEngine:
         return True
 
     def print_dashboard(self):
-        """Print dashboard using plain print() — no Rich, no threads, works in any SSH."""
+        """Zero-flicker dashboard: redraw in place via ANSI cursor-up + line-erase.
+        Never full-screen clears (that's the blink). No Rich, no threads."""
+        L: List[str] = []
+        p = L.append
+
         now = ist_now()
         time_str = now.strftime("%H:%M:%S")
         sess_active = SESSION_START_MIN <= minute_of(now) < SESSION_END_MIN
@@ -681,17 +705,14 @@ class LastHopeTradingEngine:
         wr = (self._wins_today / total * 100.0) if total > 0 else 0.0
         sess = "ACTIVE" if sess_active else "CLOSED"
 
-        # Clear screen
-        print("\033[2J\033[H", end="", flush=True)
-
-        print(f"{'='*90}")
-        print(f"  LAST HOPE GPU WINNER | 2nd ITM | Multi-TF Stoch | S/R Bounce | ATRx1.5 + BE | {time_str} IST")
-        print(f"{'='*90}")
-        print(f"  MODE: {mode} | SPOT: {self.spot_price:.1f} ({atm}) | ITM: {atm-100} CE / {atm+100} PE | SESSION: {sess}")
-        print(f"  TRADES: {total} ({self._wins_today}W/{total - self._wins_today}L {wr:.0f}%) | NET: Rs {net_rs:+,.2f} ({net_pts:+.1f}p)")
-        print(f"{'-'*90}")
-        print(f"  {'STRIKE':<12} {'ARM':<10} {'STOCH 1m':<12} {'STOCH multi':<14} {'SETUP':<20} {'PROX S/R':<16} {'LTP':>8}")
-        print(f"  {'-'*86}")
+        p(f"{'='*90}")
+        p(f"  LAST HOPE GPU WINNER | 2nd ITM | Multi-TF Stoch | S/R Bounce | ATRx1.5 + BE | {time_str} IST")
+        p(f"{'='*90}")
+        p(f"  MODE: {mode} | SPOT: {self.spot_price:.1f} ({atm}) | ITM: {atm-100} CE / {atm+100} PE | SESSION: {sess}")
+        p(f"  TRADES: {total} ({self._wins_today}W/{total - self._wins_today}L {wr:.0f}%) | NET: Rs {net_rs:+,.2f} ({net_pts:+.1f}p)")
+        p(f"{'-'*90}")
+        p(f"  {'STRIKE':<12} {'ARM':<10} {'STOCH 1m':<12} {'STOCH multi':<14} {'SETUP':<20} {'PROX S/R':<16} {'LTP':>8}")
+        p(f"  {'-'*86}")
 
         for key, cs in self.engine.contracts.items():
             s1 = cs.tf_trackers[1].last_s1
@@ -737,12 +758,12 @@ class LastHopeTradingEngine:
             stoch1 = f"{f0(s1)}/{f0(s3)}/{f0(s4)}"
             stochm = f"{f0(s4_2)}/{f0(s4_3)}/{f0(s4_5)}"
 
-            print(f"  {cs.strike} {cs.side:<4} {arm:<10} {stoch1:<12} {stochm:<14} {setup:<20} {prox:<16} {ltp:>8.2f}")
+            p(f"  {cs.strike} {cs.side:<4} {arm:<10} {stoch1:<12} {stochm:<14} {setup:<20} {prox:<16} {ltp:>8.2f}")
 
-        print(f"  {'-'*86}")
-        print(f"  S/R LEVELS (TradingView verify)")
-        print(f"  {'STRIKE':<12} {'LTP':>8}  {'PDH/PDL':<14} {'CPR(B/P/T)':<18} {'EMA20/200 VWAP':<20} {'ATR':>6}")
-        print(f"  {'-'*86}")
+        p(f"  {'-'*86}")
+        p(f"  S/R LEVELS (TradingView verify)")
+        p(f"  {'STRIKE':<12} {'LTP':>8}  {'PDH/PDL':<14} {'CPR(B/P/T)':<18} {'EMA20/200 VWAP':<20} {'ATR':>6}")
+        p(f"  {'-'*86}")
 
         for key, cs in self.engine.contracts.items():
             ltp = self._last_ltp.get(key, 0.0)
@@ -752,9 +773,24 @@ class LastHopeTradingEngine:
             cpr = f"{f2(cs.sr_levels.get('CPR_BC'))}/{f2(cs.sr_levels.get('CPR_Pivot'))}/{f2(cs.sr_levels.get('CPR_TC'))}"
             ema = f"{f2(cs.ema20.value)}/{f2(cs.ema200.value)} {f2(cs.vwap.value)}"
             atr = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
-            print(f"  {cs.strike} {cs.side:<4} {ltp:>8.0f}  {pdh}/{pdl:<12} {cpr:<18} {ema:<20} {atr:>5.1f}")
+            p(f"  {cs.strike} {cs.side:<4} {ltp:>8.0f}  {pdh}/{pdl:<12} {cpr:<18} {ema:<20} {atr:>5.1f}")
 
-        print(f"{'='*90}")
+        p(f"{'='*90}")
+
+        # Zero-flicker in-place redraw (SO 34828142 / Rich #2726):
+        # cursor-up N lines, then erase+write each line. Full-screen clear blinks.
+        if self._dash_lines_drawn == len(L):
+            buf = [f"\033[{len(L)}A"]
+            buf.extend("\033[2K" + line for line in L)
+            sys.stdout.write("\n".join(buf) + "\n")
+        elif self._dash_lines_drawn == 0:
+            sys.stdout.write("\n".join(L) + "\n")
+        else:
+            # Frame height changed (contract count changed): clear region safely.
+            sys.stdout.write(f"\033[{self._dash_lines_drawn}A\033[J")
+            sys.stdout.write("\n".join(L) + "\n")
+        sys.stdout.flush()
+        self._dash_lines_drawn = len(L)
 
     async def _main_loop_body(self) -> float:
         """Execute one iteration of the trading loop. Returns elapsed seconds."""

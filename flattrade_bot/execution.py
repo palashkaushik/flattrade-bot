@@ -250,18 +250,18 @@ class TradeExecutor:
         return {"accepted": True, "response": response, "position": self.position}
 
     async def check_exit(
-        self, ltp: float, now: datetime, order_price: Optional[float] = None
+        self, ltp: float, now: datetime, order_price: Optional[float] = None, dry_run: bool = False
     ) -> Dict[str, Any]:
-        """Closes the open long position on SL, target, or the 15:00 cutoff.
+        """Evaluates exit conditions on the monitored quote.
+
+        dry_run=True: detects only — returns {"exit_reason": ...} without closing,
+        letting the caller execute the close off-loop (non-blocking tick loop).
+        dry_run=False: original behavior — detects and closes inline.
 
         B17 fib-level positions exit on absolute ``sl_level``/``tp_level``
         with ``price_rise`` direction; fallback positions use the
-        entry-relative ``sl``/``target``.
-
-        ``ltp`` is the monitored quote used for the exit decision. For
-        index-monitor positions the monitored quote is the index, so the
-        closing order must be priced at the option's own LTP — pass it as
-        ``order_price``; otherwise ``ltp`` is used for both.
+        entry-relative ``sl``/``target``. ``order_price`` prices the closing
+        order when the monitored quote differs from the option's own LTP.
         """
         if not self.position:
             return {"accepted": False, "reason": "No open position"}
@@ -271,6 +271,8 @@ class TradeExecutor:
         pending = self.position.get("pending_exit")
         if pending:
             if now_min > int(pending["touch_minute"]):
+                if dry_run:
+                    return {"exit_reason": pending["reason"]}
                 result = await self.close_position(
                     ltp, now, pending["reason"], order_price=order_price
                 )
@@ -295,7 +297,9 @@ class TradeExecutor:
                     exit_reason = "TARGET"
             if exit_reason:
                 if now_min >= 15 * 60:
-                    return await self.close_position(ltp, now, "EOD", order_price=order_price)
+                    exit_reason = "EOD"
+                elif dry_run:
+                    return {"exit_reason": exit_reason}
                 self.position["pending_exit"] = {
                     "reason": exit_reason,
                     "touch_minute": now_min,
@@ -315,6 +319,9 @@ class TradeExecutor:
 
         if not exit_reason:
             return {"accepted": False, "reason": "Position remains open"}
+
+        if dry_run:
+            return {"exit_reason": exit_reason}
 
         return await self.close_position(ltp, now, exit_reason, order_price=order_price)
 
