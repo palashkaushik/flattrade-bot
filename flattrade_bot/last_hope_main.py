@@ -117,6 +117,8 @@ class LastHopeTradingEngine:
         self._last_token_renew = 0.0
         self._eod_done = False
         self._current_day: Optional[date] = None
+        self._contract_task: Optional[asyncio.Task] = None
+        self._entering: bool = False
 
     async def initialize(self):
         logger.info("Initializing %s (live_orders=%s)...", STRATEGY_LABEL, self.live_orders)
@@ -213,23 +215,50 @@ class LastHopeTradingEngine:
 
             if valid_prev_days:
                 last_trading_day = valid_prev_days[-1]
-                # Filter to regular market trading hours (09:15 to 15:29 IST, minute 555 to 929)
-                parsed_y_rows = []
-                for x in by_day[last_trading_day]:
-                    try:
-                        x_dt = datetime.strptime(str(x["time"]), "%d-%m-%Y %H:%M:%S")
-                        x_m = x_dt.hour * 60 + x_dt.minute
-                        if 555 <= x_m <= 929:
-                            parsed_y_rows.append((x_dt, x))
-                    except Exception:
-                        pass
 
-                parsed_y_rows.sort(key=lambda item: item[0])
-                if parsed_y_rows:
-                    yesterday_rows = [item[1] for item in parsed_y_rows]
-                    yh = max(float(x.get("high", x.get("inth", 0.0))) for x in yesterday_rows)
-                    yl = min(float(x.get("low", x.get("intl", 0.0))) for x in yesterday_rows if float(x.get("low", x.get("intl", 0.0))) > 0)
-                    yc = float(yesterday_rows[-1].get("close", yesterday_rows[-1].get("intc", 0.0)))
+                # ── Authoritative EOD OHLC: try the DAILY candle first ──────────
+                # 1m candles on illiquid strikes stop at the last TRADE (e.g. 14:47),
+                # so the "last bar close" understates the exchange's official EOD
+                # close (which includes the closing session). The daily candle
+                # carries the true session H/L/C — this is what TradingView/Upstox
+                # plot for CPR/PDH/PDL.
+                yh = yl = yc = None
+                try:
+                    daily_rows = await self.history.fetch_historical_candles(
+                        token=token, exchange="NFO", interval="1D", days_back=5
+                    )
+                    for r in reversed(daily_rows):
+                        d_part = str(r.get("time", "")).split(" ")[0]
+                        if d_part == last_trading_day:
+                            dh = float(r.get("high", 0.0))
+                            dl = float(r.get("low", 0.0))
+                            dc = float(r.get("close", 0.0))
+                            if dh >= dl > 0 and dc > 0:
+                                yh, yl, yc = dh, dl, dc
+                            break
+                except Exception as e:
+                    logger.debug(f"Daily candle fetch failed for {symbol}: {e}")
+
+                # Fallback: 1m-derived session H/L/C (pre-15:29 filter)
+                if yh is None:
+                    parsed_y_rows = []
+                    for x in by_day[last_trading_day]:
+                        try:
+                            x_dt = datetime.strptime(str(x["time"]), "%d-%m-%Y %H:%M:%S")
+                            x_m = x_dt.hour * 60 + x_dt.minute
+                            if 555 <= x_m <= 929:
+                                parsed_y_rows.append((x_dt, x))
+                        except Exception:
+                            pass
+
+                    parsed_y_rows.sort(key=lambda item: item[0])
+                    if parsed_y_rows:
+                        yesterday_rows = [item[1] for item in parsed_y_rows]
+                        yh = max(float(x.get("high", x.get("inth", 0.0))) for x in yesterday_rows)
+                        yl = min(float(x.get("low", x.get("intl", 0.0))) for x in yesterday_rows if float(x.get("low", x.get("intl", 0.0))) > 0)
+                        yc = float(yesterday_rows[-1].get("close", yesterday_rows[-1].get("intc", 0.0)))
+
+                if yh is not None:
                     contract_state.set_day_sr_levels(yh, yl, yc)
                     logger.info(f"Initialized Day S/R for {symbol} from {last_trading_day}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
 
@@ -276,7 +305,11 @@ class LastHopeTradingEngine:
             logger.warning(f"Async warmup failed for {symbol}: {e}")
 
     async def ensure_contracts(self, force: bool = False):
-        """Resolves 2nd ITM contracts + rollover watch pairs and warms up indicators & daily S/R levels."""
+        """Resolves 2nd ITM contracts + rollover watch pairs; HTTP work runs in background.
+
+        The tick loop calls this every second — scrip token search must NEVER run
+        inline (up to 6 sequential 10s HTTP calls would freeze quote polling).
+        """
         if not self.history.auth_token or self.spot_price is None:
             return
         if not force and (time.time() - self._last_contract_check) < 3.0:
@@ -297,12 +330,20 @@ class LastHopeTradingEngine:
         now = ist_now()
         today_str = now.strftime("%d-%m-%Y")
 
-        # Prune stale contracts not in desired_keys or active position
+        # Prune stale contracts not in desired_keys or active position (pure CPU, safe inline)
         for k in list(self.engine.contracts.keys()):
             if k not in desired_keys and k != self.active_position_key:
                 del self.engine.contracts[k]
                 self._last_ltp.pop(k, None)
 
+        # HTTP resolution (token search + warmup) in background — never blocks the tick loop
+        if self._contract_task is None or self._contract_task.done():
+            self._contract_task = asyncio.create_task(
+                self._resolve_and_warm_contracts(pairs, desired_keys, today_str, now)
+            )
+
+    async def _resolve_and_warm_contracts(self, pairs, desired_keys, today_str: str, now: datetime):
+        """Background task: searches scrip tokens for missing contracts and launches warmup."""
         for side, strike in pairs:
             key = f"{side}:{strike}"
             if key in self.engine.contracts:
@@ -310,6 +351,9 @@ class LastHopeTradingEngine:
             try:
                 scrip = await self.history.search_option_token(f"NIFTY {strike} {side}")
                 if not scrip or not scrip.get("token"):
+                    continue
+                # Spot may have moved mid-resolution; register only if still desired
+                if key not in desired_keys:
                     continue
 
                 contract_state = self.engine.register_contract(
@@ -333,6 +377,14 @@ class LastHopeTradingEngine:
         return bool(self.executor and self.executor.position)
 
     async def _try_enter(self, sig: Dict[str, Any]):
+        # Re-entrancy guard: while one entry is confirming at the broker, ignore
+        # all other signals (this is what caused duplicate live positions).
+        if self._entering:
+            logger.info("Entry skipped: another entry is being confirmed")
+            return
+        if self._has_position():
+            return
+
         now = ist_now()
         cur_min = minute_of(now)
         can, reason = self.risk.can_open_trade(cur_min, 0)
@@ -348,7 +400,9 @@ class LastHopeTradingEngine:
         tp = sig["tp"]
 
         if self.live_orders and self.executor is not None:
-            res = await self.executor.open_trade(
+            self._entering = True
+            try:
+                res = await self.executor.open_trade(
                 side=sig["side"],
                 order_symbol=display,
                 display_symbol=display,
@@ -361,6 +415,8 @@ class LastHopeTradingEngine:
                 current_min=cur_min,
                 opened_at=now,
             )
+            finally:
+                self._entering = False
             if not res.get("accepted"):
                 logger.warning("Live entry rejected: %s", res.get("reason"))
                 return
@@ -394,20 +450,25 @@ class LastHopeTradingEngine:
             }
             self.engine.on_trade_opened(self.paper_position)
             fill = entry
+            sl = float(sl)
+            tp = float(tp)
 
         self.active_position_key = f"{sig['side']}:{sig['strike']}"
         logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} BE_trig={sig['be_trigger_px']:.2f}")
 
-        await self.discord.send_trade_alert(
-            strategy=STRATEGY_LABEL,
-            direction="LONG",
-            symbol=display,
-            entry_price=fill,
-            sl_price=sl,
-            tp_price=tp,
-            notes=f"{sig['trigger']} trigger | SR={sig['level']} | dist={dist:.2f} | BE at {sig['be_trigger_px']:.2f}",
-            lot_size=settings.LOT_SIZE,
-            mode="LIVE" if self.live_orders else "PAPER",
+        # Fire-and-forget Discord alert — must never block the tick loop (10s webhook timeout)
+        asyncio.create_task(
+            self.discord.send_trade_alert(
+                strategy=STRATEGY_LABEL,
+                direction="LONG",
+                symbol=display,
+                entry_price=fill,
+                sl_price=sl,
+                tp_price=tp,
+                notes=f"{sig['trigger']} trigger | SR={sig['level']} | dist={dist:.2f} | BE at {sig['be_trigger_px']:.2f}",
+                lot_size=settings.LOT_SIZE,
+                mode="LIVE" if self.live_orders else "PAPER",
+            )
         )
 
     async def _record_close(self, trade: Dict[str, Any]):
@@ -419,36 +480,65 @@ class LastHopeTradingEngine:
         self.paper_position = None
 
     async def _manage_exit(self):
-        if not self._has_position() or self.active_position_key is None:
+        """Exit watchdog — runs EVERY tick, must never silently skip.
+
+        Never returns early on a missing active_position_key: if the broker
+        executor holds a position, we exit it using whatever LTP we can find.
+        """
+        if not self._has_position():
             return
-        ltp = self._last_ltp.get(self.active_position_key)
-        if ltp is None:
-            return
+
         now = ist_now()
 
-        # Handle Live Broker Position Exit
-        if self.live_orders and self.executor is not None:
-            # Sync SL if Breakeven triggered
-            if self.engine.active_trade and self.executor.position:
-                if self.engine.active_trade.get("be_done") and not self.executor.position.get("be_notified"):
-                    self.executor.position["be_notified"] = True
-                    self.executor.position["sl"] = self.engine.active_trade["sl"]
-                    await self.discord.notify_breakeven_locked(
-                        symbol=self.executor.position["symbol"],
-                        entry=float(self.executor.position["entry"]),
-                        new_sl=float(self.engine.active_trade["sl"]),
-                        ltp=ltp,
+        # Live Broker Position Exit
+        if self.live_orders and self.executor is not None and self.executor.position:
+            pos = self.executor.position
+            # Resolve LTP: prefer the position's own key; fall back to scanning
+            # by token so an orphaned/desynced position can never dodge the exit check.
+            ltp = self._last_ltp.get(self.active_position_key)
+            if ltp is None:
+                key_by_token = next(
+                    (k for k, cs in self.engine.contracts.items()
+                     if cs and str(cs.token) == str(pos.get("token", ""))),
+                    None,
+                )
+                ltp = self._last_ltp.get(key_by_token) if key_by_token else None
+            if ltp is None:
+                ltp = float(pos.get("ltp", 0.0) or 0.0)
+            if ltp <= 0:
+                logger.warning("Exit check skipped: no LTP available for %s", pos.get("order_symbol"))
+                return
+
+            # Sync SL if Breakeven triggered (engine is authoritative for BE)
+            if self.engine.active_trade:
+                if self.engine.active_trade.get("be_done") and not pos.get("be_notified"):
+                    pos["be_notified"] = True
+                    pos["sl"] = self.engine.active_trade["sl"]
+                    asyncio.create_task(
+                        self.discord.notify_breakeven_locked(
+                            symbol=pos["symbol"],
+                            entry=float(pos["entry"]),
+                            new_sl=float(self.engine.active_trade["sl"]),
+                            ltp=ltp,
+                        )
                     )
 
             res = await self.executor.check_exit(ltp, now)
             if res.get("accepted"):
                 await self._record_close(res.get("trade", {}))
                 logger.info(f"✅ Position Closed on Flattrade: {res.get('trade', {}).get('reason')}")
+            elif "backoff" in str(res.get("reason", "")).lower() or "retry" in str(res.get("reason", "")).lower():
+                pass  # already retrying
+            else:
+                logger.warning("Exit attempt not accepted: %s", res.get("reason"))
             return
 
-        # Handle Paper Position Exit
+        # Paper Position Exit
         pos = self.paper_position
         if pos is None:
+            return
+        ltp = self._last_ltp.get(self.active_position_key)
+        if ltp is None:
             return
 
         # Breakeven Stop Check
@@ -456,11 +546,13 @@ class LastHopeTradingEngine:
             pos["be_done"] = True
             pos["sl"] = pos["be_hardened_sl"]
             logger.info(f"Paper Breakeven Triggered on {pos['symbol']}: SL moved to {pos['sl']:.2f}")
-            await self.discord.notify_breakeven_locked(
-                symbol=pos["symbol"],
-                entry=float(pos["entry"]),
-                new_sl=float(pos["sl"]),
-                ltp=ltp,
+            asyncio.create_task(
+                self.discord.notify_breakeven_locked(
+                    symbol=pos["symbol"],
+                    entry=float(pos["entry"]),
+                    new_sl=float(pos["sl"]),
+                    ltp=ltp,
+                )
             )
 
         reason = None
@@ -487,7 +579,7 @@ class LastHopeTradingEngine:
             "reason": reason,
         }
         await self._record_close(trade_info)
-        await self.discord.notify_trade_close(trade_info)
+        asyncio.create_task(self.discord.notify_trade_close(trade_info))
 
     async def recover_open_positions(self):
         """On startup, squares off orphaned broker positions from a previous crash."""
@@ -850,7 +942,13 @@ class LastHopeTradingEngine:
             else:
                 tasks.append(asyncio.sleep(0))
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Timeout-capped gather: one slow endpoint must never stall the tick loop.
+        # Each request gets a private 2.0s deadline; laggards are cancelled and
+        # their slot left as None (skipped downstream).
+        results: List[Any] = await asyncio.wait_for(
+            asyncio.gather(*tasks, return_exceptions=True),
+            timeout=2.0,
+        )
 
         # Log any exceptions from the gather (timeouts, connection errors, etc.)
         for idx, result in enumerate(results):

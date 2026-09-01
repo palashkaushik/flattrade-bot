@@ -69,7 +69,7 @@ class FlattradeHistoryFetcher:
         Parameters:
           token: Instrument token (e.g. "26000" for Nifty 50 Spot, or Option Token).
           exchange: "NSE" or "NFO".
-          interval: Candle timeframe in minutes ("1", "3", "5", "15").
+          interval: Candle timeframe in minutes ("1", "3", "5", "15") or "1D" for daily EOD candles.
           days_back: Number of past days to fetch.
 
         Returns:
