@@ -128,6 +128,74 @@ class FlattradeHistoryFetcher:
             logger.error(f"Flattrade historical fetch error: {e}")
             return []
 
+    async def fetch_daily_candles(
+        self,
+        tradingsymbol: str,
+        exchange: str = "NFO",
+        days_back: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Fetches TRUE daily EOD candles via Flattrade's /EODChartData endpoint.
+
+        This is the official daily-candle source (same data TradingView charts).
+        Takes the trading symbol (not token): sym format = "NFO:NIFTY01SEP26C23950".
+
+        Returns chronological list of dicts: {'time': '31-08-2026', 'open','high','low','close','volume'}
+        — one candle per trading day with the OFFICIAL session close.
+        """
+        if not self.auth_token:
+            logger.warning("Auth token missing. Cannot fetch daily candles from Flattrade.")
+            return []
+
+        end_time = datetime.now()
+        start_time = end_time - timedelta(days=days_back)
+        payload = {
+            "uid": settings.FLATTRADE_USER_ID,
+            "sym": f"{exchange}:{tradingsymbol}",
+            "from": str(int(start_time.timestamp())),
+            "to": str(int(end_time.timestamp())),
+        }
+        url = f"{self.base_url}EODChartData"
+        body = f"jData={json.dumps(payload)}&jKey={self.auth_token}"
+
+        try:
+            data = await self._post(url, body)
+            if is_session_expired_response(data):
+                raise SessionExpiredError(data.get("emsg", "Session expired"))
+            if isinstance(data, list):
+                candles = []
+                for row in data:
+                    if not isinstance(row, dict):
+                        continue
+                    # API returns "DD-MON-YYYY" (e.g. "31-AUG-2026"); normalize to DD-MM-YYYY
+                    raw_t = str(row.get("time", ""))
+                    try:
+                        if "-" in raw_t and raw_t.count("-") == 2 and not raw_t[2].isdigit():
+                            dt_obj = datetime.strptime(raw_t, "%d-%b-%Y")
+                            norm_t = dt_obj.strftime("%d-%m-%Y")
+                        else:
+                            norm_t = raw_t
+                    except ValueError:
+                        norm_t = raw_t
+                    candles.append({
+                        "time": norm_t,
+                        "open": float(row.get("into", 0.0)),
+                        "high": float(row.get("inth", 0.0)),
+                        "low": float(row.get("intl", 0.0)),
+                        "close": float(row.get("intc", 0.0)),
+                        "volume": float(row.get("intv", 0.0)),
+                    })
+                # API returns newest first; normalize to chronological order
+                candles.reverse()
+                logger.info(f"✅ Downloaded {len(candles)} daily EOD candles for {tradingsymbol}.")
+                return candles
+            logger.error(f"❌ Flattrade EODChartData error: {data.get('emsg') if isinstance(data, dict) else data}")
+            return []
+        except SessionExpiredError:
+            raise
+        except Exception as e:
+            logger.error(f"Flattrade daily candle fetch error: {e}")
+            return []
+
     async def fetch_live_quote(self, token: str = "26000", exchange: str = "NSE") -> Optional[Dict[str, Any]]:
         """Fetches live real-time quote (LTP, Open, High, Low, Close) for an instrument token."""
         if not self.auth_token:
