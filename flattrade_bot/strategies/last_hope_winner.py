@@ -161,30 +161,36 @@ class TFTracker:
     last_cl: Optional[float] = None
 
     def push_1m_bar(self, bar: Bar1m) -> Tuple[Optional[float], Optional[float], Optional[float], bool]:
-        """Pushes 1m bar; returns (s1, s3, s4, is_rising) when TF bucket completes."""
+        """Pushes 1m bar; returns (s1, s3, s4, is_rising) when the TF bucket completes.
+
+        CONGRUENCE: buckets are CLOCK-ALIGNED to the session start (minute 555 = 09:15),
+        exactly like the backtest's reshape(D, T_tf, tf) which chunks from the day's
+        first bar. A TF bar closes only on the tick whose 1m bar ends a boundary
+        ((bar.minute + 1 - SESSION_START_MIN) % tf == 0)."""
         self.cur_bars.append(bar)
-        if len(self.cur_bars) < self.tf:
-            is_rising = (self.last_s1 is not None and self.prev_s1 is not None and self.last_s1 > self.prev_s1)
-            return self.last_s1, self.last_s3, self.last_s4, is_rising
+        boundary = ((bar.minute + 1 - SESSION_START_MIN) % self.tf) == 0
+        if self.cur_bars and boundary:
+            tf_hi = max(b.high for b in self.cur_bars)
+            tf_lo = min(b.low for b in self.cur_bars)
+            tf_cl = self.cur_bars[-1].close
+            self.last_lo = tf_lo
+            self.last_cl = tf_cl
+            self.cur_bars = []
 
-        tf_hi = max(b.high for b in self.cur_bars)
-        tf_lo = min(b.low for b in self.cur_bars)
-        tf_cl = self.cur_bars[-1].close
-        self.last_lo = tf_lo
-        self.last_cl = tf_cl
-        self.cur_bars = []
+            s1_val = self.s1.update(tf_hi, tf_lo, tf_cl)
+            s3_val = self.s3.update(tf_hi, tf_lo, tf_cl)
+            s4_val = self.s4.update(tf_hi, tf_lo, tf_cl)
 
-        s1_val = self.s1.update(tf_hi, tf_lo, tf_cl)
-        s3_val = self.s3.update(tf_hi, tf_lo, tf_cl)
-        s4_val = self.s4.update(tf_hi, tf_lo, tf_cl)
-
-        if s1_val is not None:
-            self.prev_s1 = self.last_s1
-            self.last_s1 = s1_val
-        if s3_val is not None:
-            self.last_s3 = s3_val
-        if s4_val is not None:
-            self.last_s4 = s4_val
+            if s1_val is not None:
+                self.prev_s1 = self.last_s1
+                self.last_s1 = s1_val
+            if s3_val is not None:
+                self.last_s3 = s3_val
+            if s4_val is not None:
+                self.last_s4 = s4_val
+        elif len(self.cur_bars) > self.tf:
+            # Safety: never accumulate more than tf bars (gap protection)
+            self.cur_bars = self.cur_bars[-self.tf:]
 
         is_rising = (self.last_s1 is not None and self.prev_s1 is not None and self.last_s1 > self.prev_s1)
         return self.last_s1, self.last_s3, self.last_s4, is_rising
@@ -232,6 +238,32 @@ class OptionContractState:
 
     latest_ltp: Optional[float] = None
     latest_atr: float = 6.0
+
+    def reset_session(self):
+        """CONGRUENCE: backtest (run_7y_v4_master make_tf_stoch/compute_atr) operates
+        on per-day arrays — every indicator cold-starts at 09:15. The live engine must
+        reset the SAME state each session start, otherwise warmup seeding produces
+        morning multi-TF signals the backtest structurally never took."""
+        self.bars = []
+        self.current_min = -1
+        self.cur_open = self.cur_high = self.cur_low = self.cur_close = None
+        self.cur_ticks = 0
+        self.atr = IncrementalATR(ATR_PERIOD)
+        self.ema20 = IncrementalEMA(20)
+        self.ema200 = IncrementalEMA(200)
+        self.vwap = IncrementalVWAP()
+        self.tf_trackers = {
+            1: TFTracker(1),
+            2: TFTracker(2),
+            3: TFTracker(3),
+            5: TFTracker(5),
+        }
+        self.flag_armed = False
+        self.super_armed = False
+        self.flag_arm_bar = -999
+        self.super_arm_bar = -999
+        self.latest_atr = 6.0
+        logger.info(f"Session reset for {self.symbol}: indicators cold-started (backtest parity)")
 
     def set_day_sr_levels(self, prev_high: float, prev_low: float, prev_close: float):
         """Builds CPR, Camarilla, and PDH/PDL from yesterday's option OHLC."""
@@ -482,6 +514,11 @@ class LastHopeWinnerEngine:
                 logger.info(f"🔒 BREAKEVEN STOP TRIGGERED on {pos['symbol']}: SL moved to {pos['sl']:.2f}")
 
         sig = contract.push_tick(ltp, dt)
+        # CONGRUENCE (gpu_sim line 339): arming only while flat & not blocked. An
+        # armed setup must never persist across a position open/close cycle.
+        if self.active_trade:
+            contract.flag_armed = False
+            contract.super_armed = False
         if sig and not self.active_trade:
             minute = dt.hour * 60 + dt.minute
             if SESSION_START_MIN <= minute <= SESSION_END_MIN:

@@ -257,24 +257,14 @@ class LastHopeTradingEngine:
                     contract_state.set_day_sr_levels(yh, yl, yc)
                     logger.info(f"Initialized Day S/R for {symbol} from {last_trading_day}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
 
-            # Collect completed 1m bars from previous days for macro stochastics / ATR warmup
-            prior_bars: List[Bar1m] = []
-            for d in valid_prev_days[-2:]:
-                for r in by_day[d]:
-                    try:
-                        dt = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
-                    except (TypeError, ValueError):
-                        continue
-                    m = dt.hour * 60 + dt.minute
-                    o = float(r.get("open", r.get("into", 0.0)))
-                    h = float(r.get("high", r.get("inth", 0.0)))
-                    l = float(r.get("low", r.get("intl", 0.0)))
-                    c = float(r.get("close", r.get("intc", 0.0)))
-                    v = float(r.get("volume", r.get("intv", r.get("v", 100.0))))
-                    if h >= l > 0:
-                        prior_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt, volume=v))
+            # CONGRUENCE FIX: the backtest (run_7y_v4_master) computes stochastics,
+            # ATR, EMA, VWAP on per-day arrays that COLD-START at 09:15. Seeding
+            # prior-day bars into the live trackers produced morning multi-TF
+            # signals the backtest structurally never took. Warmup now seeds ONLY
+            # today's completed bars (state identical to the backtest at this minute).
+            prior_bars: List[Bar1m] = []  # intentionally empty — per-day cold start
 
-            # Today's completed candles (intraday session VWAP & live indicators)
+            # Today's completed candles (backtest-identical state reconstruction)
             today_bars: List[Bar1m] = []
             cur_m = minute_of(now)
             if today_str in by_day:
@@ -358,6 +348,9 @@ class LastHopeTradingEngine:
                     side=side,
                     strike=strike,
                 )
+                # Per-day cold start (backtest parity): fresh indicators, then
+                # warmup replays today's completed bars only.
+                contract_state.reset_session()
 
                 # Launch async warmup in background without blocking main loop
                 asyncio.create_task(
@@ -791,6 +784,47 @@ class LastHopeTradingEngine:
             sys.stdout.write("\n".join(L) + "\n")
         sys.stdout.flush()
         self._dash_lines_drawn = len(L)
+
+    async def _on_day_rollover(self, now: datetime):
+        """Resets all daily state and forces full re-warmup when the calendar date changes (IST)."""
+        logger.warning("🌅 NEW TRADING DAY %s — resetting daily state and re-seeding S/R levels...", now.date())
+
+        # Preserve open-position bookkeeping, reset everything else
+        self.trades_today = []
+        self._wins_today = 0
+        self._eod_done = False
+        self.risk.reset_day()
+
+        # Drop ALL contracts so ensure_contracts() re-resolves + re-warms with fresh S/R
+        # (active position contract is preserved via active_position_key)
+        for k in list(self.engine.contracts.keys()):
+            if k != self.active_position_key:
+                del self.engine.contracts[k]
+                self._last_ltp.pop(k, None)
+        # Per-day cold start on any surviving contract (backtest parity)
+        for cs in self.engine.contracts.values():
+            cs.reset_session()
+
+        # Reset token-renew cooldown so a stale overnight token refreshes immediately
+        self._last_token_renew = 0.0
+
+        # Force immediate contract resolution + warmup on next tick
+        self._last_contract_check = 0.0
+        await self.ensure_contracts(force=True)
+
+        asyncio.create_task(
+            self.discord._post_embed({
+                "title": "🌅 NEW TRADING DAY — BOT RESET & RE-SEEDED",
+                "color": 0x3498DB,
+                "fields": [
+                    {"name": "Date", "value": str(now.date()), "inline": True},
+                    {"name": "Mode", "value": "LIVE ORDERS" if self.live_orders else "PAPER SIM", "inline": True},
+                    {"name": "Risk", "value": "Daily counters reset (4-loss block, shutdown cleared)", "inline": False},
+                ],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "footer": {"text": "Flattrade Last Hope Bot"},
+            })
+        )
 
     async def _main_loop_body(self) -> float:
         """Execute one iteration of the trading loop. Returns elapsed seconds."""

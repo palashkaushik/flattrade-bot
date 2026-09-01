@@ -429,14 +429,16 @@ def test_full_session_simulation_with_eod_squareoff():
     # 2. Trigger bar: bounce on CPR_Pivot (~138.33)
     pivot = ce_contract.sr_levels["CPR_Pivot"]
 
-    # Use 5m tracker for stochastic values — survives push_1m_bar recalculation
+    # Use 5m tracker for stochastic values — injected on a NON-boundary minute so
+    # they survive (clock-aligned aggregation only recomputes at 5m boundaries:
+    # minute 558 -> (558+1-555) % 5 = 4 != 0)
     ce_contract.tf_trackers[5].last_s4 = 82.0
     ce_contract.tf_trackers[5].last_s1 = 35.0
     ce_contract.tf_trackers[5].last_s3 = 50.0
     ce_contract.tf_trackers[5].prev_s1 = 30.0
 
-    t_trig = base_time + timedelta(minutes=4)
-    bar_trig = Bar1m(559, open=pivot + 2, high=pivot + 4, low=pivot - 1.0, close=pivot + 3.0, timestamp=t_trig)
+    t_trig = base_time + timedelta(minutes=3)
+    bar_trig = Bar1m(558, open=pivot + 2, high=pivot + 4, low=pivot - 1.0, close=pivot + 3.0, timestamp=t_trig)
     sig = ce_contract._on_1m_bar_close(bar_trig)
 
     assert sig is not None
