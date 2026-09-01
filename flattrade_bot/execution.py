@@ -237,12 +237,15 @@ class TradeExecutor:
             "order_id": order_id,
             "opened_at": opened_at,
         }
-        await self.notifier.notify_trade_open({
-            **self.position,
-            "tgt": self.position["target"],
-            "lot_size": self.quantity,
-            "reason": signal,
-        })
+        # Fire-and-forget: never block the tick loop on a 10s webhook timeout
+        asyncio.create_task(
+            self.notifier.notify_trade_open({
+                **self.position,
+                "tgt": self.position["target"],
+                "lot_size": self.quantity,
+                "reason": signal,
+            })
+        )
         return {"accepted": True, "response": response, "position": self.position}
 
     async def check_exit(
@@ -372,7 +375,8 @@ class TradeExecutor:
             "reason": reason,
         }
         self.risk.record_trade_result(pnl_rs)
-        await self.notifier.notify_trade_close(close_info)
+        # Fire-and-forget: never block the tick loop on a 10s webhook timeout
+        asyncio.create_task(self.notifier.notify_trade_close(close_info))
         self.position = None
         self._last_exit_attempt_at = None
         return {"accepted": True, "response": response, "trade": close_info}
