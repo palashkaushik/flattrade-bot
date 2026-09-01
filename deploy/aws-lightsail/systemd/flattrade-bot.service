@@ -9,13 +9,12 @@ User=ubuntu
 WorkingDirectory=/home/ubuntu/FLATTRADE_BOT
 Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONPATH=/home/ubuntu/FLATTRADE_BOT
-ExecStart=/usr/bin/python3 -m flattrade_bot.main --live
+# Runs bot INSIDE a screen session: auto-managed by systemd, attach anytime via `screen -r bot`
+ExecStart=/usr/bin/screen -S bot -D -m bash -c 'python3 -m flattrade_bot.main --live 2>&1 | tee -a /home/ubuntu/FLATTRADE_BOT/logs/last_hope_bot.log'
 Restart=on-failure
 RestartSec=10s
 KillMode=mixed
 TimeoutStopSec=30s
-StandardOutput=append:/home/ubuntu/FLATTRADE_BOT/logs/last_hope_bot.log
-StandardError=append:/home/ubuntu/FLATTRADE_BOT/logs/last_hope_bot.log
 
 [Install]
 WantedBy=multi-user.target
