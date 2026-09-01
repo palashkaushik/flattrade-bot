@@ -110,13 +110,13 @@ for d, day in enumerate(trading_days):
         elif ec == 'red':
             elder_state[d, m] = -1
         rsi_mat[d, m] = M.rsi_lookup.get(ts, 50.0)
-        if ts in M.bias_lookup:
+        if M.bias_lookup and ts in M.bias_lookup:
             bu, be = M.bias_lookup[ts]
             bias_bull[d, m] = bool(bu)
             bias_bear[d, m] = bool(be)
-        if ts in M.bias_lr_lookup:
+        if M.bias_lr_lookup and ts in M.bias_lr_lookup:
             bias_lr_grid[d, m] = M.bias_lr_lookup[ts]
-        if ts in M.bias_ut_lookup:
+        if M.bias_ut_lookup and ts in M.bias_ut_lookup:
             bias_ut_grid[d, m] = M.bias_ut_lookup[ts]
 
 # Option SR day-level levels per side (list of floats per day)
