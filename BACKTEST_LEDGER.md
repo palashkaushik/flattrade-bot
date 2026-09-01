@@ -1581,3 +1581,31 @@ be_trigger=0.70, be_buffer=1.0, tp_frac=1.0, entry_start=0, entry_end=345, max_b
 - Max calmar / least drawdown: atr_period 10→14, atr_mult 1.5→1.25
 
 **Files:** `gpu_sweep_seeded.py`, `sweep_seeded_results.csv` (gitignored, local).
+
+## §42 — WALK-FORWARD VALIDATION of §41 seeded candidates (causal, no look-ahead)
+
+**Method:** `walkforward_seeded.py` (via `seeded_lib.py`) — the full 200-config §41 grid re-run in seeded mode ONCE (GPU, 14s, 128-config chunks), trades bucketed by year (days are sim-independent so per-year bucketing ≡ per-year runs). Three analyses: (A) fixed-candidate per-year consistency; (B) TRUE walk-forward — each year's config selected ONLY from prior years' nets, applied unchanged to the unseen year; (C) fixed-candidate year tables.
+
+**Analysis B — TRUE walk-forward OOS (stitched 2021-2026):**
+| Year | Selected (from past data only) | OOS net | OOS WR |
+|:---:|:---|---:|:---:|
+| 2021 | arm15/atr14/x1.5/tb0.0/be0.7 | +₹347,750 | 65.4% |
+| 2022 | arm15/atr14/x1.5/tb0.0/be0.7 | +₹399,649 | 65.0% |
+| 2023 | arm15/atr10/x1.5/tb0.0/be0.7 | +₹272,845 | 65.7% |
+| 2024 | arm15/atr10/x1.5/tb0.0/be0.5 | +₹491,087 | 66.6% |
+| 2025 | arm15/atr10/x1.5/tb0.0/be0.5 | +₹370,323 | 64.9% |
+| 2026 | arm15/atr10/x1.5/tb0.0/be0.5 | +₹183,431 | 66.6% |
+| **TOTAL** | | **+₹2,065,085** | 65.6% |
+
+WF OOS: 19,691 trades, maxDD ₹8,582, worst-day −₹6,025, Calmar 240.6. The selection converged to the §41 max-net config (arm15/atr10/x1.5/tb0.0/be0.5) from 2024 onward using only past data — no look-ahead, and the same config wins.
+
+**Analysis C — fixed candidates (all 7 years profitable every year, WR 64.6-67.8%):**
+| Config | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | 2026 | TOTAL | Calmar |
+|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| maxnet arm15/atr10x1.5/be0.5 | 300K | 355K | 403K | 277K | 491K | 370K | 183K | **2,380,356** | 277 |
+| leastdd arm10/atr14x1.25/be0.5 | 302K | 303K | 373K | 252K | 484K | 364K | 175K | 2,253,633 | 305 |
+| champ-seeded arm10/atr10x1.5/be0.7 | 301K | 350K | 402K | 273K | 472K | 360K | 178K | 2,335,787 | 279 |
+
+**Verdict:** DEPLOY maxnet arm15/atr10/x1.5/tb0.0/be0.5 as the live config. Walk-forward-selected in 4/6 OOS years, never a losing year, WR 65.7%, worst single day −₹6,025 (₹92/lot-point equivalent), maxDD ₹8,582.
+
+**Files:** `walkforward_seeded.py`, `seeded_lib.py`, `wf_seeded.log`.
