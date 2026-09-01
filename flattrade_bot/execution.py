@@ -167,6 +167,7 @@ class TradeExecutor:
         price_rise: bool = True,
         monitor_token: str = "",
         monitor_exchange: str = "",
+        be_trigger_px: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Attempts one long option entry after risk and live-mode checks.
 

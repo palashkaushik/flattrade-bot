@@ -490,6 +490,18 @@ class LastHopeWinnerEngine:
         return None
 
     def on_trade_opened(self, trade: Dict[str, Any]):
+        """Registers the live trade. Re-bases BE geometry on the ACTUAL fill price
+        so the BE trigger locks to entry+1.0 of what we truly paid (not the signal
+        price, which can differ by the entry slippage)."""
+        entry = float(trade.get("entry", 0.0))
+        target = float(trade.get("tp", trade.get("target", 0.0)))
+        dist = float(trade.get("dist", target - entry if target > entry > 0 else 0.0))
+        if entry > 0 and dist > 0:
+            trade = dict(trade)
+            trade["be_trigger_px"] = round(entry + 0.70 * dist, 2)
+            trade["be_hardened_sl"] = round(entry + 1.0, 2)
+            trade["sl"] = round(entry - dist, 2)
+            trade["tp"] = round(entry + dist, 2)
         self.active_trade = trade
 
     def on_trade_closed(self):
