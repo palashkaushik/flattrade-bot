@@ -257,12 +257,32 @@ class LastHopeTradingEngine:
                     contract_state.set_day_sr_levels(yh, yl, yc)
                     logger.info(f"Initialized Day S/R for {symbol} from {last_trading_day}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
 
-            # CONGRUENCE FIX: the backtest (run_7y_v4_master) computes stochastics,
-            # ATR, EMA, VWAP on per-day arrays that COLD-START at 09:15. Seeding
-            # prior-day bars into the live trackers produced morning multi-TF
-            # signals the backtest structurally never took. Warmup now seeds ONLY
-            # today's completed bars (state identical to the backtest at this minute).
-            prior_bars: List[Bar1m] = []  # intentionally empty — per-day cold start
+            # SEEDED CONGRUENCE (§41/§42 champion): the validated strategy runs
+            # indicators SEEDED from the prior day's final 300 1m bars (60 x 5m
+            # bars >= S4(50,10) full warmup) with clock-aligned TF boundaries.
+            # seed_1m_bars replays bars through ATR/EMA/VWAP/TF-trackers, so
+            # seeding prior-day + today's completed bars reproduces the sweep's
+            # exact state at this minute.
+            prior_bars: List[Bar1m] = []
+            if valid_prev_days:
+                seed_day = valid_prev_days[-1]
+                seed_rows = by_day.get(seed_day, [])
+                for r in seed_rows:
+                    try:
+                        dt = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
+                    except (TypeError, ValueError):
+                        continue
+                    m = dt.hour * 60 + dt.minute
+                    if 555 <= m <= 930:
+                        o = float(r.get("open", r.get("into", 0.0)))
+                        h = float(r.get("high", r.get("inth", 0.0)))
+                        l = float(r.get("low", r.get("intl", 0.0)))
+                        c = float(r.get("close", r.get("intc", 0.0)))
+                        v = float(r.get("volume", r.get("intv", r.get("v", 100.0))))
+                        if h >= l > 0:
+                            prior_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt, volume=v))
+                # Keep only the LAST 300 session bars of the prior day (the sweep's seed)
+                prior_bars = prior_bars[-300:]
 
             # Today's completed candles (backtest-identical state reconstruction)
             today_bars: List[Bar1m] = []

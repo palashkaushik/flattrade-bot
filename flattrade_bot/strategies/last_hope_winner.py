@@ -33,19 +33,19 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger("flattrade_bot.last_hope_winner")
 
-# Strategy Constants (strictly from LAST_HOPE_WINNER.md §4)
+# Strategy Constants — SEEDED CHAMPION (§41 max-net: arm15/atr10/x1.5/tb0.0/be0.5)
 S1_K, S1_D = 12, 3
 S3_K, S3_D = 40, 4
 S4_K, S4_D = 50, 10
 ARM_S1 = 25.0
-ARM_WINDOW = 10  # 10 bars
+ARM_WINDOW = 15  # §41: 15 bars (max-net; arm10 was the cold-start champion)
 M6_S4 = 79.5
 M6_S1 = 79.5
 SUPER_THRESH = 25.0
 ATR_PERIOD = 10
 ATR_MULT = 1.5
 TP_PTS_CAP = 15.0
-BE_TRIGGER_RATIO = 0.70  # 70% of SL distance
+BE_TRIGGER_RATIO = 0.50  # §41: 50% of SL distance (was 0.70 in cold-start champion)
 BE_BUFFER_PTS = 1.0      # Hardened SL = Entry + 1.0 pt
 TOUCH_BUFFER = 0.0       # Strict touch/pierce (no gap tolerance)
 
@@ -240,10 +240,11 @@ class OptionContractState:
     latest_atr: float = 6.0
 
     def reset_session(self):
-        """CONGRUENCE: backtest (run_7y_v4_master make_tf_stoch/compute_atr) operates
-        on per-day arrays — every indicator cold-starts at 09:15. The live engine must
-        reset the SAME state each session start, otherwise warmup seeding produces
-        morning multi-TF signals the backtest structurally never took."""
+        """Clears intraday indicator state. Call BEFORE seeding: the §41/§42
+        champion runs SEEDED — warmup replays the prior day's final 300 bars
+        through ATR/EMA/VWAP/TF-trackers, then today's completed bars, so the
+        live state equals the validated seeded-sweep state at any minute.
+        (Arming is intentionally reset — a new day needs fresh S1<=25 arming.)"""
         self.bars = []
         self.current_min = -1
         self.cur_open = self.cur_high = self.cur_low = self.cur_close = None
