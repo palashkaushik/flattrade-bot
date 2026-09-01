@@ -215,50 +215,26 @@ class LastHopeTradingEngine:
 
             if valid_prev_days:
                 last_trading_day = valid_prev_days[-1]
+                # Filter to the full market session 09:15-15:30 IST (minute 555 to 930).
+                # The 15:30 bar (minute 930) carries the closing-session print that IS the
+                # daily candle close shown on TradingView/Upstox — excluding it (old <=929)
+                # made CPR Pivot/TC drift when thin strikes had no late prints.
+                parsed_y_rows = []
+                for x in by_day[last_trading_day]:
+                    try:
+                        x_dt = datetime.strptime(str(x["time"]), "%d-%m-%Y %H:%M:%S")
+                        x_m = x_dt.hour * 60 + x_dt.minute
+                        if 555 <= x_m <= 930:
+                            parsed_y_rows.append((x_dt, x))
+                    except Exception:
+                        pass
 
-                # ── Authoritative EOD OHLC: try the DAILY candle first ──────────
-                # 1m candles on illiquid strikes stop at the last TRADE (e.g. 14:47),
-                # so the "last bar close" understates the exchange's official EOD
-                # close (which includes the closing session). The daily candle
-                # carries the true session H/L/C — this is what TradingView/Upstox
-                # plot for CPR/PDH/PDL.
-                yh = yl = yc = None
-                try:
-                    daily_rows = await self.history.fetch_historical_candles(
-                        token=token, exchange="NFO", interval="1D", days_back=5
-                    )
-                    for r in reversed(daily_rows):
-                        d_part = str(r.get("time", "")).split(" ")[0]
-                        if d_part == last_trading_day:
-                            dh = float(r.get("high", 0.0))
-                            dl = float(r.get("low", 0.0))
-                            dc = float(r.get("close", 0.0))
-                            if dh >= dl > 0 and dc > 0:
-                                yh, yl, yc = dh, dl, dc
-                            break
-                except Exception as e:
-                    logger.debug(f"Daily candle fetch failed for {symbol}: {e}")
-
-                # Fallback: 1m-derived session H/L/C (pre-15:29 filter)
-                if yh is None:
-                    parsed_y_rows = []
-                    for x in by_day[last_trading_day]:
-                        try:
-                            x_dt = datetime.strptime(str(x["time"]), "%d-%m-%Y %H:%M:%S")
-                            x_m = x_dt.hour * 60 + x_dt.minute
-                            if 555 <= x_m <= 929:
-                                parsed_y_rows.append((x_dt, x))
-                        except Exception:
-                            pass
-
-                    parsed_y_rows.sort(key=lambda item: item[0])
-                    if parsed_y_rows:
-                        yesterday_rows = [item[1] for item in parsed_y_rows]
-                        yh = max(float(x.get("high", x.get("inth", 0.0))) for x in yesterday_rows)
-                        yl = min(float(x.get("low", x.get("intl", 0.0))) for x in yesterday_rows if float(x.get("low", x.get("intl", 0.0))) > 0)
-                        yc = float(yesterday_rows[-1].get("close", yesterday_rows[-1].get("intc", 0.0)))
-
-                if yh is not None:
+                parsed_y_rows.sort(key=lambda item: item[0])
+                if parsed_y_rows:
+                    yesterday_rows = [item[1] for item in parsed_y_rows]
+                    yh = max(float(x.get("high", x.get("inth", 0.0))) for x in yesterday_rows)
+                    yl = min(float(x.get("low", x.get("intl", 0.0))) for x in yesterday_rows if float(x.get("low", x.get("intl", 0.0))) > 0)
+                    yc = float(yesterday_rows[-1].get("close", yesterday_rows[-1].get("intc", 0.0)))
                     contract_state.set_day_sr_levels(yh, yl, yc)
                     logger.info(f"Initialized Day S/R for {symbol} from {last_trading_day}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
 
