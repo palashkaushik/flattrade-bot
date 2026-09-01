@@ -1550,3 +1550,34 @@ be_trigger=0.70, be_buffer=1.0, tp_frac=1.0, entry_start=0, entry_end=345, max_b
 
 **Files:** `LAST_HOPE_WINNER.md` (§11), `gpu_sweep_touch.py`, `sweep_touch_buffer.csv` (28 rows).
 
+
+
+## §41 — SEEDED-INDICATOR SWEEP (live-bot parity: prior-day warm 300 bars)
+
+**Question:** the champion backtest cold-starts all indicators each day; the live bot seeds from prior-day data (300 bars). Which config is optimal for the SEEDED mode — and is seeding itself a disadvantage?
+
+**Method:** `gpu_sweep_seeded.py` — rebuilds every indicator input as seeded (D,T1): prior-day 300-bar tail prepended, TF-chunked with LCM-30 alignment, sliced to the day (causal parity: seed bars strictly prior-session). 200 configs: arm∈{5,10,15,20} × atr_period∈{10,14} × atr_mult∈{1.25,1.5,2.0,2.5} × touch_buf∈{0.0,0.5,1.0} × be_trigger∈{0.50,0.70} + morning-block variants (entry_start=75). One batched GPU pass per touch-buffer; 213s total including data load. Smoke-tested per AGENTS.md first.
+
+**Headline results (2020-01-01 → 2026-08-27, 1,512 days, LOT 65, FEE 45):**
+
+| RANK | CONFIG (arm/atr/mult/tb/be) | NET | WR | MAX DD | WORST DAY | CALMAR | TRADES |
+|:---:|:---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Net #1** | arm15 / atr10 / ×1.5 / tb0.0 / be0.5 | **+₹2,380,356** | 65.7% | ₹8,582 | −₹6,025 | 277.4 | 23,380 |
+| Net #2 | arm15 / atr14 / ×1.5 / tb0.0 / be0.5 | +₹2,376,895 | 65.5% | ₹8,638 | −₹6,058 | 275.2 | 23,370 |
+| Calmar #1 | arm5 / atr14 / ×1.25 / tb0.0 / be0.5 | +₹2,161,241 | 66.4% | **₹7,054** | **−₹4,730** | **306.4** | 24,422 |
+| Calmar #2 | arm10 / atr14 / ×1.25 / tb0.0 / be0.5 | +₹2,253,633 | 66.5% | ₹7,402 | −₹4,730 | 304.5 | 25,432 |
+| Champion-as-is (seeded) | arm10 / atr10 / ×1.5 / tb0.0 / be0.7 | +₹2,335,787 | 65.5% | ₹8,382 | −₹5,487 | 278.7 | 22,857 |
+
+**Key findings:**
+1. **Seeding is an ADVANTAGE, not a bug:** champion config gains +₹227K (₹2.34M vs ₹2.11M cold-start) when indicators carry prior-day state. The live bot's original seeding design was right — the live losses were from TF-boundary misalignment and arming bugs (fixed in 7242c6a), NOT from seeding itself.
+2. **touch_buffer 0.0 wins again** (monotonic across both modes — consistent with §40).
+3. **Lower ATR mult (1.25) + longer ATR (14) = best risk-adjusted:** calmar 292-306, worst-day only −₹4.7K (vs −₹6K for ×1.5 configs). Best "least daily drawdown" family.
+4. **BE trigger 0.5 vs 0.7:** 0.5 nets slightly higher; 0.7 slightly better worst-day. Both fine.
+5. **Morning-block (entry_start=75) NOT in top-20:** aligned seeded morning multi-TF signals are net-positive — don't block them.
+6. **arm15 displaces arm10 for max net** (more signal capture), arm5-10 best calmar.
+
+**Recommendation for LIVE:** the live bot's current fix (seeded + clock-aligned TF + cold-day arming, commit 7242c6a) is congruent with the SEEDED mode champion family. Tuning choice:
+- Max net: arm_window 10→15
+- Max calmar / least drawdown: atr_period 10→14, atr_mult 1.5→1.25
+
+**Files:** `gpu_sweep_seeded.py`, `sweep_seeded_results.csv` (gitignored, local).
