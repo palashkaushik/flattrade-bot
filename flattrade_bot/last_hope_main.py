@@ -19,7 +19,7 @@ import math
 import os
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
@@ -116,6 +116,7 @@ class LastHopeTradingEngine:
         self._last_contract_check = 0.0
         self._last_token_renew = 0.0
         self._eod_done = False
+        self._current_day: Optional[date] = None
 
     async def initialize(self):
         logger.info("Initializing %s (live_orders=%s)...", STRATEGY_LABEL, self.live_orders)
@@ -783,10 +784,55 @@ class LastHopeTradingEngine:
 
         return Group(*tables)
 
+    async def _on_day_rollover(self, now: datetime):
+        """Resets all daily state and forces full re-warmup when the calendar date changes (IST)."""
+        logger.warning("🌅 NEW TRADING DAY %s — resetting daily state and re-seeding S/R levels...", now.date())
+
+        # Preserve open-position bookkeeping, reset everything else
+        self.trades_today = []
+        self._wins_today = 0
+        self._eod_done = False
+        self.risk.reset_day()
+
+        # Drop ALL contracts so ensure_contracts() re-resolves + re-warms with fresh S/R
+        # (active position contract is preserved via active_position_key)
+        for k in list(self.engine.contracts.keys()):
+            if k != self.active_position_key:
+                del self.engine.contracts[k]
+                self._last_ltp.pop(k, None)
+
+        # Reset token-renew cooldown so a stale overnight token refreshes immediately
+        self._last_token_renew = 0.0
+
+        # Force immediate contract resolution + warmup on next tick
+        self._last_contract_check = 0.0
+        await self.ensure_contracts(force=True)
+
+        asyncio.create_task(
+            self.discord._post_embed({
+                "title": "🌅 NEW TRADING DAY — BOT RESET & RE-SEEDED",
+                "color": 0x3498DB,
+                "fields": [
+                    {"name": "Date", "value": str(now.date()), "inline": True},
+                    {"name": "Mode", "value": "LIVE ORDERS" if self.live_orders else "PAPER SIM", "inline": True},
+                    {"name": "Risk", "value": "Daily counters reset (4-loss block, shutdown cleared)", "inline": False},
+                ],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "footer": {"text": "Flattrade Last Hope Bot"},
+            })
+        )
+
     async def _main_loop_body(self) -> float:
         """Execute one iteration of the trading loop. Returns elapsed seconds."""
         started = time.time()
         now = ist_now()
+
+        # 0. Day rollover — reset daily state + re-seed S/R for the new trading day
+        today_id = now.date()
+        if today_id != self._current_day:
+            if self._current_day is not None:
+                await self._on_day_rollover(now)
+            self._current_day = today_id
 
         # 1. Dynamic Contract Rollover Watch (runs async warmup in background)
         await self.ensure_contracts()
