@@ -115,7 +115,7 @@ def _format_status(status) -> str:
             f"• **Spot Price:** `{spot_str}` | **ATM:** `{atm_str}`\n"
             f"• **Position:** `{pos_str}` | **Trades Today:** `{trades_cnt}`\n"
             f"• **Session:** 09:15-15:00 IST | Multi-TF Stoch (1m/2m/3m/5m) + S/R Bounce\n"
-            f"• **Risk Geometry:** ATR(10)×1.5 SL/TP | Breakeven Stop @ +70% target move\n"
+            f"• **Risk Geometry:** ATR(10)×1.5 SL/TP | Breakeven Stop @ +50% target move\n"
             f"• **Execution:** 5.0 pt aggressive limit buffer | Broker PositionBook verified"
         )
     if pid and not responsive:
@@ -237,10 +237,10 @@ def create_client():
             "🏆 **Last Hope GPU Winner Strategy Spec (1m bars | Backtest-Verified)**\n"
             "• **Triggers:** FLAG (S4%D >= 79.5 & S1 < 79.5) | SUPER (S3, S4, S1 < 25 & S1 rising)\n"
             "• **Stochastics:** S1(12,3) S3(40,4) S4(50,10) evaluated across 1m, 2m, 3m, 5m bars\n"
-            "• **Arming:** S1 <= 25.0 arms the setup for up to 10 bars\n"
+            "• **Arming:** S1 <= 25.0 arms the setup for up to 15 bars\n"
             "• **S/R Bounce Gate:** Strict touch_buffer=0.0 (Low <= Level & Close >= Level - 0.5) on CPR/Camarilla/EMA/VWAP\n"
             "• **Strikes:** 2nd ITM only — CE = ATM - 100 / PE = ATM + 100\n"
-            "• **Exits:** SL & TP = min(ATR(10) * 1.5, 15 pts) | Breakeven stop locked to Entry + 1.0 pt at +70% target move\n"
+            "• **Exits:** SL & TP = min(ATR(10) * 1.5, 15 pts) | Breakeven stop locked to Entry + 1.0 pt at +50% target move\n"
             "• **Session:** 09:15–15:00 IST | 1 position at a time"
         )
         await reply(interaction, msg)
@@ -278,7 +278,7 @@ def create_client():
             f"• **Stop Loss / Target:** `min(ATR(10)×1.5, 15.0 pts)` symmetric (SL priority on same-bar touch)\n"
             f"• **Position Sizing:** `1 lot = {settings.LOT_SIZE} qty`, MIS, long options only\n"
             f"• **Consecutive Loss Cutoff:** `4 losses` blocks trading for the rest of the day\n"
-            f"• **Breakeven:** SL hardens to Entry + 1.0 pt at +70% of target move\n"
+            f"• **Breakeven:** SL hardens to Entry + 1.0 pt at +50% of target move\n"
             f"• **Daily Rs Cap:** None (backtest parity) — EOD flat at 15:15 IST hard rule\n"
             f"• **Entries:** 09:15–15:00 IST | One position at a time | No averaging\n"
             f"• **Order Type:** Aggressive limit (+5.0 pt buffer) for guaranteed fills"

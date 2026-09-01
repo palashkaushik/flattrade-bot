@@ -9,7 +9,7 @@ Specifications from LAST_HOPE_WINNER.md:
   - Triggers: Flag (M6: S4 >= 79.5 & S1 < 79.5) / Super (S3,S4,S1 < 25 & S1 rising)
   - S/R Bounce Gate (touch_buffer = 0.0): Candle low <= S/R level and close >= level - 0.5
   - Risk Geometry: dist = min(ATR(10) * 1.5, 15.0 pts), SL = Entry - dist, TP = Entry + dist
-  - Breakeven Stop (BE): At +70% of distance, SL hardens to Entry + 1.0 pt
+  - Breakeven Stop (BE): At +50% of distance, SL hardens to Entry + 1.0 pt
   - SL priority over TP
 """
 
@@ -170,7 +170,7 @@ class LastHopeTradingEngine:
                 "fields": [
                     {"name": "Strategy", "value": "Last Hope GPU Winner (FLAG/SUPER 1m OHLC)", "inline": True},
                     {"name": "Session", "value": "09:15 - 15:00 IST", "inline": True},
-                    {"name": "Risk Geometry", "value": "ATR(10)x1.5 Breakeven at +70% move", "inline": True},
+                    {"name": "Risk Geometry", "value": "ATR(10)x1.5 Breakeven at +50% move (§42 champion)", "inline": True},
                     {"name": "Mode", "value": "LIVE ORDERS" if self.live_orders else "PAPER SIM", "inline": True},
                     {"name": "Nifty Spot", "value": f"Rs {self.spot_price:,.2f}" if self.spot_price else "--", "inline": True},
                 ],

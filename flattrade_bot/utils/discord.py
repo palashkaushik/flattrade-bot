@@ -184,7 +184,7 @@ class DiscordNotifier:
             {"name": "Lot Size", "value": f"{trade_info.get('lot_size', settings.LOT_SIZE)} qty", "inline": True},
         ]
         if be_trig:
-            fields.append({"name": "Breakeven Trigger", "value": f"Rs {be_trig:.2f} (+70% move)", "inline": True})
+            fields.append({"name": "Breakeven Trigger", "value": f"Rs {be_trig:.2f} (+50% move)", "inline": True})
 
         embed = {
             "title": f"NEW ENTRY: {symbol} [{direction}]",
