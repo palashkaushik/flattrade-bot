@@ -17,6 +17,7 @@ import asyncio
 import logging
 import math
 import os
+import re
 import sys
 import time
 from datetime import date, datetime, timedelta, timezone
@@ -56,13 +57,10 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-_offscreen = Console(
-    file=open(os.devnull, "w", encoding="utf-8"),
-    force_terminal=True,
-    color_system="truecolor",
-    width=110,
-    legacy_windows=False,
-)
+# Live's console: real stdout, auto-detected terminal (tmux PTY on the VPS).
+# Live(screen=True) uses the alternate buffer and its own 1 fps refresher —
+# only the event loop calls live.update() with a freshly built renderable.
+_live_console = Console()
 
 STRATEGY_LABEL = "Last Hope Winner Strategy"
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -88,6 +86,34 @@ def ist_now() -> datetime:
 
 def minute_of(dt: datetime) -> int:
     return dt.hour * 60 + dt.minute
+
+
+_EXP_MONTHS = {
+    "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
+    "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+}
+
+
+def expiry_info(symbol: str, now: Optional[datetime] = None) -> str:
+    """Parses 'NIFTY08SEP26C24000' -> '08SEP26' + days-to-expiry tag.
+
+    Returns '' when the symbol carries no parseable expiry token.
+    """
+    m = re.search(r"(\d{2})([A-Z]{3})(\d{2})", str(symbol or ""))
+    if not m:
+        return ""
+    try:
+        d = date(2000 + int(m.group(3)), _EXP_MONTHS[m.group(2)], int(m.group(1)))
+    except (KeyError, ValueError):
+        return ""
+    tok = f"{m.group(1)}{m.group(2)}{m.group(3)}"
+    ref = (now or ist_now())
+    days = (d - ref.date()).days
+    if days < 0:
+        return f"{tok} (EXP)"
+    if days == 0:
+        return f"{tok} (EXPIRY TODAY)"
+    return f"{tok} ({days}d)"
 
 
 class LastHopeTradingEngine:
@@ -778,9 +804,11 @@ class LastHopeTradingEngine:
             logger.error(f"Token renewal failed: {e} — will retry in 60s")
         return True
 
-    def _render_rich_frame(self) -> List[str]:
-        """Builds the dashboard as Rich tables rendered OFF-SCREEN to a list of
-        plain lines. Rich's Live thread is NEVER used (SSH blank-screen cause)."""
+    def render_dashboard(self):
+        """Builds the full dashboard as one Rich renderable (banner + tables +
+        active-trade cockpit). Consumed by Live(screen=True, refresh 1/s) in
+        run() — Rich diffs segments and repaints ONLY changed cells, and the
+        alternate buffer redraws in place (the proven Aug-25 flicker fix)."""
         now = ist_now()
         time_str = now.strftime("%H:%M:%S")
         sess_active = SESSION_START_MIN <= minute_of(now) < SESSION_END_MIN
@@ -802,13 +830,18 @@ class LastHopeTradingEngine:
 
         sys_table = Table(box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
         for col, style in (("MODE", "bold white"), ("SPOT (ATM)", "bold yellow"),
-                           ("2nd ITM (CE/PE)", "bold cyan"), ("SESSION", "bold green"),
+                           ("2nd ITM (CE/PE)", "bold cyan"), ("EXPIRY", "bold magenta"),
+                           ("SESSION", "bold green"),
                            ("TRADES (W/L)", "bold white"), ("NET P&L", "bold white")):
             sys_table.add_column(col, style=style, justify="center", no_wrap=True)
+        # Weekly expiry shared by all tracked contracts (from the first symbol)
+        first_cs = next(iter(self.engine.contracts.values()), None)
+        exp_str = expiry_info(first_cs.symbol, now) if first_cs else "--"
         sys_table.add_row(
             f"[bold {'red' if self.live_orders else 'blue'}]{mode}[/bold {'red' if self.live_orders else 'blue'}]",
             f"Rs {self.spot_price:,.1f} ({atm})" if self.spot_price else "--",
             f"Rs {atm-100} CE / Rs {atm+100} PE",
+            exp_str or "--",
             "[bold green]ACTIVE[/bold green]" if sess_active else "[yellow]CLOSED[/yellow]",
             f"{total} ({self._wins_today}W/{total - self._wins_today}L | {wr:.0f}%)",
             f"[{pnl_style}]Rs {net_rs:+,.2f} ({net_pts:+.1f}p)[/{pnl_style}]",
@@ -865,8 +898,9 @@ class LastHopeTradingEngine:
                     prox = f"{closest[0]} ({diff:+.1f}p)"
 
             side_color = "bold green" if cs.side == "CE" else "bold red"
+            exp_tok = expiry_info(cs.symbol, now)
             mon_table.add_row(
-                f"[{side_color}]{cs.strike} {cs.side}[/{side_color}]",
+                f"[{side_color}]{cs.strike} {cs.side}[/{side_color}][dim] {exp_tok.split(' ')[0] if exp_tok else ''}[/dim]",
                 arm,
                 f"{f0(s1)}/{f0(s3)}/{f0(s4)}",
                 f"{f0(cs.tf_trackers[2].last_s4)}/{f0(cs.tf_trackers[3].last_s4)}/{f0(cs.tf_trackers[5].last_s4)}",
@@ -888,8 +922,9 @@ class LastHopeTradingEngine:
             f2 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
             atr = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
             side_color = "bold green" if cs.side == "CE" else "bold red"
+            exp_tok = expiry_info(cs.symbol, now)
             sr_table.add_row(
-                f"[{side_color}]{cs.strike} {cs.side}[/{side_color}]",
+                f"[{side_color}]{cs.strike} {cs.side}[/{side_color}][dim] {exp_tok.split(' ')[0] if exp_tok else ''}[/dim]",
                 f"Rs {ltp:.0f}" if ltp > 0 else "--",
                 f"{f2(cs.sr_levels.get('PDH'))}/{f2(cs.sr_levels.get('PDL'))}",
                 f"{f2(cs.sr_levels.get('CPR_BC'))}/{f2(cs.sr_levels.get('CPR_Pivot'))}/{f2(cs.sr_levels.get('CPR_TC'))}",
@@ -926,52 +961,7 @@ class LastHopeTradingEngine:
             pos_lines = [pos_table]
 
         group = Group(banner, sys_table, mon_table, sr_table, *pos_lines)
-        with _offscreen.capture() as cap:
-            _offscreen.print(group)
-        raw = cap.get()
-        # CRITICAL flicker fix: Rich emits \x0b (vertical tab) as a SOFT line
-        # break inside some table cells. Terminals render it as a line wrap,
-        # but str.split('\n') does NOT count it — so the cursor-up height was
-        # wrong every frame (the stacked-banner drift). Normalize to \n first.
-        raw = raw.replace("\x0b", "\n")
-        L = raw.rstrip("\n").split("\n")
-        return L
-
-    def print_dashboard(self):
-        """htop-style dashboard: Rich renders OFF-SCREEN (no Live thread — the
-        SSH blank-screen cause), then the frame is painted ATOMICALLY into the
-        ALTERNATE SCREEN BUFFER with Synchronized Output mode:
-          - \033[?1049h  alternate buffer (like htop/vim: dedicated full-screen
-                          canvas; scrollback is untouched; detach restores shell)
-          - \033[?2026h  synchronized updates: the terminal holds the paint
-                          until the end marker — the whole frame swaps in one
-                          vsync, zero intermediate-state flicker (kitty/
-                          modern-puTTY/tmux >= 3.4 support; harmless if not)
-          - \033[H home + full-line writes: NO cursor-up math exists, so the
-                          line-count drift that stacked banners CANNOT occur.
-        One frame write per refresh; terminal does the double-buffering."""
-        try:
-            L = self._render_rich_frame()
-        except Exception as e:
-            logger.warning("Rich frame render failed: %s", e)
-            return
-
-        if not self._alt_screen_on:
-            # First frame: enter alternate buffer + hide cursor
-            sys.stdout.write("\033[?1049h\033[?25l")
-            self._alt_screen_on = True
-
-        # Fixed-height frame keeps the canvas stable when tables toggle
-        PAD_ROWS = 44
-        if len(L) < PAD_ROWS:
-            L = L + [""] * (PAD_ROWS - len(L))
-
-        out = ["\033[?2026h", "\033[H"]                 # begin sync + cursor home
-        out.append("\n".join("\033[2K" + ln for ln in L))
-        out.append("\033[?2026l")                       # commit frame atomically
-        sys.stdout.write("\n".join(out) + "\n")
-        sys.stdout.flush()
-        self._dash_lines_drawn = len(L)
+        return group
 
 
     async def _on_day_rollover(self, now: datetime):
@@ -1174,21 +1164,46 @@ class LastHopeTradingEngine:
 
         has_tty = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
 
-        loop_count = 0
-        while True:
-            try:
-                elapsed = await self._main_loop_body()
-                loop_count += 1
-                if has_tty:
-                    if loop_count % 2 == 0:
-                        self.print_dashboard()
-                else:
+        if has_tty:
+            # THE PROVEN AUG-25 FLICKER FIX (Combined Supreme era): Rich Live
+            # in alternate-screen mode at 1 fps. Live diffs segments and
+            # repaints ONLY changed cells (minimal SSH bytes vs full-frame
+            # blits), screen=True gives htop-style in-place redraw on a
+            # dedicated buffer, and 1 fps keeps redraws far below SSH
+            # round-trip time. The earlier blank-screen problem was the
+            # tee-pipe/StreamHandler setup — logging is file-only now, and
+            # the bot runs on a clean tmux PTY.
+            from rich.live import Live
+            with Live(
+                self.render_dashboard(),
+                console=_live_console,
+                screen=True,
+                refresh_per_second=1,
+            ) as live:
+                loop_count = 0
+                while True:
+                    try:
+                        elapsed = await self._main_loop_body()
+                        loop_count += 1
+                        if loop_count % 2 == 0:
+                            live.update(self.render_dashboard())
+                        await asyncio.sleep(max(0.0, 1.0 - elapsed))
+                    except Exception as e:
+                        logger.error(f"Error in main loop: {e}", exc_info=True)
+                        await asyncio.sleep(2.0)
+        else:
+            # Headless mode (systemd): log status every 10 seconds
+            loop_count = 0
+            while True:
+                try:
+                    elapsed = await self._main_loop_body()
+                    loop_count += 1
                     if loop_count % 10 == 0:
                         self._log_status_line()
-                await asyncio.sleep(max(0.0, 1.0 - elapsed))
-            except Exception as e:
-                logger.error(f"Error in main loop: {e}", exc_info=True)
-                await asyncio.sleep(2.0)
+                    await asyncio.sleep(max(0.0, 1.0 - elapsed))
+                except Exception as e:
+                    logger.error(f"Error in main loop: {e}", exc_info=True)
+                    await asyncio.sleep(2.0)
 
 
 class ProcessSingletonLock:
