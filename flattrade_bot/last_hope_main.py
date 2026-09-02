@@ -400,6 +400,42 @@ class LastHopeTradingEngine:
             return True
         return bool(self.executor and self.executor.position)
 
+    def _is_funds_rejection(self, res: Dict[str, Any]) -> bool:
+        """True when the broker rejected the order for margin/funds reasons."""
+        blob = " ".join(str(res.get(k, "")) for k in ("reason", "emsg")).lower()
+        return any(tok in blob for tok in (
+            "margin", "fund", "insufficient", "limit", "available", "exposure",
+            "rms", "blocked due to",
+        ))
+
+    async def _resolve_first_itm(self, sig: Dict[str, Any], now: datetime) -> Optional[Dict[str, Any]]:
+        """Resolves the 1st ITM contract for a funds-rejected 2nd-ITM signal.
+
+        CE: ATM-50, PE: ATM+50 (one strike closer to money = cheaper).
+        Returns {'symbol','token','ltp'} or None. Used ONLY for that single
+        fallback buy — the next trade defaults back to 2nd ITM.
+        """
+        try:
+            side = sig["side"]
+            if self.spot_price:
+                atm = int(round(self.spot_price / 50.0) * 50)
+            else:
+                return None
+            strike = atm - 50 if side == "CE" else atm + 50
+            scrip = await self.history.search_option_token(f"NIFTY {strike} {side}")
+            if not scrip or not scrip.get("token"):
+                return None
+            q = await self.client.get_quotes(exchange="NFO", token=scrip["token"])
+            if not isinstance(q, dict) or q.get("stat") != "Ok" or "lp" not in q:
+                return None
+            ltp = float(q["lp"])
+            if ltp <= 0:
+                return None
+            return {"symbol": scrip["tsym"], "token": scrip["token"], "ltp": ltp}
+        except Exception as e:
+            logger.warning("1st-ITM fallback resolution failed: %s", e)
+            return None
+
     async def _try_enter(self, sig: Dict[str, Any]):
         # Re-entrancy guard: while one entry is confirming at the broker, ignore
         # all other signals (this is what caused duplicate live positions).
@@ -427,18 +463,42 @@ class LastHopeTradingEngine:
             self._entering = True
             try:
                 res = await self.executor.open_trade(
-                side=sig["side"],
-                order_symbol=display,
-                display_symbol=display,
-                token=token,
-                timeframe="1m",
-                signal=f"{sig['trigger']}_{sig['level']}",
-                entry_price=entry,
-                sl_points=dist,
-                tp_points=dist,
-                current_min=cur_min,
-                opened_at=now,
-            )
+                    side=sig["side"],
+                    order_symbol=display,
+                    display_symbol=display,
+                    token=token,
+                    timeframe="1m",
+                    signal=f"{sig['trigger']}_{sig['level']}",
+                    entry_price=entry,
+                    sl_points=dist,
+                    tp_points=dist,
+                    current_min=cur_min,
+                    opened_at=now,
+                )
+
+                # FUNDS FALLBACK (per-buy only; default stays 2nd ITM):
+                # if the 2nd ITM buy was rejected for margin/funds, retry the
+                # SAME signal on the cheaper 1st ITM (CE: ATM-50, PE: ATM+50).
+                if not res.get("accepted") and self._is_funds_rejection(res):
+                    fb = await self._resolve_first_itm(sig, now)
+                    if fb is not None:
+                        logger.warning(
+                            "Funds rejection on %s — retrying on 1st ITM %s @ %.2f",
+                            display, fb["symbol"], fb["ltp"],
+                        )
+                        res = await self.executor.open_trade(
+                            side=sig["side"],
+                            order_symbol=fb["symbol"],
+                            display_symbol=fb["symbol"],
+                            token=fb["token"],
+                            timeframe="1m",
+                            signal=f"{sig['trigger']}_{sig['level']}_1ITM",
+                            entry_price=fb["ltp"],
+                            sl_points=dist,
+                            tp_points=dist,
+                            current_min=cur_min,
+                            opened_at=now,
+                        )
             finally:
                 self._entering = False
             if not res.get("accepted"):
@@ -733,7 +793,7 @@ class LastHopeTradingEngine:
         pnl_style = "bold green" if net_rs >= 0 else "bold red"
 
         header = Text.from_markup(
-            f" [bold bright_yellow]:trophy: LAST HOPE GPU WINNER[/bold bright_yellow] "
+            f" [bold bright_yellow]LAST HOPE GPU WINNER[/bold bright_yellow] "
             f"| [bold white]2nd ITM · Multi-TF Stoch · S/R Bounce · ATRx1.5 + BE@50%[/bold white] "
             f"| [cyan]{time_str} IST[/cyan]"
         )
@@ -754,7 +814,7 @@ class LastHopeTradingEngine:
         )
 
         mon_table = Table(
-            title="[bold cyan]:satellite: STRATEGY SETUP RADAR & ARMING MATRIX (S1 12,3 · S3 40,4 · S4 50,10 · SR Suite)[/bold cyan]",
+            title="[bold cyan]STRATEGY SETUP RADAR & ARMING MATRIX (S1 12,3 · S3 40,4 · S4 50,10 · SR Suite)[/bold cyan]",
             box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
         for col, style, j in (("STRIKE", "bold white", "left"), ("ARMING", "bold yellow", "center"),
                               ("1m S1/S3/S4", "bold white", "center"), ("2m/3m/5m S4", "bold white", "center"),
@@ -814,7 +874,7 @@ class LastHopeTradingEngine:
             )
 
         sr_table = Table(
-            title="[bold cyan]:bar_chart: S/R LEVELS (TradingView verify)[/bold cyan]",
+            title="[bold cyan]S/R LEVELS (TradingView verify)[/bold cyan]",
             box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
         for col, style, j in (("STRIKE", "bold white", "left"), ("LTP", "bold yellow", "right"),
                               ("PDH/PDL", "bold white", "center"), ("CPR (BC/P/T)", "bold white", "center"),
@@ -850,10 +910,10 @@ class LastHopeTradingEngine:
             ltp = float(self._last_ltp.get(self.active_position_key, pos_data["entry"]))
             pts = ltp - float(pos_data["entry"])
             c = "green" if pts >= 0 else "red"
-            be_status = "[bold green]:lock: LOCKED (+1.0pt BE)[/bold green]" if pos_data.get("be_done") \
+            be_status = "[bold green]LOCKED (+1.0pt BE)[/bold green]" if pos_data.get("be_done") \
                 else f"[yellow]trig Rs {float(pos_data.get('be_trigger_px', 0)):.2f}[/yellow]"
             pos_table = Table(
-                title=f"[bold green]:dart: ACTIVE TRADE — {pos_data['symbol']} | P&L [{c}]{pts:+.2f} pts[/{c}] [/bold green]",
+                title=f"[bold green]ACTIVE TRADE — {pos_data['symbol']} | P&L [{c}]{pts:+.2f} pts[/{c}] [/bold green]",
                 box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
             for col in ("ENTRY", "LTP", "SL", "TP", "BE STATUS", "SIGNAL"):
                 pos_table.add_column(col, justify="center")
@@ -867,17 +927,33 @@ class LastHopeTradingEngine:
         group = Group(banner, sys_table, mon_table, sr_table, *pos_lines)
         with _offscreen.capture() as cap:
             _offscreen.print(group)
-        return cap.get().rstrip("\n").split("\n")
+        raw = cap.get()
+        # CRITICAL flicker fix: Rich emits \x0b (vertical tab) as a SOFT line
+        # break inside some table cells. Terminals render it as a line wrap,
+        # but str.split('\n') does NOT count it — so the cursor-up height was
+        # wrong every frame (the stacked-banner drift). Normalize to \n first.
+        raw = raw.replace("\x0b", "\n")
+        L = raw.rstrip("\n").split("\n")
+        return L
 
     def print_dashboard(self):
         """Rich-rendered dashboard with zero-flicker ANSI redraw.
         Rich draws OFF-SCREEN (no Live thread — the SSH blank-screen cause);
-        the frame is then blitted with cursor-up + line-erase (SO 34828142)."""
+        the frame is then blitted with cursor-up + line-erase (SO 34828142).
+        Frame height is PADDED to a FIXED row count so the cursor-up height
+        is always identical — no drift, no region-clear flashes when the
+        ACTIVE TRADE table appears/disappears."""
         try:
             L = self._render_rich_frame()
         except Exception as e:
             logger.warning("Rich frame render failed: %s", e)
             return
+
+        # Fixed-height frame: pad to the max possible rows so every frame has
+        # the same line count (position table on/off no longer changes height).
+        PAD_ROWS = 44
+        if len(L) < PAD_ROWS:
+            L = L + [""] * (PAD_ROWS - len(L))
 
         if self._dash_lines_drawn == len(L):
             buf = [f"\033[{len(L)}A"]
@@ -886,11 +962,12 @@ class LastHopeTradingEngine:
         elif self._dash_lines_drawn == 0:
             sys.stdout.write("\n".join(L) + "\n")
         else:
-            # Frame height changed (contract count changed): clear region safely.
+            # Height still changed (first frame after resize): clear region.
             sys.stdout.write(f"\033[{self._dash_lines_drawn}A\033[J")
             sys.stdout.write("\n".join(L) + "\n")
         sys.stdout.flush()
         self._dash_lines_drawn = len(L)
+
 
     async def _on_day_rollover(self, now: datetime):
         """Resets all daily state and forces full re-warmup when the calendar date changes (IST)."""

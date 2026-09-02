@@ -19,7 +19,7 @@ Specifications from LAST_HOPE_WINNER.md:
       Distance: dist = min(ATR(10) * 1.5, 15.0 pts)
       Initial SL = Entry - dist
       Initial TP = Entry + dist
-      Breakeven Stop (BE): When High/LTP >= Entry + 0.70 * dist, SL permanently hardens to Entry + 1.0 pt
+      Breakeven Stop (BE): When High/LTP >= Entry + BE_TRIGGER_RATIO (0.50) * dist, SL permanently hardens to Entry + 1.0 pt
       SL priority over TP if both hit on the same bar/tick
 """
 
@@ -536,8 +536,8 @@ class LastHopeWinnerEngine:
         dist = float(trade.get("dist", target - entry if target > entry > 0 else 0.0))
         if entry > 0 and dist > 0:
             trade = dict(trade)
-            trade["be_trigger_px"] = round(entry + 0.70 * dist, 2)
-            trade["be_hardened_sl"] = round(entry + 1.0, 2)
+            trade["be_trigger_px"] = round(entry + BE_TRIGGER_RATIO * dist, 2)
+            trade["be_hardened_sl"] = round(entry + BE_BUFFER_PTS, 2)
             trade["sl"] = round(entry - dist, 2)
             trade["tp"] = round(entry + dist, 2)
         self.active_trade = trade

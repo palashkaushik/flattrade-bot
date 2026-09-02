@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import time
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
@@ -12,6 +13,12 @@ from flattrade_bot.config import settings
 from flattrade_bot.broker.network import force_ipv4
 
 logger = logging.getLogger(__name__)
+
+# Month token map for NIFTY option symbols (NIFTY02SEP26C24000 -> SEP=9)
+_MONTHS = {
+    "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
+    "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+}
 
 
 class SessionExpiredError(RuntimeError):
@@ -309,7 +316,33 @@ class FlattradeHistoryFetcher:
             if is_session_expired_response(data):
                 raise SessionExpiredError(data.get("emsg", "Session expired"))
             if data.get("stat") == "Ok" and data.get("values"):
-                item = data["values"][0]
+                items = data["values"]
+                # NEAREST WEEKLY EXPIRY: pick the front contract whose expiry
+                # is >= today. Flattrade returns dname/tsym like
+                # "NIFTY 02 SEP 26 24000 CE" or "NIFTY02SEP26C24000". Weekly
+                # contracts (TUE expiry post-Sep-2025) are picked by parsing
+                # the embedded date; monthly contracts are skipped when a
+                # nearer weekly exists. Falls back to values[0] (old behavior)
+                # when no date is parseable.
+                best = None
+                today = datetime.now()
+                for it in items:
+                    tsym = str(it.get("tsym", ""))
+                    m = re.search(r"(\d{2})([A-Z]{3})(\d{2})", tsym)
+                    if not m:
+                        continue
+                    try:
+                        exp = datetime(
+                            2000 + int(m.group(3)),
+                            _MONTHS[m.group(2)],
+                            int(m.group(1)),
+                        )
+                    except (KeyError, ValueError):
+                        continue
+                    if exp.date() >= today.date():
+                        if best is None or exp < best[0]:
+                            best = (exp, it)
+                item = best[1] if best else items[0]
                 return {
                     "token": item["token"],
                     "tsym": item["tsym"],
