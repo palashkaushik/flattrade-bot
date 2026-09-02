@@ -187,6 +187,7 @@ class LastHopeTradingEngine:
         if token:
             self.client.set_token(token)
             self.history.set_token(token)
+            self.ws_feed.set_token(token)   # WS feed auths with the same token
             self._broker_status = "[bold green]LIVE AUTHENTICATED[/bold green]"
             logger.info("Flattrade live broker session authenticated.")
         else:
@@ -383,6 +384,12 @@ class LastHopeTradingEngine:
         # Prune stale contracts not in desired_keys or active position (pure CPU, safe inline)
         for k in list(self.engine.contracts.keys()):
             if k not in desired_keys and k != self.active_position_key:
+                cs = self.engine.contracts[k]
+                if cs is not None and cs.token:
+                    try:
+                        self.ws_feed.unsubscribe("NFO", cs.token)
+                    except Exception:
+                        pass
                 del self.engine.contracts[k]
                 self._last_ltp.pop(k, None)
 
@@ -799,6 +806,7 @@ class LastHopeTradingEngine:
             if new_token:
                 self.client.set_token(new_token)
                 self.history.set_token(new_token)
+                self.ws_feed.set_token(new_token)  # WS reconnects with the new token
                 self._last_token_renew = time.time()
                 logger.info("Token renewed successfully.")
                 return True
@@ -889,15 +897,21 @@ class LastHopeTradingEngine:
             setup = ", ".join(tf_signals) if tf_signals else "[dim]Scanning...[/dim]"
 
             prox = "--"
-            if cs.sr_levels and ltp > 0:
-                active_sr = dict(cs.sr_levels)
-                if cs.ema20.value: active_sr["EMA20"] = cs.ema20.value
-                if cs.ema200.value: active_sr["EMA200"] = cs.ema200.value
-                if cs.vwap.value: active_sr["VWAP"] = cs.vwap.value
-                closest = min(active_sr.items(), key=lambda x: abs(ltp - x[1]))
+            # §43: proximity display vs the GATE level (EMA20) + display suite
+            if ltp > 0 and cs.ema20.value:
+                gate_lv = {"EMA20": cs.ema20.value}
+                display_sr = dict(gate_lv)
+                if cs.display_levels:
+                    display_sr.update(cs.display_levels)
+                if cs.vwap.value: display_sr["VWAP"] = cs.vwap.value
+                closest = min(gate_lv.items(), key=lambda x: abs(ltp - x[1]))
                 diff = ltp - closest[1]
+                # nearest overall level (any family) for context
+                nearest_all = min(display_sr.items(), key=lambda x: abs(ltp - x[1]))
                 if abs(diff) <= 0.5:
                     prox = f"{closest[0]} [bold green](TOUCH {diff:+.1f})[/bold green]"
+                elif nearest_all[0] != "EMA20" and abs(ltp - nearest_all[1]) <= 0.5:
+                    prox = f"[dim]{nearest_all[0]} ({ltp - nearest_all[1]:+.1f}p) | EMA20 {diff:+.1f}p[/dim]"
                 else:
                     prox = f"{closest[0]} ({diff:+.1f}p)"
 
@@ -930,8 +944,8 @@ class LastHopeTradingEngine:
             sr_table.add_row(
                 f"[{side_color}]{cs.strike} {cs.side}[/{side_color}][dim] {exp_tok.split(' ')[0] if exp_tok else ''}[/dim]",
                 f"Rs {ltp:.0f}" if ltp > 0 else "--",
-                f"{f2(cs.sr_levels.get('PDH'))}/{f2(cs.sr_levels.get('PDL'))}",
-                f"{f2(cs.sr_levels.get('CPR_BC'))}/{f2(cs.sr_levels.get('CPR_Pivot'))}/{f2(cs.sr_levels.get('CPR_TC'))}",
+                f"{f2(cs.display_levels.get('PDH'))}/{f2(cs.display_levels.get('PDL'))}",
+                f"{f2(cs.display_levels.get('CPR_BC'))}/{f2(cs.display_levels.get('CPR_Pivot'))}/{f2(cs.display_levels.get('CPR_TC'))}",
                 f"{f2(cs.ema20.value)}/{f2(cs.ema200.value)}",
                 f"{f2(cs.vwap.value)}",
                 f"+/-{atr:.1f}",
@@ -1024,72 +1038,103 @@ class LastHopeTradingEngine:
         # 1. Dynamic Contract Rollover Watch (runs async warmup in background)
         await self.ensure_contracts()
 
-        # 2. Poll Spot and all Option Quotes concurrently in a single parallel burst
+        # 2. TICK ACQUISITION — WebSocket-first with surgical REST fallback.
+        # The WS feed pushes every tick (no polling, no rate limit). Any
+        # instrument whose WS tick is stale (>3s old, e.g. after a WS
+        # reconnect) is refreshed via a single REST GetQuotes batch — only
+        # the stale ones, so steady-state REST load is ZERO.
         poll_keys = sorted(self.engine.contracts.keys())
         if self.active_position_key and self.active_position_key not in poll_keys:
             poll_keys.append(self.active_position_key)
 
-        tasks = [self.client.get_quotes(exchange="NSE", token="26000")]
+        STALE_SEC = 3.0
+        spot_ltp = self.ws_feed.last_ltp("NSE", "26000")
+        if self.ws_feed.connected and spot_ltp is not None and self.ws_feed.age_seconds("NSE", "26000") <= STALE_SEC:
+            self.spot_price = spot_ltp
+            self.engine.set_spot_price(self.spot_price)
+            self._broker_status = "LIVE CONNECTED (WS)"
+        elif self.ws_feed.connected and spot_ltp is not None:
+            pass  # stale spot: refreshed in the REST batch below
+
+        # Which option contracts need a REST refresh? (not yet WS-subscribed,
+        # or WS ticks gone stale)
+        ws_fresh_keys: set = set()
+        rest_keys: List[str] = []
         for key in poll_keys:
+            cs = self.engine.contracts.get(key)
+            if not cs:
+                continue
+            if (self.ws_feed.connected
+                    and self.ws_feed.last_ltp("NFO", cs.token) is not None
+                    and self.ws_feed.age_seconds("NFO", cs.token) <= STALE_SEC):
+                ws_fresh_keys.add(key)
+                self.ws_feed.subscribe("NFO", cs.token)  # idempotent
+            else:
+                rest_keys.append(key)
+
+        # Also make sure the spot is subscribed for next time
+        if self.ws_feed.connected:
+            self.ws_feed.subscribe("NSE", "26000")
+
+        # Process WS-fresh option ticks first (zero REST cost)
+        for key in ws_fresh_keys:
+            cs = self.engine.contracts.get(key)
+            if not cs:
+                continue
+            opt_ltp = self.ws_feed.last_ltp("NFO", cs.token)
+            if opt_ltp and opt_ltp > 0:
+                self._last_ltp[key] = opt_ltp
+                sig = self.engine.push_tick(key, opt_ltp, now)
+                if sig and not self._has_position():
+                    await self._try_enter(sig)
+
+        # REST fallback: ONLY stale/unsubscribed instruments (+ spot if stale)
+        need_spot = not (self.ws_feed.connected and spot_ltp is not None
+                         and self.ws_feed.age_seconds("NSE", "26000") <= STALE_SEC)
+        tasks: List[Any] = []
+        task_labels: List[str] = []
+        if need_spot:
+            tasks.append(self.client.get_quotes(exchange="NSE", token="26000"))
+            task_labels.append("spot")
+        for key in rest_keys:
             cs = self.engine.contracts.get(key)
             if cs:
                 tasks.append(self.client.get_quotes(exchange="NFO", token=cs.token))
-            else:
-                tasks.append(asyncio.sleep(0))
-
-        # Timeout-capped gather: one slow endpoint must never stall the tick loop.
-        # Each request gets a private 2.0s deadline; laggards are cancelled and
-        # their slot left as None (skipped downstream).
-        results: List[Any] = await asyncio.wait_for(
-            asyncio.gather(*tasks, return_exceptions=True),
-            timeout=2.0,
-        )
-
-        # Log any exceptions from the gather (timeouts, connection errors, etc.)
-        for idx, result in enumerate(results):
-            if isinstance(result, Exception):
-                label = "spot" if idx == 0 else f"option[{poll_keys[idx-1] if idx-1 < len(poll_keys) else '?'}]"
-                logger.warning("Quote poll exception for %s: %s", label, result)
-
-        # Process Spot Quote
-        spot_res = results[0] if results else None
-        if isinstance(spot_res, dict):
-            if await self._renew_token_if_expired(spot_res):
-                pass  # Token renewed; next iteration will use it
-            elif spot_res.get("stat") == "Ok" and "lp" in spot_res:
-                try:
-                    self.spot_price = float(spot_res["lp"])
-                    self.engine.set_spot_price(self.spot_price)
-                    self._broker_status = "LIVE CONNECTED"
-                except (ValueError, TypeError):
-                    pass
-
-        # Process Option Quotes
-        for idx, key in enumerate(poll_keys, start=1):
-            if idx >= len(results):
-                break
-            oq = results[idx]
-            if not isinstance(oq, dict):
-                continue
-            if is_session_expired_response(oq):
-                await self._renew_token_if_expired(oq)
-                continue
-            if oq.get("stat") != "Ok" or "lp" not in oq:
-                if oq.get("stat") != "Ok":
-                    logger.debug("Quote %s stat=%s emsg=%s", key, oq.get("stat"), oq.get("emsg", ""))
-                continue
+                task_labels.append(key)
+        if tasks:
             try:
-                opt_ltp = float(oq["lp"])
-            except (ValueError, TypeError):
-                continue
-            if opt_ltp <= 0:
-                continue
-            self._last_ltp[key] = opt_ltp
-
-            # Push tick to strategy engine
-            sig = self.engine.push_tick(key, opt_ltp, now)
-            if sig and not self._has_position():
-                await self._try_enter(sig)
+                results: List[Any] = await asyncio.wait_for(
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=2.0,
+                )
+            except asyncio.TimeoutError:
+                results = [None] * len(tasks)
+            for label, result in zip(task_labels, results):
+                if isinstance(result, Exception):
+                    logger.warning("Quote poll exception for %s: %s", label, result)
+                    continue
+                if not isinstance(result, dict):
+                    continue
+                if is_session_expired_response(result):
+                    await self._renew_token_if_expired(result)
+                    continue
+                if result.get("stat") != "Ok" or "lp" not in result:
+                    continue
+                try:
+                    ltp_val = float(result["lp"])
+                except (ValueError, TypeError):
+                    continue
+                if ltp_val <= 0:
+                    continue
+                if label == "spot":
+                    self.spot_price = ltp_val
+                    self.engine.set_spot_price(self.spot_price)
+                    self._broker_status = "LIVE CONNECTED (REST)"
+                else:
+                    self._last_ltp[label] = ltp_val
+                    sig = self.engine.push_tick(label, ltp_val, now)
+                    if sig and not self._has_position():
+                        await self._try_enter(sig)
 
         # 3. Check Exits (SL, TP, Breakeven, EOD)
         await self._manage_exit()
@@ -1137,13 +1182,13 @@ class LastHopeTradingEngine:
             wr,
             net,
         )
-        # Log S/R levels for TradingView verification
+        # Log S/R levels for TradingView verification (display suite + live gate level)
         for key, cs in self.engine.contracts.items():
-            if not cs.sr_levels:
+            if not cs.display_levels:
                 continue
             ltp = self._last_ltp.get(key, 0)
             sr_parts = []
-            for name, price in cs.sr_levels.items():
+            for name, price in cs.display_levels.items():
                 sr_parts.append(f"{name}={price:.2f}")
             if cs.ema20.value:
                 sr_parts.append(f"EMA20={cs.ema20.value:.2f}")

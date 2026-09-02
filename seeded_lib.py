@@ -33,7 +33,7 @@ import sys, time, json, itertools
 sys.path.insert(0, r'C:\Websites\FLATTRADE BOT')
 import os
 # Skip the 45s 15m-bias lookup build — every swept config runs bias-OFF
-os.environ['LH_BIAS'] = '0'
+os.environ['LH_BIAS'] = os.environ.get('LH_BIAS_OVERRIDE', '0')
 import numpy as np
 import torch
 

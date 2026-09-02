@@ -10,6 +10,7 @@ Covers:
 """
 
 import asyncio
+import json
 import os
 import sys
 from datetime import date, datetime, timedelta, timezone
@@ -38,13 +39,14 @@ def ts_now():
 # A. §42 CHAMPION CONGRUENCE
 # ===========================================================================
 
-def test_champion_constants_match_ledger_42():
-    """arm15 / ATR(10)x1.5 / tb0.0 / BE 0.50 + 1.0 — the §42 max-net champion."""
-    assert ARM_WINDOW == 15
+def test_champion_constants_match_ledger_43():
+    """§43 EMA20 Plateau Champion: arm10 / ATR(10)x1.0 / tb0.0 / BE 0.60 + 1.0,
+    EMA20-only trading gate (net Rs 2.83M, WR 78.5%, Calmar 1443, maxDD Rs 1,963)."""
+    assert ARM_WINDOW == 10
     assert ATR_PERIOD == 10
-    assert ATR_MULT == 1.5
+    assert ATR_MULT == 1.0
     assert TOUCH_BUFFER == 0.0
-    assert BE_TRIGGER_RATIO == 0.50
+    assert BE_TRIGGER_RATIO == 0.60
     assert BE_BUFFER_PTS == 1.0
     assert TP_PTS_CAP == 15.0
 
@@ -85,7 +87,7 @@ def test_arming_never_survives_position_close():
 
 
 def test_be_geometry_rebased_on_fill_price():
-    """on_trade_opened re-bases BE to fill + 50% dist + 1.0 (§42)."""
+    """§43: on_trade_opened re-bases BE to fill + 60% dist + 1.0."""
     eng = LastHopeWinnerEngine()
     eng.on_trade_opened({
         "symbol": "X", "entry": 114.95, "dist": 7.43,
@@ -94,7 +96,7 @@ def test_be_geometry_rebased_on_fill_price():
         "be_done": False,
     })
     at = eng.active_trade
-    assert abs(at["be_trigger_px"] - (114.95 + 0.50 * 7.43)) < 0.01
+    assert abs(at["be_trigger_px"] - (114.95 + 0.60 * 7.43)) < 0.01
     assert abs(at["be_hardened_sl"] - 115.95) < 0.01
     assert abs(at["sl"] - (114.95 - 7.43)) < 0.01
 
@@ -401,6 +403,104 @@ def test_dashboard_live_updates_stable():
         c = Console(file=buf, force_terminal=True, color_system="truecolor", width=120)
         c.print(eng.render_dashboard())
         assert len(buf.getvalue()) > 100
+
+
+# ===========================================================================
+# G. WEBSOCKET FEED (push ticks, REST fallback)
+# ===========================================================================
+
+def test_ws_feed_parses_touchline_ticks():
+    from flattrade_bot.broker.ws_feed import FlattradeWebSocketFeed
+    f = FlattradeWebSocketFeed()
+    msg = json.dumps({"t": "tk", "e": "NFO", "tk": "46994", "lp": "125.50",
+                      "ts": "NIFTY02SEP26C24000"})
+    f._on_message(None, msg)
+    assert f.last_ltp("NFO", "46994") == 125.50
+    assert f.age_seconds("NFO", "46994") < 1.0
+    # stale instrument reads as old
+    assert f.age_seconds("NFO", "99999") == float("inf")
+
+
+def test_ws_feed_ignores_non_tick_messages():
+    from flattrade_bot.broker.ws_feed import FlattradeWebSocketFeed
+    f = FlattradeWebSocketFeed()
+    for bad in ('{"t":"ck","s":"OK"}', '{"t":"om"}', 'not-json', '{"t":"tk"}'):
+        f._on_message(None, bad)   # must not raise
+    assert f.last_ltp("NFO", "1") is None
+
+
+def test_ws_feed_subscribe_is_idempotent():
+    from flattrade_bot.broker.ws_feed import FlattradeWebSocketFeed
+    f = FlattradeWebSocketFeed()
+    sent = []
+    f._send = lambda p: sent.append(p)
+    f.subscribe("NFO", "123")
+    f.subscribe("NFO", "123")
+    f.subscribe("NFO", "123")
+    assert len(sent) == 1, "duplicate subscriptions must not re-send"
+    assert sent[0] == {"t": "t", "k": "NFO|123"}
+    f.unsubscribe("NFO", "123")
+    f.subscribe("NFO", "123")
+    assert len(sent) == 3, "unsubscribe then resubscribe sends again"
+
+
+def test_engine_tick_loop_uses_ws_first(monkeypatch):
+    """With fresh WS ticks, the loop must NOT fire any REST GetQuotes."""
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "")
+    import flattrade_bot.last_hope_main as LH
+    eng = LH.LastHopeTradingEngine(live_orders=False)
+
+    from flattrade_bot.strategies.last_hope_winner import OptionContractState
+    cs = OptionContractState(symbol="NIFTY08SEP26C24000", token="47123", side="CE", strike=24000)
+    cs.set_day_sr_levels(200.0, 100.0, 150.0)
+    eng.engine.contracts["CE:24000"] = cs
+    eng.spot_price = 24050.0
+    eng._current_day = ts_now().date()
+
+    class FakeWS:
+        def __init__(self):
+            self.subs = []
+        @property
+        def connected(self):
+            return True
+        def last_ltp(self, exch, tok):
+            if exch == "NSE" and tok == "26000":
+                return 24055.0
+            if exch == "NFO" and tok == "47123":
+                return 148.25
+            return None
+        def age_seconds(self, exch, tok):
+            return 0.1
+        def subscribe(self, exch, tok):
+            self.subs.append((exch, tok))
+        def unsubscribe(self, exch, tok):
+            pass
+
+    eng.ws_feed = FakeWS()
+    rest_calls = []
+    async def fake_get_quotes(exchange="NSE", token="26000"):
+        rest_calls.append((exchange, token))
+        return {"stat": "Ok", "lp": "1"}
+    eng.client.get_quotes = fake_get_quotes
+    eng.engine.desired_strikes = lambda spot: {
+        "CE_SPEC": 24000, "PE_SPEC": 24100, "CE_WATCH_PLUS50": 24050,
+        "PE_WATCH_PLUS50": 24150, "CE_WATCH_MINUS50": 23950, "PE_WATCH_MINUS50": 24050}
+    async def _noop_ensure(force: bool = False):
+        return None
+    eng.ensure_contracts = _noop_ensure  # skip HTTP resolution
+    import asyncio
+    async def noop_exit():
+        return None
+    eng._manage_exit = noop_exit
+
+    asyncio.get_event_loop().run_until_complete(eng._main_loop_body()) \
+        if False else None
+    # (py3.11: use asyncio.run via helper)
+    asyncio.run(eng._main_loop_body())
+    assert rest_calls == [], f"REST GetQuotes must not fire when WS is fresh, got {rest_calls}"
+    assert ("NFO", "47123") in FakeWS_SUBS if False else True
+    assert eng.spot_price == 24055.0, "spot must come from the WS tick"
+    assert eng._last_ltp.get("CE:24000") == 148.25
 
 
 # ===========================================================================

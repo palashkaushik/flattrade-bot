@@ -174,7 +174,8 @@ def test_multi_tf_tracker_aggregation():
 # =====================================================================
 
 def test_day_sr_levels_cpr_camarilla():
-    """Verifies exact formulas for CPR (BC, Pivot, TC) and Camarilla H3/L3."""
+    """§43: display suite carries CPR/Camarilla/PDH-PDL; sr_levels (the GATE)
+    must be EMPTY — EMA20 (live indicator) is the only trading-gate level."""
     cs = OptionContractState("NIFTY26AUG24200CE", "token1", "CE", 24200)
 
     ph, pl, pc = 150.0, 100.0, 120.0
@@ -186,13 +187,17 @@ def test_day_sr_levels_cpr_camarilla():
     cam_h3 = 120.0 + (150.0 - 100.0) * 1.1 / 4.0  # 133.75
     cam_l3 = 120.0 - (150.0 - 100.0) * 1.1 / 4.0  # 106.25
 
-    assert abs(cs.sr_levels["CPR_Pivot"] - pivot) < 1e-4
-    assert abs(cs.sr_levels["CPR_BC"] - bc) < 1e-4
-    assert abs(cs.sr_levels["CPR_TC"] - tc) < 1e-4
-    assert abs(cs.sr_levels["Cam_H3"] - cam_h3) < 1e-4
-    assert abs(cs.sr_levels["Cam_L3"] - cam_l3) < 1e-4
-    assert cs.sr_levels["PDH"] == 150.0
-    assert cs.sr_levels["PDL"] == 100.0
+    # GATE must be EMA20-only (injected live in _on_1m_bar_close)
+    assert cs.sr_levels == {}, "§43: sr_levels (gate) must be empty — EMA20 gates via live indicator"
+
+    # Display suite keeps the full level set for dashboard/TradingView
+    assert abs(cs.display_levels["CPR_Pivot"] - pivot) < 1e-4
+    assert abs(cs.display_levels["CPR_BC"] - bc) < 1e-4
+    assert abs(cs.display_levels["CPR_TC"] - tc) < 1e-4
+    assert abs(cs.display_levels["Cam_H3"] - cam_h3) < 1e-4
+    assert abs(cs.display_levels["Cam_L3"] - cam_l3) < 1e-4
+    assert cs.display_levels["PDH"] == 150.0
+    assert cs.display_levels["PDL"] == 100.0
 
 
 # =====================================================================
@@ -234,16 +239,14 @@ def test_arming_state_machine_and_expiration():
 # =====================================================================
 
 def test_sr_bounce_gate_strict():
-    """Verifies that S/R bounce requires low <= level + 0.0 and close >= level - 0.5."""
+    """§43: gate = EMA20 ONLY. Low <= EMA20 + 0.0 and Close >= EMA20 - 0.5."""
     cs = OptionContractState("NIFTY26AUG24200CE", "token1", "CE", 24200)
-    # Set day S/R levels with single known pivot
-    cs.sr_levels = {"CPR_Pivot": 120.0}
-    cs.ema20.value = 50.0
+    cs.set_day_sr_levels(150, 100, 120)
+    cs.ema20.value = 120.0
     cs.ema200.value = 50.0
     cs.vwap.cum_pv = 50.0 * 10000.0
     cs.vwap.cum_vol = 10000.0
 
-    pivot = 120.0
     t = datetime(2026, 8, 28, 9, 20)
 
     # Use 5m tracker for stochastic values — only recalculates every 5 bars,
@@ -253,21 +256,21 @@ def test_sr_bounce_gate_strict():
     cs.tf_trackers[5].last_s3 = 50.0
     cs.tf_trackers[5].prev_s1 = 35.0
 
-    # Case A: Low doesn't touch level (low = 120.5 > 120.0) -> REJECTED (touch_buffer=0.0)
+    # Case A: Low doesn't touch EMA20 (low = 120.5 > 120.0) -> REJECTED (touch_buffer=0.0)
     cs.flag_armed = True
     cs.flag_arm_bar = 0
     bar_no_touch = Bar1m(560, open=125.0, high=126.0, low=120.5, close=124.0, timestamp=t)
     sig_a = cs._on_1m_bar_close(bar_no_touch)
-    assert sig_a is None, "Signal should be rejected when low > level (touch_buffer=0.0)"
+    assert sig_a is None, "Signal should be rejected when low > EMA20 (touch_buffer=0.0)"
 
-    # Case B: Low touches level (low = 119.5 <= 120.0) and Close bounces (close = 122.0) -> ACCEPTED!
+    # Case B: Low touches EMA20 (low = 119.5 <= 120.0) and Close bounces (close = 122.0) -> ACCEPTED!
     cs.flag_armed = True
     cs.flag_arm_bar = len(cs.bars)
     bar_bounce = Bar1m(561, open=121.0, high=123.0, low=119.5, close=122.0, timestamp=t)
     sig_b = cs._on_1m_bar_close(bar_bounce)
     assert sig_b is not None
     assert sig_b["trigger"] == "FLAG"
-    assert "CPR_Pivot" in sig_b["level"]
+    assert "EMA20" in sig_b["level"]
 
 
 # =====================================================================
@@ -275,11 +278,11 @@ def test_sr_bounce_gate_strict():
 # =====================================================================
 
 def test_risk_geometry_sl_tp_breakeven():
-    """Verifies ATR*1.5 stop distance and Breakeven stop movement at 70% target move."""
+    """§43: ATR*1.0 stop distance and Breakeven stop movement at 60% target move."""
     engine = LastHopeWinnerEngine()
     cs = engine.register_contract("CE:24200", "NIFTY26AUG24200CE", "token1", "CE", 24200)
 
-    # Fixed ATR = 6.0 pts -> dist = min(6.0 * 1.5, 15.0) = 9.0 pts
+    # Fixed ATR = 6.0 pts -> dist = min(max(6.0 * 1.0, 2.0), 15.0) = 6.0 pts
     cs.atr.value = 6.0
     cs.set_day_sr_levels(150, 100, 120)
 
@@ -290,10 +293,10 @@ def test_risk_geometry_sl_tp_breakeven():
         "token": "token1",
         "strike": 24200,
         "entry": 100.0,
-        "dist": 9.0,
-        "sl": 91.0,               # 100 - 9.0
-        "tp": 109.0,              # 100 + 9.0
-        "be_trigger_px": 106.30,  # 100 + 0.70 * 9.0 = 106.30
+        "dist": 6.0,
+        "sl": 94.0,               # 100 - 6.0
+        "tp": 106.0,              # 100 + 6.0
+        "be_trigger_px": 103.60,  # 100 + 0.60 * 6.0 = 103.60 (§43 BE_TRIGGER_RATIO=0.60)
         "be_hardened_sl": 101.0,  # Entry + 1.0 pt
         "be_done": False,
     }
@@ -301,13 +304,13 @@ def test_risk_geometry_sl_tp_breakeven():
     engine.on_trade_opened(sig)
     now = datetime(2026, 8, 28, 9, 30)
 
-    # Tick 1: Price rises to 104.0 (< BE trigger 106.30) -> SL remains 91.0
-    engine.push_tick("CE:24200", 104.0, now)
-    assert engine.active_trade["sl"] == 91.0
+    # Tick 1: Price rises to 102.0 (< BE trigger 103.60) -> SL remains 94.0
+    engine.push_tick("CE:24200", 102.0, now)
+    assert engine.active_trade["sl"] == 94.0
     assert engine.active_trade["be_done"] is False
 
-    # Tick 2: Price reaches 106.50 (>= BE trigger 106.30) -> SL hardens to 101.0!
-    engine.push_tick("CE:24200", 106.50, now)
+    # Tick 2: Price reaches 103.80 (>= BE trigger 103.60) -> SL hardens to 101.0!
+    engine.push_tick("CE:24200", 103.80, now)
     assert engine.active_trade["be_done"] is True
     assert engine.active_trade["sl"] == 101.0
 
@@ -433,8 +436,11 @@ def test_full_session_simulation_with_eod_squareoff():
     ce_contract.super_armed = True
     ce_contract.super_arm_bar = len(ce_contract.bars) - 1
 
-    # 2. Trigger bar: bounce on CPR_Pivot (~138.33)
-    pivot = ce_contract.sr_levels["CPR_Pivot"]
+    # 2. Trigger bar: bounce on EMA20 (§43 gate — the only trading level).
+    # After the 3 warm-up bars (close 125), EMA20 sits near 125; force a known
+    # value so the bounce math is deterministic.
+    ce_contract.ema20.value = 126.0
+    ema_val = ce_contract.ema20.value
 
     # Use 5m tracker for stochastic values — injected on a NON-boundary minute so
     # they survive (clock-aligned aggregation only recomputes at 5m boundaries:
@@ -445,7 +451,7 @@ def test_full_session_simulation_with_eod_squareoff():
     ce_contract.tf_trackers[5].prev_s1 = 30.0
 
     t_trig = base_time + timedelta(minutes=3)
-    bar_trig = Bar1m(558, open=pivot + 2, high=pivot + 4, low=pivot - 1.0, close=pivot + 3.0, timestamp=t_trig)
+    bar_trig = Bar1m(558, open=ema_val + 2, high=ema_val + 4, low=ema_val - 1.0, close=ema_val + 3.0, timestamp=t_trig)
     sig = ce_contract._on_1m_bar_close(bar_trig)
 
     assert sig is not None
@@ -582,10 +588,11 @@ def test_super_trigger_end_to_end():
     cs.super_armed = True
     cs.super_arm_bar = 0
 
-    # Build a trigger bar that bounces on CPR_Pivot
-    pivot = cs.sr_levels["CPR_Pivot"]
+    # Build a trigger bar that bounces on EMA20 (§43 gate)
+    cs.ema20.value = 130.0
+    ema_val = cs.ema20.value
     t_trig = datetime(2026, 8, 28, 9, 20)
-    bar_trig = Bar1m(560, open=pivot + 1, high=pivot + 2, low=pivot - 0.5, close=pivot + 1.5, timestamp=t_trig)
+    bar_trig = Bar1m(560, open=ema_val + 1, high=ema_val + 2, low=ema_val - 0.5, close=ema_val + 1.5, timestamp=t_trig)
 
     sig = cs._on_1m_bar_close(bar_trig)
 
@@ -602,14 +609,14 @@ def test_super_trigger_end_to_end():
 # =====================================================================
 
 def _make_trigger_bar(cs, trigger_time=None):
-    """Helper: build a bar that bounces on CPR_Pivot for FLAG trigger."""
-    pivot = cs.sr_levels.get("CPR_Pivot", 120.0)
+    """Helper: build a bar that bounces on the §43 gate level (EMA20) for FLAG trigger."""
+    lvl = cs.ema20.value if cs.ema20.value else 120.0
     t = trigger_time or datetime(2026, 8, 28, 9, 20)
-    return Bar1m(560, open=pivot + 1, high=pivot + 2, low=pivot - 0.5, close=pivot + 1, timestamp=t)
+    return Bar1m(560, open=lvl + 1, high=lvl + 2, low=lvl - 0.5, close=lvl + 1, timestamp=t)
 
 
 def test_atr_floor_clamp():
-    """Verifies ATR dist is floored at 2.0 pts when ATR*1.5 < 2.0."""
+    """§43: ATR dist is floored at 2.0 pts when ATR*1.0 < 2.0."""
     engine = LastHopeWinnerEngine()
     cs = engine.register_contract("CE:24200", "NIFTY26AUG24200CE", "token1", "CE", 24200)
     cs.set_day_sr_levels(150, 100, 120)
@@ -617,25 +624,22 @@ def test_atr_floor_clamp():
     cs.flag_armed = True
     cs.flag_arm_bar = 0
 
-    # ATR = 1.0 -> ATR*1.5 = 1.5 -> floor to 2.0
-    # Push bar with TR=1.0 (high-low=1.0) and bounce on CPR_Pivot (123.33)
-    pivot = cs.sr_levels["CPR_Pivot"]
+    # ATR = 1.0 -> ATR*1.0 = 1.0 -> floor to 2.0
+    # EMA20 (seeded from 3 warmup bars) — force a known gate level
+    cs.ema20.value = 123.0
     t = datetime(2026, 8, 28, 9, 20)
-    bar = Bar1m(560, open=pivot, high=pivot + 0.5, low=pivot - 1.0, close=pivot - 0.1, timestamp=t)
-    # ATR from this bar: TR = (pivot+0.5) - (pivot-1.0) = 1.5, but need exactly 1.0
-    # Use bar where high-low = 1.0 and still bounces
+    # Bounce on EMA20=123.0 with TR = 1.0 (high-low=1.0, first bar no prev_close)
     bar = Bar1m(560, open=123.0, high=123.0, low=122.0, close=122.9, timestamp=t)
-    # TR = 123.0 - 122.0 = 1.0 -> ATR = 1.0 (first bar, no prev_close)
     sig = cs._on_1m_bar_close(bar)
 
-    assert sig is not None, f"Signal must fire, got None (check bounce on pivot={pivot:.2f})"
+    assert sig is not None, f"Signal must fire (bounce on EMA20={cs.ema20.value:.2f})"
     assert sig["dist"] == 2.0, f"ATR floor must be 2.0, got {sig['dist']}"
     assert sig["sl"] == round(sig["entry"] - 2.0, 2)
     assert sig["tp"] == round(sig["entry"] + 2.0, 2)
 
 
 def test_atr_cap_clamp():
-    """Verifies ATR dist is capped at 15.0 pts when ATR*1.5 > 15.0."""
+    """§43: ATR dist is capped at 15.0 pts when ATR*1.0 > 15.0."""
     engine = LastHopeWinnerEngine()
     cs = engine.register_contract("CE:24200", "NIFTY26AUG24200CE", "token1", "CE", 24200)
     cs.set_day_sr_levels(150, 100, 120)
@@ -643,12 +647,13 @@ def test_atr_cap_clamp():
     cs.flag_armed = True
     cs.flag_arm_bar = 0
 
-    # ATR = 12.0 -> ATR*1.5 = 18.0 -> cap to 15.0
-    # Push bar with TR=12.0 (high-low=12.0) and bounce on CPR_Pivot (123.33)
+    # ATR = 16.0 -> ATR*1.0 = 16.0 -> cap to 15.0
+    cs.ema20.value = 123.0
     t = datetime(2026, 8, 28, 9, 20)
-    bar = Bar1m(560, open=123.0, high=130.0, low=118.0, close=123.0, timestamp=t)
-    # TR = 130.0 - 118.0 = 12.0 -> ATR = 12.0
-    # Bounce: low=118.0 <= 123.33 ✓, close=123.0 >= 123.33-0.5=122.83 ✓
+    bar = Bar1m(560, open=123.0, high=131.0, low=115.0, close=123.0, timestamp=t)
+    # TR = 131.0 - 115.0 = 16.0 -> ATR = 16.0
+    # Bounce: low=115.0 <= 123.0 (EMA20) OK — but must ALSO satisfy close >= EMA20-0.5
+    # close=123.0 >= 122.5 -> OK
     sig = cs._on_1m_bar_close(bar)
 
     assert sig is not None, "Signal must fire"
@@ -658,7 +663,7 @@ def test_atr_cap_clamp():
 
 
 def test_atr_exact_boundary_2pt():
-    """Verifies ATR*1.5 exactly 2.0 stays at 2.0 (no off-by-one)."""
+    """§43: ATR*1.0 exactly 2.0 stays at 2.0 (no off-by-one)."""
     engine = LastHopeWinnerEngine()
     cs = engine.register_contract("CE:24200", "NIFTY26AUG24200CE", "token1", "CE", 24200)
     cs.set_day_sr_levels(150, 100, 120)
@@ -666,10 +671,14 @@ def test_atr_exact_boundary_2pt():
     cs.flag_armed = True
     cs.flag_arm_bar = 0
 
-    # ATR = 4/3 ≈ 1.333 -> ATR*1.5 = 2.0 exactly
+    # ATR = 2.0 -> ATR*1.0 = 2.0 exactly
+    # EMA20 updates BEFORE the gate: forced 123.0 blends with bar close ->
+    # post-update EMA20 = 123*0.95 + close*0.05. Bar low must sit BELOW that.
+    cs.ema20.value = 123.0
     t = datetime(2026, 8, 28, 9, 20)
-    bar = Bar1m(560, open=123.0, high=123.0 + 4.0/3.0, low=123.0, close=122.9, timestamp=t)
-    # TR = 4/3 ≈ 1.333 -> ATR = 1.333
+    bar = Bar1m(560, open=123.0, high=124.5, low=122.5, close=122.9, timestamp=t)
+    # TR = 124.5 - 122.5 = 2.0 -> first-bar ATR = 2.0 (exact boundary, no floor/cap)
+    # Bounce: post-update EMA20 = 122.995; low=122.5 <= 122.995; close=122.9 >= 122.495
     sig = cs._on_1m_bar_close(bar)
 
     assert sig is not None, "Signal must fire"

@@ -1,7 +1,9 @@
-"""Last Hope Winner Strategy Engine — Net-Points (Max-Profit) Champion.
+"""Last Hope Winner Strategy Engine — EMA20-Gate Plateau Champion (§43).
 
-Strategy: 🏆 Last Hope GPU Winner (7-Year Net ₹2,108,703 | 63.89% Win Rate | Max DD ₹9,303 | Calmar 226.68)
-Specifications from LAST_HOPE_WINNER.md:
+Strategy: 🏆 EMA20 Plateau Champion (7-Year Net ₹2,832,706 | 78.5% Win Rate |
+Max DD ₹1,963 | Calmar 1442.7 | 19,701 trades) — Pareto-verified, plateau-stable
+(worst-neighbor drop -3.7%), trade-level causal parity confirmed.
+Specifications from EMA20_WINNER_STRATEGY.md:
   - Execution Timeframe: 1-minute option OHLC bars (09:15–15:00 IST)
   - Multi-TF Option Stochastics: 1m, 2m, 3m, 5m bars evaluated concurrently
       S1: %K=12, %D=3 (Fast)
@@ -11,15 +13,16 @@ Specifications from LAST_HOPE_WINNER.md:
   - Triggers (on any TF 1m/2m/3m/5m):
       FLAG (M6): S4 >= 79.5 and S1 < 79.5
       SUPER: S3 < 25 and S4 < 25 and S1 < 25 and S1 is rising (S1 > prev S1)
-  - S/R Bounce Gate (touch_buffer = 0.0):
-      Candle Low <= Level + 0.0 AND Candle Close >= Level - 0.5 on option S/R suite:
-      (CPR BC/Pivot/TC, Camarilla H3/L3, PDH, PDL, EMA20, EMA200, VWAP)
+  - S/R Bounce Gate (touch_buffer = 0.0): EMA20 ONLY.
+      Candle Low <= EMA20 + 0.0 AND Candle Close >= EMA20 - 0.5
+      (option-chart EMA20, seeded from 300 prior-day bars; 1m low/close OR any
+       completed-TF (2m/3m/5m) low/close may satisfy the touch)
   - Auxiliary Gates: Bias OFF, Elder OFF, RSI OFF, Reversal OFF, ST-Zone OFF (All-Day 09:15–15:00)
   - Risk Geometry:
-      Distance: dist = min(ATR(10) * 1.5, 15.0 pts)
+      Distance: dist = min(max(ATR(10) * 1.0, 2.0), 15.0 pts)
       Initial SL = Entry - dist
       Initial TP = Entry + dist
-      Breakeven Stop (BE): When High/LTP >= Entry + BE_TRIGGER_RATIO (0.50) * dist, SL permanently hardens to Entry + 1.0 pt
+      Breakeven Stop (BE): When High/LTP >= Entry + BE_TRIGGER_RATIO (0.60) * dist, SL permanently hardens to Entry + 1.0 pt
       SL priority over TP if both hit on the same bar/tick
 """
 
@@ -33,19 +36,19 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger("flattrade_bot.last_hope_winner")
 
-# Strategy Constants — SEEDED CHAMPION (§41 max-net: arm15/atr10/x1.5/tb0.0/be0.5)
+# Strategy Constants — EMA20 PLATEAU CHAMPION (§43: arm10/atr10/x1.0/tb0.0/be0.6, EMA20-only gate)
 S1_K, S1_D = 12, 3
 S3_K, S3_D = 40, 4
 S4_K, S4_D = 50, 10
 ARM_S1 = 25.0
-ARM_WINDOW = 15  # §41: 15 bars (max-net; arm10 was the cold-start champion)
+ARM_WINDOW = 10  # §43: 10 bars (plateau champion; arm15/x1.5 was the fragile -20% peak)
 M6_S4 = 79.5
 M6_S1 = 79.5
 SUPER_THRESH = 25.0
 ATR_PERIOD = 10
-ATR_MULT = 1.5
+ATR_MULT = 1.0
 TP_PTS_CAP = 15.0
-BE_TRIGGER_RATIO = 0.50  # §41: 50% of SL distance (was 0.70 in cold-start champion)
+BE_TRIGGER_RATIO = 0.60  # §43: 60% of SL distance (plateau: 0.5-0.6 band, 0.6 = best Calmar)
 BE_BUFFER_PTS = 1.0      # Hardened SL = Entry + 1.0 pt
 TOUCH_BUFFER = 0.0       # Strict touch/pierce (no gap tolerance)
 
@@ -267,19 +270,46 @@ class OptionContractState:
         logger.info(f"Session reset for {self.symbol}: indicators cold-started (backtest parity)")
 
     def set_day_sr_levels(self, prev_high: float, prev_low: float, prev_close: float):
-        """Builds CPR, Camarilla, and PDH/PDL from yesterday's option OHLC."""
+        """Builds CPR, Camarilla, and PDH/PDL from yesterday's option OHLC.
+
+        §43 (EMA20 PLATEAU CHAMPION): the ONLY trading-gate level is the live
+        option-chart EMA20 — sr_levels stays EMPTY of static levels and the
+        gate reads the seeded IncrementalEMA(20) directly. Every static/dynamic
+        family (CPR, Camarilla, PDH/PDL, Fib, PrevVWAP, VirginCPR, EMA200,
+        VWAP) tested strictly dilutive in the 3 independent sweeps
+        (pareto/pairs/expanded): extra levels add entries with worse WR.
+        display_levels = CPR + full Camarilla H1-H4/L1-L4 + Fibonacci —
+        DISPLAY-ONLY (dashboard / TradingView verification); they NEVER gate
+        trades."""
         pivot = (prev_high + prev_low + prev_close) / 3.0
         bc = (prev_high + prev_low) / 2.0
         tc = 2.0 * pivot - bc
         rng = prev_high - prev_low
-        self.sr_levels = {
+        # GATE: intentionally empty — the only gate level (EMA20) is a LIVE
+        # indicator injected in _on_1m_bar_close. Static levels never gate.
+        self.sr_levels = {}
+        # Display-only suite (NOT in the trading gate):
+        self.display_levels = {
             "CPR_BC": bc,
             "CPR_Pivot": pivot,
             "CPR_TC": tc,
-            "Cam_H3": prev_close + rng * 1.1 / 4.0,
-            "Cam_L3": prev_close - rng * 1.1 / 4.0,
             "PDH": prev_high,
             "PDL": prev_low,
+            "Cam_H4": prev_close + rng * 1.1 / 2.0,
+            "Cam_H3": prev_close + rng * 1.1 / 4.0,
+            "Cam_H2": prev_close + rng * 1.1 / 6.0,
+            "Cam_H1": prev_close + rng * 1.1 / 12.0,
+            "Cam_L1": prev_close - rng * 1.1 / 12.0,
+            "Cam_L2": prev_close - rng * 1.1 / 6.0,
+            "Cam_L3": prev_close - rng * 1.1 / 4.0,
+            "Cam_L4": prev_close - rng * 1.1 / 2.0,
+            "Fib_236": prev_low + rng * 0.236,
+            "Fib_382": prev_low + rng * 0.382,
+            "Fib_500": prev_low + rng * 0.500,
+            "Fib_618": prev_low + rng * 0.618,
+            "Fib_786": prev_low + rng * 0.786,
+            "Fib_1272": prev_low + rng * 1.272,
+            "Fib_1618": prev_low + rng * 1.618,
         }
 
     def seed_1m_bars(self, prior_bars: List[Bar1m], today_bars: Optional[List[Bar1m]] = None):
@@ -362,11 +392,10 @@ class OptionContractState:
         vwap_val = self.vwap.update(bar.high, bar.low, bar.close)
         self.latest_atr = atr_val
 
-        # Dynamic S/R levels updated with latest live moving averages
-        active_sr = dict(self.sr_levels)
-        active_sr["EMA20"] = ema20_val
-        active_sr["EMA200"] = ema200_val
-        active_sr["VWAP"] = vwap_val
+        # §43 GATE LEVELS: EMA20 ONLY. VWAP is subsumed by EMA20 at the gate
+        # (identical trade sets — pairs sweep parity), EMA200/static families
+        # are strictly dilutive. Kept updated for the dashboard only.
+        active_sr = {"EMA20": ema20_val}
 
         # 2. Multi-TF Stochastics Push (1m, 2m, 3m, 5m)
         m6_tfs: List[str] = []
@@ -434,7 +463,7 @@ class OptionContractState:
             return None  # No S/R bounce -> reject signal
 
         # 6. Build Trigger Payload with Risk Geometry
-        # SL/TP distance = min(ATR(10) * 1.5, 15.0)
+        # SL/TP distance = min(max(ATR(10) * 1.0, 2.0), 15.0)   [§43 plateau champion]
         dist = round(min(max(atr_val * ATR_MULT, 2.0), TP_PTS_CAP), 2)
         entry_price = bar.close
         sl_price = round(entry_price - dist, 2)
