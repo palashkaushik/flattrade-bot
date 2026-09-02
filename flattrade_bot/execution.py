@@ -332,7 +332,7 @@ class TradeExecutor:
         if not self.position:
             return {"accepted": False, "reason": "No open position"}
         if self._last_exit_attempt_at is not None:
-            if now - self._last_exit_attempt_at < timedelta(seconds=10):
+            if now - self._last_exit_attempt_at < timedelta(seconds=2):
                 return {"accepted": False, "reason": "Exit retry backoff active"}
         self._last_exit_attempt_at = now
 
@@ -342,7 +342,10 @@ class TradeExecutor:
             quantity=self.position["quantity"],
             ltp=order_price if order_price is not None else ltp,
             product="MIS",
-            slippage_buffer=5.0,  # Generous buffer guarantees instant fill across the bid-ask spread
+            slippage_buffer=5.0,
+            force_mkt=True,  # STOP-LOSS/EOD exits: true market order. Limit sells
+                             # below LTP were rejected by exchange price-band
+                             # validation on fast moves (repeated-rejection bug).
         )
         if not self._accepted(response):
             self._last_exit_attempt_at = None  # Allow immediate retry on error

@@ -51,14 +51,28 @@ class FlattradeClient:
         ltp: float,
         product: str = "MIS",  # Intraday
         slippage_buffer: float = 1.0,
+        force_mkt: bool = False,
     ) -> Dict[str, Any]:
-        """Places a market buy/sell order via Flattrade API.
+        """Places an order via Flattrade API.
 
-        Per API v2 rules, uses an Aggressive Limit Order (LTP + buffer for Buy, LTP - buffer for Sell)
-        to guarantee immediate fill at market price without API v2 rejection.
+        Default (entries): Aggressive Limit Order (LTP + buffer for Buy,
+        LTP - buffer for Sell) per API v2 rules — guarantees instant fill
+        without v2 market-order rejection.
+
+        force_mkt=True (STOP-LOSS / EOD exits): true MARKET order. Limit
+        sells priced below the LTP were being rejected by the exchange's
+        price-band validation when price moved fast (the repeated-rejection
+        bug on live SL exits). A market order cannot be price-rejected and
+        is the correct instrument for risk exits.
         """
-        limit_price = round(ltp + slippage_buffer if side.upper() == "BUY" else ltp - slippage_buffer, 2)
         buy_or_sell = "B" if side.upper() == "BUY" else "S"
+
+        if force_mkt:
+            prctyp = "MKT"
+            limit_price = 0.0
+        else:
+            prctyp = "LMT"
+            limit_price = round(ltp + slippage_buffer if side.upper() == "BUY" else ltp - slippage_buffer, 2)
 
         payload = {
             "uid": settings.FLATTRADE_USER_ID,
@@ -68,13 +82,16 @@ class FlattradeClient:
             "exch": "NFO",
             "tsym": symbol,
             "qty": str(quantity),
-            "prctyp": "LMT",  # Aggressive Limit Order
+            "prctyp": prctyp,
             "prc": str(limit_price),
             "ret": "DAY",
             "remarks": "QuadRotation_Bot"
         }
 
-        logger.info(f"🚀 Submitting Flattrade Order: {side} {quantity} {symbol} @ Limit ₹{limit_price:.2f} (LTP ₹{ltp:.2f})")
+        if force_mkt:
+            logger.info(f"🚀 Submitting Flattrade MKT Order: {side} {quantity} {symbol} (ref LTP ₹{ltp:.2f})")
+        else:
+            logger.info(f"🚀 Submitting Flattrade Order: {side} {quantity} {symbol} @ Limit ₹{limit_price:.2f} (LTP ₹{ltp:.2f})")
 
         if not self.auth_token:
             logger.warning("No auth token present. Order executed in simulation mode.")

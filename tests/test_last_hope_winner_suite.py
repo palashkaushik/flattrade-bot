@@ -330,15 +330,19 @@ class MockFlattradeClient:
         self.positions = []
         self.last_placed_order = None
 
-    async def place_market_order(self, symbol, side, quantity, ltp, product="MIS", slippage_buffer=5.0):
+    async def place_market_order(self, symbol, side, quantity, ltp, product="MIS", slippage_buffer=5.0, force_mkt=False):
         order_id = f"MOCK_ORD_{len(self.orders) + 1}"
-        limit_price = round(ltp - slippage_buffer if side == "SELL" else ltp + slippage_buffer, 2)
+        if force_mkt:
+            limit_price = 0.0
+        else:
+            limit_price = round(ltp - slippage_buffer if side == "SELL" else ltp + slippage_buffer, 2)
         order_record = {
             "norenordno": order_id,
             "tsym": symbol,
             "trantype": "S" if side == "SELL" else "B",
             "qty": quantity,
             "prc": limit_price,
+            "prctyp": "MKT" if force_mkt else "LMT",
             "status": "OPEN",  # Initially OPEN, will become COMPLETE after 2 polls
             "avgprc": str(ltp),
             "fillshares": quantity,
@@ -392,7 +396,10 @@ async def test_trade_executor_exit_fill_and_no_premature_cancel():
     assert res["trade"]["pts"] == 10.0
     assert res["trade"]["rs"] == 650.0
     assert executor.position is None
-    assert client.last_placed_order["prc"] == 105.0  # 110.0 - 5.0 slippage buffer
+    # Exits are now TRUE MARKET orders (price-band rejections on limit sells
+    # below LTP caused the repeated live SL rejection bug):
+    assert client.last_placed_order["prctyp"] == "MKT"
+    assert client.last_placed_order["prc"] == 0.0
 
 
 # =====================================================================

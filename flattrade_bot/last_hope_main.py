@@ -125,6 +125,8 @@ class LastHopeTradingEngine:
         self.discord = DiscordNotifier(strategy=STRATEGY_LABEL)
         self.client = FlattradeClient()
         self.history = FlattradeHistoryFetcher()
+        from flattrade_bot.broker.ws_feed import FlattradeWebSocketFeed
+        self.ws_feed = FlattradeWebSocketFeed()
         self.risk = RiskManager(
             max_daily_loss_points=math.inf,
             quantity=settings.LOT_SIZE,
@@ -737,6 +739,7 @@ class LastHopeTradingEngine:
                     res = await self.client.place_market_order(
                         symbol=tsym, side=side, quantity=qty,
                         ltp=max(ltp, 1.0), product="MIS", slippage_buffer=5.0,
+                        force_mkt=True,  # rescue path: execution certainty over price
                     )
                     if res.get("stat") == "Ok":
                         logger.info(f"✅ Orphaned position {tsym} squared off successfully.")
@@ -754,6 +757,7 @@ class LastHopeTradingEngine:
                     symbol=pos["order_symbol"], side="SELL",
                     quantity=pos["quantity"], ltp=max(self._last_ltp.get(self.active_position_key, pos["entry"]), 1.0),
                     product="MIS", slippage_buffer=5.0,
+                    force_mkt=True,  # EOD flatten: market order, no price-band rejections
                 )
                 logger.info(f"⏰ EOD square-off order for {pos['order_symbol']}: {res.get('stat')}")
             except Exception as e:
