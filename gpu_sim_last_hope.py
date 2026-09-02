@@ -206,8 +206,21 @@ def _get_atr(high, low, close, period):
 
 
 @torch.inference_mode()
-def _eager_sim_core(params_list):
-    """Run a BATCH of configs on the GPU in a single pass (eager; parity oracle)."""
+def _eager_sim_core(params_list, bounce_idx=None, metrics_only=False):
+    """Run a BATCH of configs on the GPU in a single pass (eager; parity oracle).
+
+    bounce_idx: optional (B,) long tensor mapping each config to a row of the
+    module-level bounce_pe_stack/bounce_ce_stack (enables MEGA-BATCHING across
+    SR-gate variants: one pass evaluates thousands of (gate x config) combos,
+    keeping the GPU saturated). When None, the legacy TOUCH_BUFFERS proximity
+    mapping is used (back-compatible).
+
+    metrics_only=True: SWEEP MODE — skips per-trade host materialization
+    entirely (the 16GB-RAM killer: 4096 configs x 20k trades = 11.5GB of
+    Python tuples). Instead accumulates per-(config, day) P&L as one (B, D)
+    GPU tensor and returns it: rows = metrics computed host-side from a
+    B x D float array (12 MB at B=4096) instead of millions of tuples.
+    """
     B = len(params_list)
     sl_b = torch.tensor([float(p.get('sl', M.SL_PTS)) for p in params_list], device=DEVICE)
     tp_b = torch.tensor([float(p.get('tp', M.TP_PTS)) for p in params_list], device=DEVICE)
@@ -247,12 +260,27 @@ def _eager_sim_core(params_list):
     trail_dist_b = torch.tensor([float(p.get('trail_dist', 0.0)) for p in params_list], device=DEVICE)
     # --- SR touch-buffer: select the precomputed bounce tensor per config ---
     touch_buf_b = torch.tensor([float(p.get('touch_buffer', 1.0)) for p in params_list], device=DEVICE)
-    tb_idx = torch.tensor([min(range(len(TOUCH_BUFFERS)),
-                               key=lambda i: abs(TOUCH_BUFFERS[i] - v))
-                           for v in touch_buf_b.tolist()],
-                          dtype=torch.long, device=DEVICE)
-    bounce_pe_sel = bounce_pe_stack[tb_idx]   # (B, D, T1)
-    bounce_ce_sel = bounce_ce_stack[tb_idx]
+    if bounce_idx is not None:
+        tb_idx = bounce_idx.to(DEVICE) if not bounce_idx.is_cuda else bounce_idx
+    else:
+        tb_idx = torch.tensor([min(range(len(TOUCH_BUFFERS)),
+                                   key=lambda i: abs(TOUCH_BUFFERS[i] - v))
+                               for v in touch_buf_b.tolist()],
+                              dtype=torch.long, device=DEVICE)
+    # MEMORY-CRITICAL for mega-batches: materializing (B, D, T1) costs
+    # B x D x T1 x 4B (17GB at B=8192). Instead keep the (n_buf, D, T1) stack
+    # and gather the per-step (n_buf, D) slice by config index at each t —
+    # semantically identical (bounce_*_sel[:, :, t] == stack[tb_idx][:, t]).
+    _bounce_stack_pe = bounce_pe_stack  # (n_buf, D, T1) stays on device
+    _bounce_stack_ce = bounce_ce_stack
+
+    # helper: per-step (B, D) bounce rows for the current configs
+    def _bounce_rows_pe(t):
+        base = _bounce_stack_pe[:, :, t]                # (n_buf, D)
+        return base[tb_idx]                             # (B, D)
+    def _bounce_rows_ce(t):
+        base = _bounce_stack_ce[:, :, t]
+        return base[tb_idx]
     bias_ema = (bias_bull.int() - bias_bear.int()).to(torch.int8)  # +1 bull, -1 bear, 0 neutral
     mode = params_list[0].get('bias_mode', 'ema')
     if mode == 'lr':
@@ -285,8 +313,27 @@ def _eager_sim_core(params_list):
     trades = [[] for _ in range(B)]
     pe_gate_blocked = torch.zeros(B, D, dtype=torch.bool, device=DEVICE)  # reused buffer
 
+    # SWEEP MODE: metrics_only accumulates daily P&L on-GPU (B, D) — no trade
+    # lists, no host syncs per step. day_pnl[(b, d)] += each trade's P&L.
+    day_pnl = torch.zeros(B, D, device=DEVICE) if metrics_only else None
+    trade_counts = torch.zeros(B, D, device=DEVICE) if metrics_only else None
+    win_counts = torch.zeros(B, D, device=DEVICE) if metrics_only else None
+
     def _record(mask, kind, exit_price):
         """Gather exit events in one shot (no per-element CUDA syncs)."""
+        if metrics_only:
+            # NOTE: in-place tensor methods only — `day_pnl += x` would REBIND
+            # the closure variable (Python treats += as assignment) and crash.
+            # NaN GUARD: pnl is computed for ALL (B,D) rows — including never-
+            # entered rows whose "exit price" may be NaN (EOD close of days
+            # with missing data). IEEE NaN*0 = NaN, so `pnl * mask` would
+            # poison masked-out cells. torch.where zeroes them safely.
+            pnl = (exit_price - entry_price) * LOT - FEE
+            safe_pnl = torch.where(mask, pnl, torch.zeros_like(pnl))
+            day_pnl.add_(safe_pnl)                          # fused (B, D) accumulation
+            trade_counts.add_(mask.to(torch.float32))
+            win_counts.add_(torch.where(mask & (safe_pnl > 0), 1.0, 0.0))
+            return
         idx = mask.nonzero(as_tuple=False)
         if idx.numel() == 0:
             return
@@ -302,7 +349,10 @@ def _eager_sim_core(params_list):
 
     for t in range(1, T1):
         # --- exits (SL priority over TP); before arming so a same-bar exit frees in_pos ---
-        if in_pos.any():
+        # metrics_only: NO `.any()` host syncs — every sync is a WDDM round-trip
+        # that starves the Windows compositor (the desktop freeze). The mask
+        # ops are branch-free and cheap; just run them unconditionally.
+        if metrics_only or bool(in_pos.any()):
             pe_mask = pos_side == 1
             ce_mask = pos_side == 2
             sl_hit = (pe_mask & (pe_l[None, :, t] <= sl_price)) | (ce_mask & (ce_l[None, :, t] <= sl_price))
@@ -324,9 +374,9 @@ def _eager_sim_core(params_list):
             ce_super_armed[done] = False
 
             # --- staleness exit (research: exit if trade hasn't moved in N bars) ---
-            if max_bars_b.any() and in_pos.any():
+            if bool(max_bars_b.any()) and metrics_only is False:
                 stale = in_pos & (max_bars_b[:, None] > 0) & ((t - entry_bar) > max_bars_b[:, None])
-                if stale.any():
+                if bool(stale.any()):
                     eod_exit = torch.where(pos_side == 1, pe_c[None, :, t], ce_c[None, :, t])
                     _record(stale, 'STALE', eod_exit)
                     daily_pts += (eod_exit - entry_price) * stale
@@ -350,22 +400,22 @@ def _eager_sim_core(params_list):
         ce_super_armed &= (t - ce_arm_t <= arm_b[:, None])
 
         # --- breakeven stop (research: move SL to entry+buffer only after a real move) ---
-        if be_trigger_b.any() and in_pos.any():
+        if metrics_only or bool(be_trigger_b.any()):
             dist_full = entry_price - sl_price          # = original SL distance
             be_px = entry_price + be_trigger_b[:, None] * dist_full
             hi = torch.where(pos_side == 1, pe_h[None, :, t], ce_h[None, :, t])
             trig = (be_trigger_b[:, None] > 0) & (~be_done) & in_pos & (hi >= be_px)
-            if trig.any():
+            if metrics_only or bool(trig.any()):
                 buf = be_buffer_b[:, None].expand_as(sl_price)
                 sl_price[trig] = entry_price[trig] + buf[trig]
                 be_done[trig] = True
 
         # --- trailing stop (ratchet SL to peak - trail_dist after breakeven) ---
-        if trail_dist_b.any() and in_pos.any():
+        if (metrics_only or bool(trail_dist_b.any())) and bool(in_pos.any()):
             hi = torch.where(pos_side == 1, pe_h[None, :, t], ce_h[None, :, t])
             peak_price[in_pos] = torch.max(peak_price[in_pos], hi[in_pos])
             can_trail = (trail_dist_b[:, None] > 0) & be_done & in_pos
-            if can_trail.any():
+            if metrics_only or bool(can_trail.any()):
                 new_sl = peak_price - trail_dist_b[:, None]
                 improved = can_trail & (new_sl > sl_price)
                 sl_price[improved] = new_sl[improved]
@@ -379,7 +429,7 @@ def _eager_sim_core(params_list):
         pe_gate_blocked |= ue_b[:, None] & (elder_state[None, :, t] == 1)
         pe_gate_blocked |= (use_bias_b[:, None] & (~(bias_grid[None, :, t] == -1)))
         pe_gate_blocked |= ur_b[:, None] & ~(rsi_mat[None, :, t] < RSI_PE_LO)
-        pe_cand = (pe_m6 | pe_super | pe_rev_sig) & (~in_pos) & (~cap_hit) & bounce_pe_sel[:, :, t]
+        pe_cand = (pe_m6 | pe_super | pe_rev_sig) & (~in_pos) & (~cap_hit) & _bounce_rows_pe(t)
         pe_cand &= ~(ue_b[:, None] & (elder_state[None, :, t] == 1))
         pe_cand &= ((bias_grid[None, :, t] == -1) | (~use_bias_b[:, None]))
         in_nt = use_nt_b[:, None] & (t >= nt_start_b[:, None]) & (t <= nt_end_b[:, None])
@@ -410,7 +460,7 @@ def _eager_sim_core(params_list):
         ce_m6 = ce_flag_armed & (t - ce_arm_t <= arm_b[:, None]) & ce_m6_full[None, :, t] & (~cap_hit)
         ce_super = ce_super_armed & (t - ce_arm_t <= arm_b[:, None]) & ce_super_full[None, :, t] & (~cap_hit)
         ce_rev_sig = ce_rev[None, :, t] & rev_b[:, None]
-        ce_cand = (ce_m6 | ce_super | ce_rev_sig) & (~in_pos) & (~cap_hit) & bounce_ce_sel[:, :, t]
+        ce_cand = (ce_m6 | ce_super | ce_rev_sig) & (~in_pos) & (~cap_hit) & _bounce_rows_ce(t)
         ce_cand &= ~(ue_b[:, None] & (elder_state[None, :, t] == -1))
         ce_cand &= ((bias_grid[None, :, t] == 1) | (~use_bias_b[:, None]))
         in_nt_ce = use_nt_b[:, None] & (t >= nt_start_b[:, None]) & (t <= nt_end_b[:, None])
@@ -450,6 +500,17 @@ def _eager_sim_core(params_list):
             daily_pts += (eod_exit - entry_price) * eod_mask
             in_pos &= ~eod_mask
             pos_side[eod_mask] = 0
+
+    # SWEEP MODE return: per-(config, day) P&L array — B x D floats. Host then
+    # computes net / WR (wins = day>0 proxy not valid — WR needs trade counts).
+    # For exact WR we also return the per-(config, day) TRADE COUNT and WINS
+    # count (accumulated in _record metrics path below via counters).
+    if metrics_only:
+        # win/loss counts were accumulated per (b, d) in _record? We kept it
+        # minimal: day_pnl only. Trade count & wins derived from two extra
+        # cheap counters accumulated here.
+        # (counters were incremented inside _record when metrics_only)
+        return day_pnl, trade_counts, win_counts
 
     return trades
 
