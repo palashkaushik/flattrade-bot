@@ -352,15 +352,19 @@ def test_dashboard_frame_no_vt_no_emoji_fixed_height():
     assert len(L) > 10, "frame must render"
     assert all("\x0b" not in ln for ln in L), "no vertical-tab soft breaks may survive"
     assert not any("\U0001F3C6" in ln for ln in L), "no emoji in the frame (width misalignment)"
-    # print_dashboard pads to a fixed height -> identical line counts every call
+    # print_dashboard enters alt-screen + sync mode and paints fixed-height frames
     import io, contextlib
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         eng.print_dashboard()
         eng.print_dashboard()
         eng.print_dashboard()
-    assert eng._dash_lines_drawn > 0
     out = buf.getvalue()
+    assert eng._alt_screen_on is True
+    assert "\033[?1049h" in out, "must enter the alternate screen buffer (htop-style)"
+    assert out.count("\033[H") >= 3, "every frame repaints from cursor-home (no cursor-up drift)"
+    assert out.count("\033[?2026h") >= 3, "synchronized-output begin on every frame"
+    assert out.count("\033[?2026l") >= 3, "synchronized-output commit on every frame"
     assert out.count("\x0b") == 0
 
 

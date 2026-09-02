@@ -127,6 +127,7 @@ class LastHopeTradingEngine:
         self._exit_task: Optional[asyncio.Task] = None
         self._entering: bool = False
         self._dash_lines_drawn: int = 0
+        self._alt_screen_on: bool = False
 
     async def initialize(self):
         logger.info("Initializing %s (live_orders=%s)...", STRATEGY_LABEL, self.live_orders)
@@ -937,34 +938,38 @@ class LastHopeTradingEngine:
         return L
 
     def print_dashboard(self):
-        """Rich-rendered dashboard with zero-flicker ANSI redraw.
-        Rich draws OFF-SCREEN (no Live thread — the SSH blank-screen cause);
-        the frame is then blitted with cursor-up + line-erase (SO 34828142).
-        Frame height is PADDED to a FIXED row count so the cursor-up height
-        is always identical — no drift, no region-clear flashes when the
-        ACTIVE TRADE table appears/disappears."""
+        """htop-style dashboard: Rich renders OFF-SCREEN (no Live thread — the
+        SSH blank-screen cause), then the frame is painted ATOMICALLY into the
+        ALTERNATE SCREEN BUFFER with Synchronized Output mode:
+          - \033[?1049h  alternate buffer (like htop/vim: dedicated full-screen
+                          canvas; scrollback is untouched; detach restores shell)
+          - \033[?2026h  synchronized updates: the terminal holds the paint
+                          until the end marker — the whole frame swaps in one
+                          vsync, zero intermediate-state flicker (kitty/
+                          modern-puTTY/tmux >= 3.4 support; harmless if not)
+          - \033[H home + full-line writes: NO cursor-up math exists, so the
+                          line-count drift that stacked banners CANNOT occur.
+        One frame write per refresh; terminal does the double-buffering."""
         try:
             L = self._render_rich_frame()
         except Exception as e:
             logger.warning("Rich frame render failed: %s", e)
             return
 
-        # Fixed-height frame: pad to the max possible rows so every frame has
-        # the same line count (position table on/off no longer changes height).
+        if not self._alt_screen_on:
+            # First frame: enter alternate buffer + hide cursor
+            sys.stdout.write("\033[?1049h\033[?25l")
+            self._alt_screen_on = True
+
+        # Fixed-height frame keeps the canvas stable when tables toggle
         PAD_ROWS = 44
         if len(L) < PAD_ROWS:
             L = L + [""] * (PAD_ROWS - len(L))
 
-        if self._dash_lines_drawn == len(L):
-            buf = [f"\033[{len(L)}A"]
-            buf.extend("\033[2K" + line for line in L)
-            sys.stdout.write("\n".join(buf) + "\n")
-        elif self._dash_lines_drawn == 0:
-            sys.stdout.write("\n".join(L) + "\n")
-        else:
-            # Height still changed (first frame after resize): clear region.
-            sys.stdout.write(f"\033[{self._dash_lines_drawn}A\033[J")
-            sys.stdout.write("\n".join(L) + "\n")
+        out = ["\033[?2026h", "\033[H"]                 # begin sync + cursor home
+        out.append("\n".join("\033[2K" + ln for ln in L))
+        out.append("\033[?2026l")                       # commit frame atomically
+        sys.stdout.write("\n".join(out) + "\n")
         sys.stdout.flush()
         self._dash_lines_drawn = len(L)
 
@@ -1240,11 +1245,19 @@ async def main():
         print("\n[!] Another trading bot instance is already running. Please attach to the existing session via: screen -r bot\n")
         return
 
+    engine = None
     try:
         live_mode = "--live" in sys.argv or "--live-orders" in sys.argv or settings.LIVE_TRADING
         engine = LastHopeTradingEngine(live_orders=live_mode)
         await engine.run()
     finally:
+        # Restore terminal: leave alternate screen, show cursor (htop-style exit)
+        if engine is not None and getattr(engine, "_alt_screen_on", False):
+            try:
+                sys.stdout.write("\033[?25h\033[?1049l")
+                sys.stdout.flush()
+            except Exception:
+                pass
         lock.release()
 
 
