@@ -826,7 +826,11 @@ def test_engine_eod_constant_value():
 def test_backtest_atr_floor_matches_live():
     """Verifies that the backtest engine ATR clamp(min=2.0) matches live floor formula."""
     # Live formula: dist = min(max(ATR * 1.5, 2.0), 15.0)
-    import torch
+    try:
+        import torch
+    except ImportError:
+        pytest.skip("torch not installed (VPS live host — GPU backtest lib absent); "
+                    "formula verified by the pure-math ATR boundary tests above")
     atr_val = torch.tensor([[0.5]])  # ATR=0.5 -> ATR*1.5=0.75
     atr_mult = torch.tensor([1.5])
     TP_PTS = torch.tensor([15.0])
