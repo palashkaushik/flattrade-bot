@@ -15,6 +15,7 @@ Specifications from LAST_HOPE_WINNER.md:
 
 import asyncio
 import logging
+import json
 import math
 import os
 import re
@@ -350,7 +351,7 @@ class LastHopeTradingEngine:
                             today_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt, volume=v))
 
             if prior_bars or today_bars:
-                contract_state.seed_1m_bars(prior_bars, today_bars)
+                contract_state.seed_1m_bars(prior_bars, today_bars, session_date=today_str)
                 logger.info(f"✅ Fully seeded {len(prior_bars)} prior + {len(today_bars)} today 1m bars for {symbol}")
         except Exception as e:
             logger.warning(f"Async warmup failed for {symbol}: {e}")
@@ -421,8 +422,20 @@ class LastHopeTradingEngine:
                     strike=strike,
                 )
                 # Per-day cold start (backtest parity): fresh indicators, then
-                # warmup replays today's completed bars only.
-                contract_state.reset_session()
+                # warmup replays today's completed bars only. SAME-DAY
+                # RE-REGISTRATION GUARD: when spot hovers on a ±50 boundary
+                # the contract key flips in/out of the desired set every few
+                # seconds — resetting here wiped the seeded indicators in a
+                # loop ("Session reset" spam). Only cold-start ONCE per day
+                # per contract: if this contract already holds today's
+                # seeded state, keep it (indicator continuity = backtest
+                # parity for dynamic-strike rollovers).
+                already_warm_today = (
+                    contract_state.session_date == today_str
+                    and contract_state.seed_complete
+                )
+                if not already_warm_today:
+                    contract_state.reset_session()
 
                 # Launch async warmup in background without blocking main loop
                 asyncio.create_task(
@@ -606,11 +619,43 @@ class LastHopeTradingEngine:
 
     async def _record_close(self, trade: Dict[str, Any]):
         self.trades_today.append(trade)
+        # Persist across restarts (append-only JSONL): the 2026-09-03 restart
+        # showed 0 trades / Rs +0.00 on the dashboard while the broker book
+        # held a realized -715 — restarts must never erase the day's record.
+        try:
+            trade = dict(trade)
+            trade["_recorded_at"] = ist_now().isoformat()
+            os.makedirs("logs", exist_ok=True)
+            with open(f"logs/trades_{ist_now().strftime('%Y-%m-%d')}.jsonl", "a") as f:
+                f.write(json.dumps(trade, default=str) + "\n")
+        except Exception as e:
+            logger.warning(f"Trade persistence failed: {e}")
         if float(trade.get("pts", 0.0)) > 0:
             self._wins_today += 1
         self.engine.on_trade_closed()
         self.active_position_key = None
         self.paper_position = None
+
+    def _load_today_trades(self):
+        """Reloads this session's already-recorded trades from the JSONL."""
+        try:
+            path = f"logs/trades_{ist_now().strftime('%Y-%m-%d')}.jsonl"
+            if not os.path.exists(path):
+                return
+            with open(path) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        self.trades_today.append(json.loads(line))
+                    except ValueError:
+                        continue
+            self._wins_today = sum(1 for t in self.trades_today if float(t.get("pts", 0.0)) > 0)
+            if self.trades_today:
+                logger.info(f"📂 Restored {len(self.trades_today)} earlier trades from {path}")
+        except Exception as e:
+            logger.warning(f"Trade restore failed: {e}")
 
     async def _manage_exit(self):
         """Exit watchdog — runs EVERY tick, must never silently skip.
@@ -1064,17 +1109,34 @@ class LastHopeTradingEngine:
             cs = self.engine.contracts.get(key)
             if not cs:
                 continue
-            if (self.ws_feed.connected
-                    and self.ws_feed.last_ltp("NFO", cs.token) is not None
+            # Subscribe unconditionally (idempotent, broker pushes on change).
+            # The old code only subscribed when a tick was ALREADY fresh —
+            # circular: never subscribed -> never fresh -> REST forever ->
+            # throttled -> stuck dashboard prices.
+            if self.ws_feed.connected:
+                self.ws_feed.subscribe("NFO", cs.token)
+            ltp_ws = self.ws_feed.last_ltp("NFO", cs.token)
+            if (self.ws_feed.connected and ltp_ws is not None
                     and self.ws_feed.age_seconds("NFO", cs.token) <= STALE_SEC):
                 ws_fresh_keys.add(key)
-                self.ws_feed.subscribe("NFO", cs.token)  # idempotent
             else:
                 rest_keys.append(key)
 
         # Also make sure the spot is subscribed for next time
         if self.ws_feed.connected:
             self.ws_feed.subscribe("NSE", "26000")
+
+        # 1.5 — SIGNAL GATE: only the CURRENT 2nd-ITM pair (CE_SPEC/PE_SPEC)
+        # may open trades. Watch pairs (+/-50 rollover) are warm-only — the
+        # 11:20 Sep-2 incident fired 6 entries in 1 second across ALL
+        # registered strikes. Backtest semantics: trade only the active pair.
+        spec_keys: set = set()
+        try:
+            if self.spot_price:
+                _d = self.engine.desired_strikes(self.spot_price)
+                spec_keys = {f"CE:{_d['CE_SPEC']}", f"PE:{_d['PE_SPEC']}"}
+        except Exception:
+            spec_keys = set()
 
         # Process WS-fresh option ticks first (zero REST cost)
         for key in ws_fresh_keys:
@@ -1085,7 +1147,7 @@ class LastHopeTradingEngine:
             if opt_ltp and opt_ltp > 0:
                 self._last_ltp[key] = opt_ltp
                 sig = self.engine.push_tick(key, opt_ltp, now)
-                if sig and not self._has_position():
+                if sig and not self._has_position() and key in spec_keys:
                     await self._try_enter(sig)
 
         # REST fallback: ONLY stale/unsubscribed instruments (+ spot if stale)
@@ -1133,7 +1195,7 @@ class LastHopeTradingEngine:
                 else:
                     self._last_ltp[label] = ltp_val
                     sig = self.engine.push_tick(label, ltp_val, now)
-                    if sig and not self._has_position():
+                    if sig and not self._has_position() and label in spec_keys:
                         await self._try_enter(sig)
 
         # 3. Check Exits (SL, TP, Breakeven, EOD)
@@ -1209,6 +1271,7 @@ class LastHopeTradingEngine:
 
     async def run(self):
         await self.initialize()
+        self._load_today_trades()   # restore the day's record across restarts
         await self.recover_open_positions()
 
         has_tty = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()

@@ -59,17 +59,21 @@ class FlattradeClient:
         LTP - buffer for Sell) per API v2 rules — guarantees instant fill
         without v2 market-order rejection.
 
-        force_mkt=True (STOP-LOSS / EOD exits): true MARKET order. Limit
-        sells priced below the LTP were being rejected by the exchange's
-        price-band validation when price moved fast (the repeated-rejection
-        bug on live SL exits). A market order cannot be price-rejected and
-        is the correct instrument for risk exits.
+        force_mkt=True (STOP-LOSS / EOD exits): ALSO an aggressive limit
+        order, but with a WIDER buffer (crosses the spread decisively).
+        Flattrade's API rejects true MKT orders outright
+        ("ALGO_CHK: MKT Order type not allowed for API order" — the
+        2026-09-02/03 repeated-rejection incident), so exits must be
+        aggressively-priced limit orders. The caller passes a FRESH LTP
+        fetched immediately before the attempt, keeping the limit price
+        inside the exchange price band even on fast moves.
         """
         buy_or_sell = "B" if side.upper() == "BUY" else "S"
 
         if force_mkt:
-            prctyp = "MKT"
-            limit_price = 0.0
+            prctyp = "LMT"
+            buffer = max(slippage_buffer, 5.0)
+            limit_price = round(ltp + buffer if side.upper() == "BUY" else ltp - buffer, 2)
         else:
             prctyp = "LMT"
             limit_price = round(ltp + slippage_buffer if side.upper() == "BUY" else ltp - slippage_buffer, 2)
@@ -89,7 +93,7 @@ class FlattradeClient:
         }
 
         if force_mkt:
-            logger.info(f"🚀 Submitting Flattrade MKT Order: {side} {quantity} {symbol} (ref LTP ₹{ltp:.2f})")
+            logger.info(f"🚀 Submitting Flattrade Aggressive-Exit Order: {side} {quantity} {symbol} @ Limit ₹{limit_price:.2f} (fresh LTP ₹{ltp:.2f})")
         else:
             logger.info(f"🚀 Submitting Flattrade Order: {side} {quantity} {symbol} @ Limit ₹{limit_price:.2f} (LTP ₹{ltp:.2f})")
 

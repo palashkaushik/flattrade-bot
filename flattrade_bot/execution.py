@@ -336,16 +336,34 @@ class TradeExecutor:
                 return {"accepted": False, "reason": "Exit retry backoff active"}
         self._last_exit_attempt_at = now
 
+        # FRESH QUOTE before every exit attempt: the aggressive limit price
+        # must track the live LTP to stay inside the exchange price band.
+        # The 2026-09-02 incident: limit priced off a stale (throttled) LTP
+        # fell outside the band -> rejected -> retried at the SAME stale
+        # price -> loop. Fresh quote each attempt breaks the loop.
+        exit_ltp = order_price if order_price is not None else ltp
+        try:
+            fresh = await self.client.get_quotes(
+                exchange=self.position.get("monitor_exchange", "NFO"),
+                token=self.position["token"],
+            )
+            if isinstance(fresh, dict) and fresh.get("stat") == "Ok":
+                flp = float(fresh.get("lp", 0) or 0)
+                if flp > 0:
+                    exit_ltp = flp
+        except Exception:
+            pass  # fall back to the watchdog LTP
+
         response = await self.client.place_market_order(
             symbol=self.position["order_symbol"],
             side="SELL",
             quantity=self.position["quantity"],
-            ltp=order_price if order_price is not None else ltp,
+            ltp=exit_ltp,
             product="MIS",
             slippage_buffer=5.0,
-            force_mkt=True,  # STOP-LOSS/EOD exits: true market order. Limit sells
-                             # below LTP were rejected by exchange price-band
-                             # validation on fast moves (repeated-rejection bug).
+            force_mkt=True,  # Risk exit: aggressive limit (LTP-5.0) with a
+                             # fresh quote each attempt. True MKT is rejected
+                             # by Flattrade's API (ALGO_CHK) — see client.py.
         )
         if not self._accepted(response):
             self._last_exit_attempt_at = None  # Allow immediate retry on error

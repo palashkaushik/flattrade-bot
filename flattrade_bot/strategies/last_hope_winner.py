@@ -247,6 +247,12 @@ class OptionContractState:
     latest_ltp: Optional[float] = None
     latest_atr: float = 6.0
 
+    # Same-day re-registration guard: a contract that flips out of the
+    # desired ±50 watch set and back in must NOT cold-reset again the same
+    # day — its seeded indicator state carries over (dynamic-strike parity).
+    session_date: Optional[str] = None
+    seed_complete: bool = False
+
     def reset_session(self):
         """Clears intraday indicator state. Call BEFORE seeding: the §41/§42
         champion runs SEEDED — warmup replays the prior day's final 300 bars
@@ -317,10 +323,14 @@ class OptionContractState:
             "Fib_1618": prev_low + rng * 1.618,
         }
 
-    def seed_1m_bars(self, prior_bars: List[Bar1m], today_bars: Optional[List[Bar1m]] = None):
+    def seed_1m_bars(self, prior_bars: List[Bar1m], today_bars: Optional[List[Bar1m]] = None,
+                     session_date: Optional[str] = None):
         """Seeds prior completed bars for indicator warmup, and today's completed bars with intraday VWAP."""
         if today_bars is None:
             today_bars = []
+        if session_date is not None:
+            self.session_date = session_date
+        self.seed_complete = True
         for bar in prior_bars:
             self.bars.append(bar)
             self.atr.update(bar.high, bar.low, bar.close)
