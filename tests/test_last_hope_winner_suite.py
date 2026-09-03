@@ -296,7 +296,7 @@ def test_risk_geometry_sl_tp_breakeven():
         "dist": 6.0,
         "sl": 94.0,               # 100 - 6.0
         "tp": 106.0,              # 100 + 6.0
-        "be_trigger_px": 103.60,  # 100 + 0.60 * 6.0 = 103.60 (§43 BE_TRIGGER_RATIO=0.60)
+        "be_trigger_px": 102.40,  # 100 + 0.40 * 6.0 = 102.40 (§44 BE_TRIGGER_RATIO=0.40)
         "be_hardened_sl": 101.0,  # Entry + 1.0 pt
         "be_done": False,
     }
@@ -304,13 +304,13 @@ def test_risk_geometry_sl_tp_breakeven():
     engine.on_trade_opened(sig)
     now = datetime(2026, 8, 28, 9, 30)
 
-    # Tick 1: Price rises to 102.0 (< BE trigger 103.60) -> SL remains 94.0
+    # Tick 1: Price rises to 102.0 (< BE trigger 102.40) -> SL remains 94.0
     engine.push_tick("CE:24200", 102.0, now)
     assert engine.active_trade["sl"] == 94.0
     assert engine.active_trade["be_done"] is False
 
-    # Tick 2: Price reaches 103.80 (>= BE trigger 103.60) -> SL hardens to 101.0!
-    engine.push_tick("CE:24200", 103.80, now)
+    # Tick 2: Price reaches 102.50 (>= BE trigger 102.40) -> SL hardens to 101.0!
+    engine.push_tick("CE:24200", 102.50, now)
     assert engine.active_trade["be_done"] is True
     assert engine.active_trade["sl"] == 101.0
 
@@ -663,7 +663,7 @@ def test_atr_cap_clamp():
 
 
 def test_atr_exact_boundary_2pt():
-    """§43: ATR*1.0 exactly 2.0 stays at 2.0 (no off-by-one)."""
+    """§44: ATR*1.5 exactly 2.0 (ATR = 4/3) stays at 2.0 (no off-by-one)."""
     engine = LastHopeWinnerEngine()
     cs = engine.register_contract("CE:24200", "NIFTY26AUG24200CE", "token1", "CE", 24200)
     cs.set_day_sr_levels(150, 100, 120)
@@ -671,13 +671,18 @@ def test_atr_exact_boundary_2pt():
     cs.flag_armed = True
     cs.flag_arm_bar = 0
 
-    # ATR = 2.0 -> ATR*1.0 = 2.0 exactly
+    # ATR = 4/3 -> ATR*1.5 = 2.0 exactly
     # EMA20 updates BEFORE the gate: forced 123.0 blends with bar close ->
     # post-update EMA20 = 123*0.95 + close*0.05. Bar low must sit BELOW that.
     cs.ema20.value = 123.0
     t = datetime(2026, 8, 28, 9, 20)
+    # IncrementalATR is EMA-form: v = v*(1-alpha) + tr*alpha (alpha=1/(p+1)=2/11).
+    # Seed so post-update value is exactly 4/3 with tr = 2.0:
+    #   v = (4/3 - 2*alpha) / (1 - alpha) = 32/27
+    cs.atr.value = 32.0 / 27.0
+    cs.atr.prev_close = 122.9  # tr = max(2.0, 1.6, 0.4) = 2.0
     bar = Bar1m(560, open=123.0, high=124.5, low=122.5, close=122.9, timestamp=t)
-    # TR = 124.5 - 122.5 = 2.0 -> first-bar ATR = 2.0 (exact boundary, no floor/cap)
+    # ATR blend -> exactly 4/3 -> *1.5 = 2.0 exactly (no floor/cap)
     # Bounce: post-update EMA20 = 122.995; low=122.5 <= 122.995; close=122.9 >= 122.495
     sig = cs._on_1m_bar_close(bar)
 

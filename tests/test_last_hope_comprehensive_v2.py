@@ -40,13 +40,13 @@ def ts_now():
 # ===========================================================================
 
 def test_champion_constants_match_ledger_43():
-    """§43 EMA20 Plateau Champion: arm10 / ATR(10)x1.0 / tb0.0 / BE 0.60 + 1.0,
-    EMA20-only trading gate (net Rs 2.83M, WR 78.5%, Calmar 1443, maxDD Rs 1,963)."""
+    """§44 Dynamic-Strike Champion: arm10 / ATR(10)x1.5 / tb0.0 / BE 0.40 + 1.0,
+    EMA20-only trading gate, dynamic 2nd-ITM (net Rs 3.62M, WR 90.2%, Calmar 2409, maxDD Rs 1,504)."""
     assert ARM_WINDOW == 10
     assert ATR_PERIOD == 10
-    assert ATR_MULT == 1.0
+    assert ATR_MULT == 1.5
     assert TOUCH_BUFFER == 0.0
-    assert BE_TRIGGER_RATIO == 0.60
+    assert BE_TRIGGER_RATIO == 0.40
     assert BE_BUFFER_PTS == 1.0
     assert TP_PTS_CAP == 15.0
 
@@ -87,7 +87,7 @@ def test_arming_never_survives_position_close():
 
 
 def test_be_geometry_rebased_on_fill_price():
-    """§43: on_trade_opened re-bases BE to fill + 60% dist + 1.0."""
+    """§44: on_trade_opened re-bases BE to fill + 40% dist + 1.0."""
     eng = LastHopeWinnerEngine()
     eng.on_trade_opened({
         "symbol": "X", "entry": 114.95, "dist": 7.43,
@@ -96,7 +96,7 @@ def test_be_geometry_rebased_on_fill_price():
         "be_done": False,
     })
     at = eng.active_trade
-    assert abs(at["be_trigger_px"] - (114.95 + 0.60 * 7.43)) < 0.01
+    assert abs(at["be_trigger_px"] - (114.95 + 0.40 * 7.43)) < 0.01
     assert abs(at["be_hardened_sl"] - 115.95) < 0.01
     assert abs(at["sl"] - (114.95 - 7.43)) < 0.01
 

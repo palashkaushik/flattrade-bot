@@ -1,10 +1,15 @@
-"""Last Hope Winner Strategy Engine — EMA20-Gate Plateau Champion (§43).
+"""Last Hope Winner Strategy Engine — Dynamic-Strike EMA20 Champion (§44).
 
-Strategy: 🏆 EMA20 Plateau Champion (7-Year Net ₹2,832,706 | 78.5% Win Rate |
-Max DD ₹1,963 | Calmar 1442.7 | 19,701 trades) — Pareto-verified, plateau-stable
-(worst-neighbor drop -3.7%), trade-level causal parity confirmed.
-Specifications from EMA20_WINNER_STRATEGY.md:
+Strategy: 🏆 §44 Dynamic-Strike Champion (7-Year Net ₹3,623,562 | 90.2% Win Rate |
+Max DD ₹1,504 | Calmar 2,408.7 | 16,491 trades) — dual-gate sweep verified on the
+corrected engine (be_done reset fix), plateau-stable (all arm values 5/10/15/20
+in the x1.5/be0.4 column: Calmar 2,191-2,409), dynamic-strike (2nd-ITM selected
+at trade time), trade-level causal parity confirmed (static == replay == dyn).
+Specifications:
   - Execution Timeframe: 1-minute option OHLC bars (09:15–15:00 IST)
+  - Strike Selection (DYNAMIC): at each entry, the 2nd-ITM strike is re-selected
+      from the current index level (CE = ATM-100, PE = ATM+100 per side). NOT
+      pinned at 09:15.
   - Multi-TF Option Stochastics: 1m, 2m, 3m, 5m bars evaluated concurrently
       S1: %K=12, %D=3 (Fast)
       S3: %K=40, %D=4 (Slow)
@@ -19,10 +24,10 @@ Specifications from EMA20_WINNER_STRATEGY.md:
        completed-TF (2m/3m/5m) low/close may satisfy the touch)
   - Auxiliary Gates: Bias OFF, Elder OFF, RSI OFF, Reversal OFF, ST-Zone OFF (All-Day 09:15–15:00)
   - Risk Geometry:
-      Distance: dist = min(max(ATR(10) * 1.0, 2.0), 15.0 pts)
+      Distance: dist = min(max(ATR(10) * 1.5, 2.0), 15.0 pts)
       Initial SL = Entry - dist
       Initial TP = Entry + dist
-      Breakeven Stop (BE): When High/LTP >= Entry + BE_TRIGGER_RATIO (0.60) * dist, SL permanently hardens to Entry + 1.0 pt
+      Breakeven Stop (BE): When High/LTP >= Entry + BE_TRIGGER_RATIO (0.40) * dist, SL permanently hardens to Entry + 1.0 pt
       SL priority over TP if both hit on the same bar/tick
 """
 
@@ -36,19 +41,19 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger("flattrade_bot.last_hope_winner")
 
-# Strategy Constants — EMA20 PLATEAU CHAMPION (§43: arm10/atr10/x1.0/tb0.0/be0.6, EMA20-only gate)
+# Strategy Constants — DYNAMIC-STRIKE CHAMPION (§44: arm10/atr10/x1.5/tb0.0/be0.4, EMA20-only gate, dynamic 2nd-ITM)
 S1_K, S1_D = 12, 3
 S3_K, S3_D = 40, 4
 S4_K, S4_D = 50, 10
 ARM_S1 = 25.0
-ARM_WINDOW = 10  # §43: 10 bars (plateau champion; arm15/x1.5 was the fragile -20% peak)
+ARM_WINDOW = 10  # §43/§44: 10 bars (plateau champion; arm15/x2.0 was the fragile peak)
 M6_S4 = 79.5
 M6_S1 = 79.5
 SUPER_THRESH = 25.0
 ATR_PERIOD = 10
-ATR_MULT = 1.0
+ATR_MULT = 1.5   # §44 dynamic-strike sweep: x1.5/be0.4 plateau (Calmar 2409)
 TP_PTS_CAP = 15.0
-BE_TRIGGER_RATIO = 0.60  # §43: 60% of SL distance (plateau: 0.5-0.6 band, 0.6 = best Calmar)
+BE_TRIGGER_RATIO = 0.40  # §44: 40% of SL distance (x1.5/be0.4 plateau champion)
 BE_BUFFER_PTS = 1.0      # Hardened SL = Entry + 1.0 pt
 TOUCH_BUFFER = 0.0       # Strict touch/pierce (no gap tolerance)
 

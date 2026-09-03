@@ -453,6 +453,9 @@ def _eager_sim_core(params_list, bounce_idx=None, metrics_only=False):
         entry_bar[ent_pe] = t
         in_pos[ent_pe] = True
         peak_price[ent_pe] = pe_ep[ent_pe]
+        be_done[ent_pe] = False   # BE RESET (bug fix: was never reset on entry —
+                                   # after the first BE of the day, be_done stayed
+                                   # True and NO later trade could BE-ratchet)
         pe_flag_armed[ent_pe] = False
         pe_super_armed[ent_pe] = False
 
@@ -484,6 +487,7 @@ def _eager_sim_core(params_list, bounce_idx=None, metrics_only=False):
         entry_bar[ent_ce] = t
         in_pos[ent_ce] = True
         peak_price[ent_ce] = ce_ep[ent_ce]
+        be_done[ent_ce] = False   # BE RESET (same fix as PE entry site)
         ce_flag_armed[ent_ce] = False
         ce_super_armed[ent_ce] = False
 

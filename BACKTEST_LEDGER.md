@@ -1609,3 +1609,41 @@ WF OOS: 19,691 trades, maxDD ₹8,582, worst-day −₹6,025, Calmar 240.6. The 
 **Verdict:** DEPLOY maxnet arm15/atr10/x1.5/tb0.0/be0.5 as the live config. Walk-forward-selected in 4/6 OOS years, never a losing year, WR 65.7%, worst single day −₹6,025 (₹92/lot-point equivalent), maxDD ₹8,582.
 
 **Files:** `walkforward_seeded.py`, `seeded_lib.py`, `wf_seeded.log`.
+
+---
+
+## §43 — EMA20-ONLY GATE PLATEAU CHAMPION (static strikes, superseded by §44)
+
+**Method:** `gpu_sweep_final_pareto.py` (256 gates × 64 configs) + `gpu_sweep_pairs_v2.py` (EMA20+X paired sweeps) on the fixed-09:15-strike engine. Result: EMA20-only trading gate dominates; every added level dilutes (−₹105K…−₹349K).
+
+**Champion:** arm10 / ATR(10)×1.0 / tb0.0 / BE 0.60+1.0 / EMA20-only gate.
+7y (pre-fix numbers): net ₹2,832,706, WR 78.5%, 19,701 trades, maxDD ₹1,963, Calmar 1,443. Deployed as commit `f44c16a`. **Post `be_done`-fix re-run: net ₹2,799,385, WR 84.4%, 20,347 trades, maxDD ₹1,996, Calmar 1,401.**
+
+---
+
+## §44 — DYNAMIC-STRIKE CHAMPION + `be_done` ENGINE FIX (LIVE)
+
+**Two changes vs §43:**
+1. **Dynamic strikes** — 2nd-ITM strike re-selected at each trade time from current spot (user rule; all §41-§43 sweeps had wrongly pinned 09:15 strikes).
+2. **`be_done` reset fix** — `gpu_sim_last_hope.py:_eager_sim_core` never reset `be_done` on entry, so BE fired at most once/day per config-day cell. Fixed in both entry sites; validated trade-for-trade on 2025-09-08 (static == hand-replay == dyn, 20 trades) via `validate_fix.py` / `replay_static.py`.
+
+**Method:** `dyn_strike_engine.py` (per-strike-day seeded indicators, same-token prior-day last-300 seed, FBFill for cold rows, per-side arming) × `dyn_sweep.py` (dual-gate: EMA20 vs FULL10 × 128 configs, full 2020-2026). Results: `dyn_sweep_results.csv` (256 rows).
+
+**Champion: arm10 / ATR(10)×1.5 / tb0.0 / BE 0.40+1.0 / EMA20-only gate / dynamic 2nd-ITM strikes**
+
+| Metric | Value |
+|:---|---:|
+| 7y net | **+₹3,623,562** |
+| Win rate | **90.2%** |
+| Trades | 16,491 |
+| maxDD | ₹1,504 |
+| Worst day | −₹1,476 |
+| Calmar | **2,408.7** |
+
+**Plateau evidence:** x1.5/be0.4 column stable across ALL arm values — arm5 2,312 · arm10 2,403-2,409 · arm15 2,198-2,202 · arm20 2,191-2,198 (Calmar). NOT a fragile peak. x2.0 nets more (₹3.84M) but at 52-169% worse DD (Calmar ≤1,695) — rejected on risk-adjusted grounds. FULL10 gate loses everywhere on dynamic strikes (best ₹2.74M vs EMA20 ₹3.84M) — EMA20-only reconfirmed.
+
+**Parity:** mask-level (S1/M6/SUPER/BOUNCE) 0/345 diffs; session arrays h/l/c identical; trade-level three-way agreement after fix.
+
+**Files:** `dyn_strike_engine.py`, `dyn_sweep.py`, `dyn_sweep_results.csv`, `validate_fix.py`, `replay_static.py`, `parity_dyn2.py`, `bisect_parity.py`, `diff_arrays.py`, `diff_trades.py`.
+
+**Live wiring:** `flattrade_bot/strategies/last_hope_winner.py` (§44 constants + dynamic-strike docstring), `flattrade_bot/last_hope_main.py` (dynamic strike re-resolution each tick — already wired), `EMA20_WINNER_STRATEGY.md` (§44 spec). Tests: 47/47 green.

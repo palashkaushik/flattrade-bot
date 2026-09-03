@@ -835,7 +835,7 @@ class LastHopeTradingEngine:
 
         header = Text.from_markup(
             f" [bold bright_yellow]LAST HOPE GPU WINNER[/bold bright_yellow] "
-            f"| [bold white]2nd ITM · Multi-TF Stoch · S/R Bounce · ATRx1.5 + BE@50%[/bold white] "
+            f"| [bold white]2nd ITM (dynamic) · Multi-TF Stoch · S/R Bounce · ATRx1.5 + BE@40%[/bold white] "
             f"| [cyan]{time_str} IST[/cyan]"
         )
         banner = Panel(header, box=box.ROUNDED, style="bright_blue", padding=(0, 1))
