@@ -1,27 +1,26 @@
-"""Flattrade WebSocket tick feed — replaces 1s REST quote polling.
+"""Flattrade WebSocket tick feed — push-based market data (replaces REST polling).
 
-Why: the REST poller fires ~7 GetQuotes/second (~420/min), which runs into
-Flattrade's retail API throttling under load -> the stuck-then-alive price
-pattern on the dashboard. The WebSocket subscribes each instrument ONCE and
-the broker PUSHES every tick — no polling, no rate limit, ~50ms latency.
-
-Protocol (extracted from the official NorenRestApiPy SDK + Flattrade's
-api_helper):
-  - URL:      wss://piconnect.flattrade.in/PiConnectWSAPI/{access_token}
-  - Heartbeat: {"t":"h"} every 3s (broker expects it; SDK uses ping_interval=3)
-  - Subscribe: {"t":"t","k":"NFO|<token>"}   (touchline feed)
-  - Ticks:     {"t":"tk","lp":"123.45","e":"NFO","tk":"<token>", ...}
-               (also "tf" = touchline-formatted variant; both handled)
+Protocol (flattrade documentation.md §6, Pi API v2.0 — verified live Sep 4 2026):
+  - URL:         wss://piconnect.flattrade.in/PiConnectWSAPI/
+  - CONNECT (mandatory, immediately on open — WITHOUT it the server accepts
+    the socket, answers heartbeats, and SILENTLY IGNORES every subscription:
+    the Sep-4 stuck-prices bug):
+      {"t":"a","uid":UID,"actid":UID,"source":"API","accesstoken":TOKEN}
+    Expect {"t":"ak","s":"Ok"} (case varies: "Ok"/"OK") before subscribing.
+  - SUBSCRIBE touchline:  {"t":"t","k":"NSE|26000#NFO|42631"}  (#-batched)
+  - UNSUBSCRIBE:          {"t":"u","k":"..."}
+  - HEARTBEAT: TEXT message {"t":"h"} every 30s -> {"t":"hk"} (NOT a WS
+    protocol ping; ping_payload was silently ignored)
+  - Ticks: "tk" (subscribe ack w/ full quote), "tf" (touchline feed updates)
 
 Design:
   - Dedicated daemon thread runs websocket-client's run_forever with auto
     reconnect (exponential backoff, capped).
-  - On connect: re-subscribes ALL active tokens + NIFTY spot (26000@NSE).
+  - On connect ack: re-subscribes ALL active tokens + NIFTY spot (26000@NSE).
   - Ticks land in a thread-safe dict; the async engine reads them every tick
-    loop — no locks held during processing (dict swap semantics).
+    loop - no locks held during processing (dict swap semantics).
   - Staleness watchdog: if no tick from an instrument for N seconds, the main
-    loop automatically falls back to REST GetQuotes for that instrument
-    (belt-and-braces; also covers WS outages transparently).
+    loop automatically falls back to REST GetQuotes for that instrument.
 """
 import json
 import logging
@@ -37,32 +36,40 @@ try:
 except ImportError:
     _HAS_WS = False
 
-WS_URL_TEMPLATE = "wss://piconnect.flattrade.in/PiConnectWSAPI/{token}"
-HEARTBEAT_SEC = 3.0
+from flattrade_bot.config import settings
+
+WS_URL = "wss://piconnect.flattrade.in/PiConnectWSAPI/"
+HEARTBEAT_SEC = 30.0
 SPOT_SUBSCRIBE = ("NSE", "26000")  # Nifty 50 index
 
 
 class FlattradeWebSocketFeed:
-    """Push-based tick feed with auto-reconnect and REST-fallback hooks."""
+    """Push-based tick feed with connect handshake, auto-reconnect and
+    REST-fallback hooks."""
 
     def __init__(self):
         self._token: Optional[str] = None
         self._ws = None
         self._thread: Optional[threading.Thread] = None
+        self._hb_thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
         self._subscribed: Set[str] = set()          # "EXCH|token" keys
         self._last_tick_at: Dict[str, float] = {}   # "EXCH|token" -> monotonic ts
         self._latest: Dict[str, float] = {}         # "EXCH|token" -> ltp
         self._lock = threading.Lock()
         self._connected_at: Optional[float] = None
+        self._authed = threading.Event()            # connect ack received
         self._on_tick: Optional[Callable[[str, str, float], None]] = None
 
     # ------------------------------------------------------------------ state
     @property
     def connected(self) -> bool:
+        # "connected" now means AUTHED (handshake acked) — a socket that never
+        # completed the t:a handshake delivers nothing.
         return (self._connected_at is not None
+                and self._authed.is_set()
                 and self._ws is not None
-                and time.monotonic() - self._connected_at < 30)
+                and time.monotonic() - self._connected_at < 60)
 
     def last_ltp(self, exchange: str, token: str) -> Optional[float]:
         key = f"{exchange}|{token}"
@@ -95,6 +102,11 @@ class FlattradeWebSocketFeed:
         self._stop.clear()
         self._thread = threading.Thread(target=self._run_forever, daemon=True, name="flattrade-ws")
         self._thread.start()
+        # App-level TEXT heartbeat every 30s (docs §6.10). The old code used
+        # run_forever(ping_payload=...) which sends WS protocol PING frames —
+        # the server ignores those as heartbeats.
+        self._hb_thread = threading.Thread(target=self._heartbeat_loop, daemon=True, name="flattrade-ws-hb")
+        self._hb_thread.start()
 
     def stop(self):
         self._stop.set()
@@ -111,6 +123,9 @@ class FlattradeWebSocketFeed:
             if key in self._subscribed:
                 return
             self._subscribed.add(key)
+        # Send immediately (harmless pre-auth: dropped by server) — the
+        # connect-ack flush (_resubscribe_all) guarantees delivery after the
+        # t:a handshake. Duplicate subscribes just re-ack.
         self._send({"t": "t", "k": key})
 
     def unsubscribe(self, exchange: str, token: str):
@@ -122,10 +137,11 @@ class FlattradeWebSocketFeed:
     def _resubscribe_all(self):
         with self._lock:
             keys = list(self._subscribed)
-        for k in keys:
-            self._send({"t": "t", "k": k})
-        if keys:
-            logger.info("WS: re-subscribed %d instruments", len(keys))
+        if not keys:
+            return
+        # Docs: one message, #-batched keys — fewer round-trips, atomic re-sub.
+        self._send({"t": "t", "k": "#".join(keys)})
+        logger.info("WS: re-subscribed %d instruments (batched)", len(keys))
 
     # ------------------------------------------------------------- internals
     def _send(self, payload: dict):
@@ -137,6 +153,17 @@ class FlattradeWebSocketFeed:
         except Exception as e:
             logger.debug("WS send failed: %s", e)
 
+    def _heartbeat_loop(self):
+        while not self._stop.is_set():
+            time.sleep(HEARTBEAT_SEC)
+            if self._stop.is_set():
+                break
+            if self._ws is not None and self._authed.is_set():
+                try:
+                    self._ws.send('{"t":"h"}')
+                except Exception:
+                    pass
+
     def _run_forever(self):
         backoff = 1.0
         while not self._stop.is_set():
@@ -144,20 +171,22 @@ class FlattradeWebSocketFeed:
             if not token:
                 time.sleep(1.0)
                 continue
-            url = WS_URL_TEMPLATE.format(token=token)
             try:
+                self._authed.clear()
                 self._ws = websocket.WebSocketApp(
-                    url,
+                    WS_URL,
                     on_open=self._on_open,
                     on_message=self._on_message,
                     on_error=self._on_error,
                     on_close=self._on_close,
                 )
-                # ping_interval matches the SDK's heartbeat cadence
-                self._ws.run_forever(ping_interval=HEARTBEAT_SEC, ping_payload='{"t":"h"}')
+                # NO ping_interval/ping_payload: heartbeats are TEXT messages
+                # from _heartbeat_loop per docs §6.10.
+                self._ws.run_forever()
             except Exception as e:
                 logger.warning("WS run_forever exception: %s", e)
             self._connected_at = None
+            self._authed.clear()
             if self._stop.is_set():
                 break
             # reconnect with capped exponential backoff
@@ -166,9 +195,17 @@ class FlattradeWebSocketFeed:
 
     def _on_open(self, ws):
         self._connected_at = time.monotonic()
-        logger.info("WS connected — subscribing %d instruments + spot", len(self._subscribed))
-        self._resubscribe_all()
-        self._send({"t": "t", "k": f"{SPOT_SUBSCRIBE[0]}|{SPOT_SUBSCRIBE[1]}"})
+        # DOCS §6.1: connection request MUST be the first message, with uid +
+        # actid + source "API" + accesstoken. Without the ack, subscriptions
+        # are silently dropped (verified live — zero ticks without it).
+        self._send({
+            "t": "a",
+            "uid": settings.FLATTRADE_USER_ID,
+            "actid": settings.FLATTRADE_USER_ID,
+            "source": "API",
+            "accesstoken": self._token,
+        })
+        logger.info("WS socket open — connect handshake sent (t:a), awaiting ack")
 
     def _on_message(self, ws, message: str):
         try:
@@ -176,12 +213,31 @@ class FlattradeWebSocketFeed:
         except (ValueError, TypeError):
             return
         t = res.get("t")
+
+        if t == "ak":
+            ok = str(res.get("s", "")).lower() == "ok"
+            if ok:
+                self._authed.set()
+                logger.info("WS authed (ak: Ok) — subscribing %d instruments + spot",
+                            len(self._subscribed))
+                self._resubscribe_all()
+                self._send({"t": "t", "k": f"{SPOT_SUBSCRIBE[0]}|{SPOT_SUBSCRIBE[1]}"})
+            else:
+                logger.error("WS connect REJECTED (ak s=%s) — token invalid/expired; "
+                             "feed will retry on next token set", res.get("s"))
+            return
+        if t == "hk":
+            return  # heartbeat ack
+
         if t not in ("tk", "tf", "dk", "df"):
             return
         exchange = str(res.get("e", ""))
-        token = str(res.get("tk", res.get("ts", "")))
+        token = str(res.get("tk", ""))
         lp = res.get("lp")
         if not exchange or not token or lp in (None, ""):
+            # tf updates may carry only OI/volume; treat as keep-alive
+            with self._lock:
+                self._last_tick_at[f"{exchange}|{token}"] = time.monotonic()
             return
         try:
             ltp = float(lp)
@@ -204,4 +260,5 @@ class FlattradeWebSocketFeed:
 
     def _on_close(self, ws, code, msg):
         self._connected_at = None
+        self._authed.clear()
         logger.info("WS closed (code=%s) — reconnecting", code)

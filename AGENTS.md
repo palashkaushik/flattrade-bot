@@ -135,6 +135,31 @@ Nifty 50 option expiry day changed exactly once in 2020–2026:
 - `.env.example` contains only placeholders — safe to commit
 - Rotate Flattrade API key/secret if ever exposed
 
+## Flattrade API — MANDATORY REFERENCE
+
+**ANY Flattrade-related problem (auth, orders, quotes, WebSocket, rate limits,
+data fetch, error messages): read `flattrade documentation.md` FIRST** — it is
+the complete official Pi API v2.0 docs (saved 2026-09-04), including the
+WebSocket handshake protocol, all REST endpoints, rate limits, and the
+changelog. Do not guess API behavior; the docs file is the source of truth.
+
+Critical facts (details in the docs file):
+- REST base: `https://piconnect.flattrade.in/PiConnectAPI/`
+- WS: `wss://piconnect.flattrade.in/PiConnectWSAPI/` — REQUIRES a connect
+  handshake `{"t":"a","uid","actid","source":"API","accesstoken"}` and
+  expects `{"t":"ak","s":"Ok"}` BEFORE any subscription works (subscribing
+  without it silently yields zero ticks — the Sep-4 stuck-prices bug)
+- Heartbeat: TEXT message `{"t":"h"}` every 30s (not WS protocol pings)
+- MKT prctyp is rejected for API orders (`ALGO_CHK`) — use aggressive LMT
+- API rate limit: 40/sec, 200/min (shared with quotes — REST polling 6+
+  instruments every second gets throttled: "Order Recieved NNN in a current
+  minute exceeds Limit 120")
+- SearchScrip query format: `NIFTY 24000 CE` (spaced)
+- Token exchange: POST `https://authapi.flattrade.in/trade/apitoken` with
+  `api_secret` = SHA-256(api_key + request_code + api_secret), from the
+  registered IP; single login session (a new login invalidates the old
+  token machine-wide)
+
 ## Key Files
 
 | FILE | PURPOSE |
