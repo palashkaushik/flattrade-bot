@@ -341,6 +341,25 @@ class TradeExecutor:
         # The 2026-09-02 incident: limit priced off a stale (throttled) LTP
         # fell outside the band -> rejected -> retried at the SAME stale
         # price -> loop. Fresh quote each attempt breaks the loop.
+        # CANCEL-THEN-REPLACE: the 2026-09-04 10:10 incident — each retry
+        # stacked a NEW sell without cancelling the previous pending one.
+        # Once the position is covered by a live sell, every extra sell is a
+        # NAKED SHORT the broker margin-rejects (435 rejections in 5 min).
+        # Rule: exactly ONE live exit order at any time.
+        prev_exit_id = self.position.get("pending_exit_order_id")
+        if prev_exit_id:
+            try:
+                from flattrade_bot.config import settings as _settings
+                cancel = await self.client._post(
+                    f"{self.client.base_url}CancelOrder",
+                    f"jData={{\"uid\":\"{_settings.FLATTRADE_USER_ID}\",\"norenordno\":\"{prev_exit_id}\"}}&jKey={self.client.auth_token}",
+                )
+                logger.info("Cancel-then-replace: cancelled prior exit %s -> %s",
+                            prev_exit_id, cancel.get("stat") if isinstance(cancel, dict) else cancel)
+            except Exception as e:
+                logger.warning("Prior exit cancel failed (will still replace): %s", e)
+            self.position["pending_exit_order_id"] = None
+
         exit_ltp = order_price if order_price is not None else ltp
         try:
             fresh = await self.client.get_quotes(
@@ -378,17 +397,22 @@ class TradeExecutor:
             self._last_exit_attempt_at = None
             return {"accepted": False, "reason": "Broker returned no exit order ID", "response": response}
 
+        # Track the live exit so the next attempt cancels it (one at a time)
+        self.position["pending_exit_order_id"] = order_id
+
         fill = await self._confirm_fill(
             order_id, order_price if order_price is not None else ltp, max_attempts=12, is_exit=True
         )
         if not fill["filled"]:
             self._last_exit_attempt_at = None  # Allow immediate retry
+            # Keep pending_exit_order_id so the next attempt cancels this one
             return {
                 "accepted": False,
                 "reason": fill["reason"],
                 "response": response,
                 "order": fill.get("record"),
             }
+        self.position["pending_exit_order_id"] = None
 
         exit_price = fill["price"]
         points = round(exit_price - self.position["entry"], 2)

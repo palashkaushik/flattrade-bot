@@ -605,7 +605,15 @@ class LastHopeTradingEngine:
             sl = float(sl)
             tp = float(tp)
 
-        self.active_position_key = f"{sig['side']}:{sig['strike']}"
+        # POSITION KEY = the contract ACTUALLY held, not the signal's original
+        # strike. The 2026-09-04 10:10 incident: funds-fallback bought the
+        # 1st-ITM (P24000) but the key stayed PE:24050 -> exit watchdog read
+        # P24050's LTP (~134) for a P24000 position (~110), "TARGET" fired on
+        # the wrong instrument and the exit sell priced 19 pts above market —
+        # unfillable, retried every second as a stacked naked short.
+        held_symbol = str(res.get("position", {}).get("order_symbol", display)) if (self.live_orders and self.executor is not None) else display
+        held_strike = self._strike_from_symbol(held_symbol, sig["strike"], sig["side"])
+        self.active_position_key = f"{sig['side']}:{held_strike}"
         logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} BE_trig={sig['be_trigger_px']:.2f}")
 
         # Fire-and-forget Discord alert — must never block the tick loop (10s webhook timeout)
@@ -622,6 +630,18 @@ class LastHopeTradingEngine:
                 mode="LIVE" if self.live_orders else "PAPER",
             )
         )
+
+    def _strike_from_symbol(self, symbol: str, default: int, side: str) -> int:
+        """Extracts the numeric strike from an option symbol like
+        NIFTY08SEP26P24000; falls back to the provided default."""
+        import re
+        m = re.search(r"([CP])(\d{5})\s*$", str(symbol))
+        if m:
+            try:
+                return int(m.group(2))
+            except ValueError:
+                pass
+        return default
 
     async def _execute_close(self, ltp: float, now: datetime, reason: str):
         """Background: performs the broker close + fill confirmation (may take seconds).
