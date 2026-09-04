@@ -10,6 +10,8 @@ Reliable delivery with automatic retry queue:
 import asyncio
 import json
 import logging
+import os
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,13 +40,25 @@ class DiscordNotifier:
     """
 
     def __init__(self, webhook_url: Optional[str] = None, strategy: Optional[str] = None):
-        self.webhook_url = webhook_url or settings.DISCORD_WEBHOOK_URL
-        self.enabled = bool(self.webhook_url)
+        # TEST SAFETY: never post to the LIVE webhook from a test run.
+        # 2026-09-04 incident: pytest on the VPS constructed real notifiers
+        # (constructor falls back to settings.DISCORD_WEBHOOK_URL from .env),
+        # ran close_position(), and spammed the live channel with 4 fixture
+        # "WIN (TARGET): NIFTY26AUG24200CE" messages. Hard-disable under pytest.
+        _under_pytest = "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules
+        _env_disabled = os.environ.get("FLATTRADE_DISABLE_DISCORD", "") not in ("", "0", "false")
+        if _under_pytest or _env_disabled:
+            webhook_url = None
+        self.webhook_url = None if (_under_pytest or _env_disabled) else (webhook_url or settings.DISCORD_WEBHOOK_URL)
+        self.enabled = False if (_under_pytest or _env_disabled) else bool(self.webhook_url)
         self.strategy = strategy or STRATEGY_NAME
         self._retry_queue: List[Dict[str, Any]] = []
         self._retry_task: Optional[asyncio.Task] = None
-        self._load_queue_from_disk()
-        if not self.enabled:
+        if _under_pytest or _env_disabled:
+            self._load_queue_from_disk = lambda: None  # also block disk queue churn
+        else:
+            self._load_queue_from_disk()
+        if not self.enabled and not (_under_pytest or _env_disabled):
             logger.warning("Discord webhook URL not configured — notifications disabled")
 
     # ── Persistence ───────────────────────────────────────────────────────

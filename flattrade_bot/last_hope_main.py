@@ -217,7 +217,7 @@ class LastHopeTradingEngine:
                 "fields": [
                     {"name": "Strategy", "value": "Last Hope GPU Winner (FLAG/SUPER 1m OHLC)", "inline": True},
                     {"name": "Session", "value": "09:15 - 15:00 IST", "inline": True},
-                    {"name": "Risk Geometry", "value": "ATR(10)x1.5 Breakeven at +50% move (§42 champion)", "inline": True},
+                    {"name": "Risk Geometry", "value": "ATR(10)x1.5 Breakeven at +40% move (§44 dynamic-strike champion)", "inline": True},
                     {"name": "Mode", "value": "LIVE ORDERS" if self.live_orders else "PAPER SIM", "inline": True},
                     {"name": "Nifty Spot", "value": f"Rs {self.spot_price:,.2f}" if self.spot_price else "--", "inline": True},
                 ],

@@ -373,7 +373,7 @@ async def test_trade_executor_exit_fill_and_no_premature_cancel():
     """Verifies that TradeExecutor cleanly fills exits with retry polling and doesn't cancel exits."""
     client = MockFlattradeClient()
     risk = RiskManager(max_daily_loss_points=1000, quantity=65)
-    discord = DiscordNotifier("Test")
+    discord = DiscordNotifier(webhook_url=None, strategy="Test")  # DISABLED: never post to the live channel from tests
     executor = TradeExecutor(client, risk, discord, quantity=65, live_orders=True)
 
     # Set active position
@@ -507,7 +507,7 @@ async def test_broker_position_reconciliation_fallback():
     """Verifies that if order status lookup fails, TradeExecutor falls back to PositionBook to confirm fill."""
     client = MockFlattradeClient()
     risk = RiskManager(max_daily_loss_points=1000, quantity=65)
-    discord = DiscordNotifier("Test")
+    discord = DiscordNotifier(webhook_url=None, strategy="Test")  # DISABLED: never post to the live channel from tests
     executor = TradeExecutor(client, risk, discord, quantity=65, live_orders=True)
 
     # Override get_order_book to simulate a broker timeout/failure
