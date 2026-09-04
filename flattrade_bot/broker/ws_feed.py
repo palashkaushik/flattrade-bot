@@ -9,18 +9,25 @@ Protocol (flattrade documentation.md §6, Pi API v2.0 — verified live Sep 4 20
     Expect {"t":"ak","s":"Ok"} (case varies: "Ok"/"OK") before subscribing.
   - SUBSCRIBE touchline:  {"t":"t","k":"NSE|26000#NFO|42631"}  (#-batched)
   - UNSUBSCRIBE:          {"t":"u","k":"..."}
-  - HEARTBEAT: TEXT message {"t":"h"} every 30s -> {"t":"hk"} (NOT a WS
-    protocol ping; ping_payload was silently ignored)
+  - HEARTBEAT: run_forever(ping_interval=3, ping_payload='{"t":"h"}') —
+    WS-layer PING frames every 3s with the heartbeat JSON as payload, EXACTLY
+    as the official NorenRestApiPy client does (NorenApi.py:119). A separate
+    TEXT-message heartbeat thread is INSUFFICIENT: the 2026-09-04 11:05
+    incident — WS authed at 10:42, ticks flowed at 10:44, then the server
+    silently dropped the connection ~20 min in (no close frame, no error).
+    Text sends into the half-dead TCP buffer still "succeed", so nothing
+    detected the failure and the feed froze with zero errors. WS-layer PINGs
+    make recv() fail within seconds of a dead peer -> on_close -> reconnect.
   - Ticks: "tk" (subscribe ack w/ full quote), "tf" (touchline feed updates)
 
 Design:
-  - Dedicated daemon thread runs websocket-client's run_forever with auto
-    reconnect (exponential backoff, capped).
+  - Dedicated daemon thread runs websocket-client's run_forever with the
+    official 3s PING keepalive + auto-reconnect (exponential backoff, capped).
   - On connect ack: re-subscribes ALL active tokens + NIFTY spot (26000@NSE).
   - Ticks land in a thread-safe dict; the async engine reads them every tick
     loop - no locks held during processing (dict swap semantics).
-  - Staleness watchdog: if no tick from an instrument for N seconds, the main
-    loop automatically falls back to REST GetQuotes for that instrument.
+  - Message watchdog: if no WS frame of ANY kind for 90s, force-close the
+    socket (server half-dead) -> reconnect loop takes over.
 """
 import json
 import logging
@@ -39,37 +46,36 @@ except ImportError:
 from flattrade_bot.config import settings
 
 WS_URL = "wss://piconnect.flattrade.in/PiConnectWSAPI/"
-HEARTBEAT_SEC = 30.0
+PING_INTERVAL_SEC = 3.0          # official Noren client: ping_interval=3
+NO_MSG_WATCHDOG_SEC = 90.0       # no frame at all -> force reconnect
 SPOT_SUBSCRIBE = ("NSE", "26000")  # Nifty 50 index
 
 
 class FlattradeWebSocketFeed:
-    """Push-based tick feed with connect handshake, auto-reconnect and
-    REST-fallback hooks."""
+    """Push-based tick feed with connect handshake, official 3s PING
+    keepalive, auto-reconnect and REST-fallback hooks."""
 
     def __init__(self):
         self._token: Optional[str] = None
         self._ws = None
         self._thread: Optional[threading.Thread] = None
-        self._hb_thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
         self._subscribed: Set[str] = set()          # "EXCH|token" keys
         self._last_tick_at: Dict[str, float] = {}   # "EXCH|token" -> monotonic ts
         self._latest: Dict[str, float] = {}         # "EXCH|token" -> ltp
         self._lock = threading.Lock()
         self._connected_at: Optional[float] = None
+        self._last_msg_at: Optional[float] = None   # any-frame liveness
         self._authed = threading.Event()            # connect ack received
         self._on_tick: Optional[Callable[[str, str, float], None]] = None
 
     # ------------------------------------------------------------------ state
     @property
     def connected(self) -> bool:
-        # "connected" now means AUTHED (handshake acked) — a socket that never
-        # completed the t:a handshake delivers nothing.
-        return (self._connected_at is not None
-                and self._authed.is_set()
-                and self._ws is not None
-                and time.monotonic() - self._connected_at < 60)
+        # "connected" = AUTHED (handshake acked). The old `monotonic() -
+        # connected_at < 60` clause made connected() permanently False after
+        # 60s and silently disabled WS + REST fallback logic downstream.
+        return (self._authed.is_set() and self._ws is not None)
 
     def last_ltp(self, exchange: str, token: str) -> Optional[float]:
         key = f"{exchange}|{token}"
@@ -102,11 +108,6 @@ class FlattradeWebSocketFeed:
         self._stop.clear()
         self._thread = threading.Thread(target=self._run_forever, daemon=True, name="flattrade-ws")
         self._thread.start()
-        # App-level TEXT heartbeat every 30s (docs §6.10). The old code used
-        # run_forever(ping_payload=...) which sends WS protocol PING frames —
-        # the server ignores those as heartbeats.
-        self._hb_thread = threading.Thread(target=self._heartbeat_loop, daemon=True, name="flattrade-ws-hb")
-        self._hb_thread.start()
 
     def stop(self):
         self._stop.set()
@@ -153,17 +154,6 @@ class FlattradeWebSocketFeed:
         except Exception as e:
             logger.debug("WS send failed: %s", e)
 
-    def _heartbeat_loop(self):
-        while not self._stop.is_set():
-            time.sleep(HEARTBEAT_SEC)
-            if self._stop.is_set():
-                break
-            if self._ws is not None and self._authed.is_set():
-                try:
-                    self._ws.send('{"t":"h"}')
-                except Exception:
-                    pass
-
     def _run_forever(self):
         backoff = 1.0
         while not self._stop.is_set():
@@ -173,6 +163,7 @@ class FlattradeWebSocketFeed:
                 continue
             try:
                 self._authed.clear()
+                self._last_msg_at = None
                 self._ws = websocket.WebSocketApp(
                     WS_URL,
                     on_open=self._on_open,
@@ -180,9 +171,15 @@ class FlattradeWebSocketFeed:
                     on_error=self._on_error,
                     on_close=self._on_close,
                 )
-                # NO ping_interval/ping_payload: heartbeats are TEXT messages
-                # from _heartbeat_loop per docs §6.10.
-                self._ws.run_forever()
+                # OFFICIAL NOREN KEEPALIVE (NorenApi.py:119): WS-layer PING
+                # every 3s with the heartbeat JSON as payload. This is BOTH
+                # keepalive and dead-peer DETECTION — recv() fails within
+                # seconds of a silently-dropped connection (the 11:05
+                # incident: text-only heartbeat never detected it).
+                self._ws.run_forever(
+                    ping_interval=PING_INTERVAL_SEC,
+                    ping_payload='{"t":"h"}',
+                )
             except Exception as e:
                 logger.warning("WS run_forever exception: %s", e)
             self._connected_at = None
@@ -195,6 +192,12 @@ class FlattradeWebSocketFeed:
 
     def _on_open(self, ws):
         self._connected_at = time.monotonic()
+        self._last_msg_at = time.monotonic()
+        # Watchdog: if the server goes half-dead (no frames at all, not even
+        # PONG/heartbeat acks), force-close so run_forever exits and the
+        # reconnect loop takes over. Runs as a daemon thread per connection.
+        threading.Thread(target=self._msg_watchdog, args=(ws,), daemon=True,
+                         name="flattrade-ws-watchdog").start()
         # DOCS §6.1: connection request MUST be the first message, with uid +
         # actid + source "API" + accesstoken. Without the ack, subscriptions
         # are silently dropped (verified live — zero ticks without it).
@@ -207,7 +210,26 @@ class FlattradeWebSocketFeed:
         })
         logger.info("WS socket open — connect handshake sent (t:a), awaiting ack")
 
+    def _msg_watchdog(self, ws):
+        """Kills the connection if NO frame arrives for NO_MSG_WATCHDOG_SEC."""
+        while (not self._stop.is_set()
+               and self._ws is ws
+               and self._last_msg_at is not None):
+            time.sleep(5.0)
+            last = self._last_msg_at
+            if (self._ws is ws and last is not None
+                    and time.monotonic() - last > NO_MSG_WATCHDOG_SEC):
+                logger.warning("WS watchdog: no frames for %ds — forcing reconnect",
+                               NO_MSG_WATCHDOG_SEC)
+                try:
+                    ws.keep_running = False
+                    ws.close()
+                except Exception:
+                    pass
+                return
+
     def _on_message(self, ws, message: str):
+        self._last_msg_at = time.monotonic()
         try:
             res = json.loads(message)
         except (ValueError, TypeError):
