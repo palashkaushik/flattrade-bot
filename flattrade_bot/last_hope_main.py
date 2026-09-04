@@ -383,14 +383,24 @@ class LastHopeTradingEngine:
         today_str = now.strftime("%d-%m-%Y")
 
         # Prune stale contracts not in desired_keys or active position (pure CPU, safe inline)
+        # PARK, DON'T DESTROY: when spot hovers a ±50 boundary the key flips
+        # out and back within seconds. Deleting the object forced a full cold
+        # re-warm on every flip (42 "Session reset" logs on Sep-4 09:xx).
+        # Parked same-day state is restored on re-registration with its
+        # seeded indicators intact (backtest parity preserved).
+        if not hasattr(self, "_parked_contracts"):
+            self._parked_contracts: Dict[str, Any] = {}
         for k in list(self.engine.contracts.keys()):
             if k not in desired_keys and k != self.active_position_key:
                 cs = self.engine.contracts[k]
-                if cs is not None and cs.token:
-                    try:
-                        self.ws_feed.unsubscribe("NFO", cs.token)
-                    except Exception:
-                        pass
+                if cs is not None:
+                    if cs.token:
+                        try:
+                            self.ws_feed.unsubscribe("NFO", cs.token)
+                        except Exception:
+                            pass
+                    if getattr(cs, "seed_complete", False) and getattr(cs, "session_date", None) == today_str:
+                        self._parked_contracts[k] = cs
                 del self.engine.contracts[k]
                 self._last_ltp.pop(k, None)
 
@@ -412,6 +422,15 @@ class LastHopeTradingEngine:
                     continue
                 # Spot may have moved mid-resolution; register only if still desired
                 if key not in desired_keys:
+                    continue
+
+                # PARKED-STATE RESTORE: if this key was parked earlier today
+                # (±50 boundary flip), resurrect the SAME object — seeded
+                # indicators, arming and session_date intact. No cold reset.
+                parked = getattr(self, "_parked_contracts", {}).pop(key, None)
+                if parked is not None and parked.session_date == today_str and parked.seed_complete:
+                    self.engine.contracts[key] = parked
+                    logger.info("♻️ Restored parked contract %s (seeded state intact)", key)
                     continue
 
                 contract_state = self.engine.register_contract(
@@ -1036,6 +1055,10 @@ class LastHopeTradingEngine:
         self._wins_today = 0
         self._eod_done = False
         self.risk.reset_day()
+
+        # Parked contracts are same-day only — never carry across midnight
+        if hasattr(self, "_parked_contracts"):
+            self._parked_contracts.clear()
 
         # Drop ALL contracts so ensure_contracts() re-resolves + re-warms with fresh S/R
         # (active position contract is preserved via active_position_key)
