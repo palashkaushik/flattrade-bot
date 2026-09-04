@@ -575,9 +575,18 @@ class LastHopeTradingEngine:
             fill = float(res["position"]["entry"])
             sl = float(res["position"]["sl"])
             tp = float(res["position"]["target"])
-            # Update active trade in engine
+            # IDENTITY MUST MATCH THE HELD CONTRACT. The 10:23 incident:
+            # funds-fallback bought P24000 but on_trade_opened({**sig,...})
+            # carried the SIGNAL's symbol (P24050) -> the engine's BE check
+            # ran against P24050's LTP (~131), "achieved" the 103.75 BE
+            # trigger instantly, hardened SL above the held P24000's price
+            # -> instant bogus stop-out (-3.25 in 1 second).
+            held_pos = res["position"]
             self.engine.on_trade_opened({
                 **sig,
+                "symbol": held_pos["order_symbol"],
+                "order_symbol": held_pos["order_symbol"],
+                "token": held_pos["token"],
                 "entry": fill,
                 "sl": sl,
                 "tp": tp,
