@@ -213,15 +213,22 @@ async def test_funds_fallback_uses_first_itm(monkeypatch):
             return {"accepted": False, "reason": "Insufficient margin for NIFTY02SEP26C23950"}
         return {"accepted": True,
                 "position": {"entry": 100.0, "sl": 93.0, "target": 107.0,
-                             "symbol": "NIFTY02SEP26C24000"}}
+                             "symbol": "NIFTY02SEP26C24000",
+                             "order_symbol": "NIFTY02SEP26C24000",
+                             "token": "tok_fallback"}}
 
     async def fake_resolve(sig, now):
-        return {"symbol": "NIFTY02SEP26C24000", "token": "tok1", "ltp": 100.0}
+        return {"symbol": "NIFTY02SEP26C24000", "token": "tok_fallback", "ltp": 100.0}
 
     eng.executor = MagicMock()
     eng.executor.open_trade = fake_open_trade
     eng.executor.position = None
     eng._resolve_first_itm = fake_resolve
+
+    # Capture what identity the inner engine receives (2026-09-04 incident:
+    # BE check ran on the SIGNAL's symbol -> instant bogus stop-out)
+    opened = []
+    eng.engine.on_trade_opened = lambda d: opened.append(d)
 
     sig = {"side": "CE", "symbol": "NIFTY02SEP26C23950", "token": "t0", "strike": 23950,
            "trigger": "FLAG", "level": "EMA20", "entry": 110.0, "dist": 7.0,
@@ -229,6 +236,12 @@ async def test_funds_fallback_uses_first_itm(monkeypatch):
     await eng._try_enter(sig)
     assert calls == ["NIFTY02SEP26C23950", "NIFTY02SEP26C24000"], \
         "fallback must retry the CE 1st ITM (ATM-50 = 24000) after funds rejection"
+    assert opened, "engine must be notified of the opened trade"
+    assert opened[0]["symbol"] == "NIFTY02SEP26C24000", \
+        "engine identity must be the FILLED contract, not the signal's"
+    assert opened[0]["token"] == "tok_fallback"
+    assert eng.active_position_key == "CE:24000", \
+        "position key must track the held contract's strike"
 
 
 @pytest.mark.asyncio

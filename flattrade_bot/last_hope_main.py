@@ -582,11 +582,13 @@ class LastHopeTradingEngine:
             # trigger instantly, hardened SL above the held P24000's price
             # -> instant bogus stop-out (-3.25 in 1 second).
             held_pos = res["position"]
+            held_symbol = str(held_pos.get("order_symbol") or held_pos.get("symbol") or sig["symbol"])
+            held_token = str(held_pos.get("token") or sig["token"])
             self.engine.on_trade_opened({
                 **sig,
-                "symbol": held_pos["order_symbol"],
-                "order_symbol": held_pos["order_symbol"],
-                "token": held_pos["token"],
+                "symbol": held_symbol,
+                "order_symbol": held_symbol,
+                "token": held_token,
                 "entry": fill,
                 "sl": sl,
                 "tp": tp,
@@ -620,7 +622,7 @@ class LastHopeTradingEngine:
         # P24050's LTP (~134) for a P24000 position (~110), "TARGET" fired on
         # the wrong instrument and the exit sell priced 19 pts above market —
         # unfillable, retried every second as a stacked naked short.
-        held_symbol = str(res.get("position", {}).get("order_symbol", display)) if (self.live_orders and self.executor is not None) else display
+        held_symbol = str(res.get("position", {}).get("order_symbol") or res.get("position", {}).get("symbol") or display) if (self.live_orders and self.executor is not None) else display
         held_strike = self._strike_from_symbol(held_symbol, sig["strike"], sig["side"])
         self.active_position_key = f"{sig['side']}:{held_strike}"
         logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} BE_trig={sig['be_trigger_px']:.2f}")
