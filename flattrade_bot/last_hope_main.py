@@ -48,6 +48,13 @@ from flattrade_bot.strategies.last_hope_winner import (
     SUPER_THRESH,
     TP_PTS_CAP,
 )
+from flattrade_bot.strategies.full10_engine import (
+    DAILY_CAP_PTS as F10_DAILY_CAP_PTS,
+    Full10ContractState,
+    Full10Engine,
+    SL_PTS as F10_SL_PTS,
+    TP_PTS as F10_TP_PTS,
+)
 from flattrade_bot.utils.discord import DiscordNotifier
 
 # Rich is used OFF-SCREEN ONLY: render tables to a string (no Live thread —
@@ -63,7 +70,10 @@ from rich.text import Text
 # only the event loop calls live.update() with a freshly built renderable.
 _live_console = Console()
 
-STRATEGY_LABEL = "Last Hope Winner Strategy"
+STRATEGY_LABEL = "Full10 Strategy (v6)"
+# Full10 v6 mode (2026-09-09): swap the signal engine; ALL plumbing
+# (broker, executor, funds-fallback, exits, park/restore, Discord) unchanged.
+STRATEGY_MODE = os.getenv("STRATEGY_MODE", "full10").strip().lower()
 IST = timezone(timedelta(hours=5, minutes=30))
 
 log_dir = ROOT / "logs"
@@ -122,7 +132,9 @@ class LastHopeTradingEngine:
 
     def __init__(self, live_orders: bool = False):
         self.live_orders = live_orders
-        self.engine = LastHopeWinnerEngine()
+        # STRATEGY SWITCH: full10 (default) | legacy44
+        self.full10 = STRATEGY_MODE == "full10"
+        self.engine = Full10Engine() if self.full10 else LastHopeWinnerEngine()
         self.discord = DiscordNotifier(strategy=STRATEGY_LABEL)
         self.client = FlattradeClient()
         self.history = FlattradeHistoryFetcher()
@@ -212,17 +224,17 @@ class LastHopeTradingEngine:
 
         asyncio.create_task(
             self.discord._post_embed({
-                "title": "FLATTRADE LAST HOPE WINNER BOT ONLINE",
+                "title": "FLATTRADE FULL10 BOT ONLINE" if self.full10 else "FLATTRADE LAST HOPE WINNER BOT ONLINE",
                 "color": 0x2ECC71,
                 "fields": [
-                    {"name": "Strategy", "value": "Last Hope GPU Winner (FLAG/SUPER 1m OHLC)", "inline": True},
+                    {"name": "Strategy", "value": "Full10 v6 (FLAG/SUPER multi-TF, 12-level same-TF bounce)" if self.full10 else "Last Hope GPU Winner (FLAG/SUPER 1m OHLC)", "inline": True},
                     {"name": "Session", "value": "09:15 - 15:00 IST", "inline": True},
-                    {"name": "Risk Geometry", "value": "ATR(10)x1.5 Breakeven at +40% move (§44 dynamic-strike champion)", "inline": True},
+                    {"name": "Risk Geometry", "value": f"SL {F10_SL_PTS:.0f} / TP {F10_TP_PTS:.0f} pts fixed, daily cap ±{F10_DAILY_CAP_PTS:.0f} pts" if self.full10 else "ATR(10)x1.5 Breakeven at +40% move (§44 dynamic-strike champion)", "inline": True},
                     {"name": "Mode", "value": "LIVE ORDERS" if self.live_orders else "PAPER SIM", "inline": True},
                     {"name": "Nifty Spot", "value": f"Rs {self.spot_price:,.2f}" if self.spot_price else "--", "inline": True},
                 ],
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "footer": {"text": "Flattrade Last Hope Bot"},
+                "footer": {"text": "Flattrade Full10 Bot" if self.full10 else "Flattrade Last Hope Bot"},
             })
         )
 
@@ -301,8 +313,80 @@ class LastHopeTradingEngine:
                         logger.info(f"EODChartData miss — 1m fallback for {symbol}")
 
                 if yh is not None:
-                    contract_state.set_day_sr_levels(yh, yl, yc)
-                    logger.info(f"Initialized Day S/R for {symbol} from {last_trading_day}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
+                    if self.full10:
+                        # FULL10: official EOD OHLC gates CPR/fib/cam family;
+                        # PDVWAP from the prior-day 1m bars (VOLUME-weighted,
+                        # geoms parity); virgin levels come from the weekly-
+                        # family first day (Upstox map when present).
+                        contract_state.set_day_levels(yh, yl, yc)
+                        try:
+                            pd_rows = by_day.get(last_trading_day, [])
+                            cum_pv = cum_v = 0.0
+                            for r in pd_rows:
+                                h_ = float(r.get("high", r.get("inth", 0.0)) or 0)
+                                l_ = float(r.get("low", r.get("intl", 0.0)) or 0)
+                                c_ = float(r.get("close", r.get("intc", 0.0)) or 0)
+                                v_ = float(r.get("volume", r.get("intv", r.get("v", 100.0))) or 0)
+                                if h_ >= l_ > 0 and c_ > 0:
+                                    m_ = 0
+                                    try:
+                                        dt_ = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
+                                        m_ = dt_.hour * 60 + dt_.minute
+                                    except Exception:
+                                        pass
+                                    if 555 <= m_ <= 930:
+                                        cum_pv += ((h_ + l_ + c_) / 3.0) * max(v_, 1.0)
+                                        cum_v += max(v_, 1.0)
+                            if cum_v > 0:
+                                contract_state.pdvwap = round(cum_pv / cum_v, 2)
+                        except Exception:
+                            pass
+                        # VIRGIN CPR/BC/TC (geoms parity): born on the weekly
+                        # family's FIRST day (oldest day in the TPSeries window),
+                        # walked forward for touches. TPSeries days_back=5 yields
+                        # the family start when the contract is young.
+                        try:
+                            first_day = valid_prev_days[0]
+                            fh = fl = fc = None
+                            for r in by_day.get(first_day, []):
+                                try:
+                                    dt_ = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
+                                    m_ = dt_.hour * 60 + dt_.minute
+                                except Exception:
+                                    continue
+                                if 555 <= m_ <= 930:
+                                    h_ = float(r.get("high", r.get("inth", 0.0)) or 0)
+                                    l_ = float(r.get("low", r.get("intl", 0.0)) or 0)
+                                    c_ = float(r.get("close", r.get("intc", 0.0)) or 0)
+                                    fh = h_ if fh is None else max(fh, h_)
+                                    fl = l_ if fl is None else min(fl, l_)
+                                    fc = c_
+                            if fh is not None and fh >= fl > 0 and fc:
+                                vcpr = round((fh + fl + fc) / 3.0, 2)
+                                vbc = round((fh + fl) / 2.0, 2)
+                                vtc = round(2.0 * vcpr - vbc, 2)
+                                contract_state.virgin = {"VCPR": vcpr, "VBC": vbc, "VTC": vtc}
+                                # death walk: touch on any LATER prior day kills it
+                                for d_ in valid_prev_days[1:]:
+                                    for r in by_day.get(d_, []):
+                                        try:
+                                            dt_ = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
+                                            m_ = dt_.hour * 60 + dt_.minute
+                                        except Exception:
+                                            continue
+                                        if 555 <= m_ <= 930:
+                                            lo_ = float(r.get("low", r.get("intl", 0.0)) or 0)
+                                            hi_ = float(r.get("high", r.get("inth", 0.0)) or 0)
+                                            for nm in list(contract_state.virgin):
+                                                if lo_ <= contract_state.virgin[nm] <= hi_:
+                                                    del contract_state.virgin[nm]
+                                logger.info(f"Full10 virgins for {symbol} from {first_day}: {contract_state.virgin}")
+                        except Exception as e:
+                            logger.debug(f"Virgin seeding failed for {symbol}: {e}")
+                        logger.info(f"Full10 day levels set for {symbol} from {last_trading_day}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
+                    else:
+                        contract_state.set_day_sr_levels(yh, yl, yc)
+                        logger.info(f"Initialized Day S/R for {symbol} from {last_trading_day}: H={yh:.2f} L={yl:.2f} C={yc:.2f}")
 
             # SEEDED CONGRUENCE (§41/§42 champion): the validated strategy runs
             # indicators SEEDED from the prior day's final 300 1m bars (60 x 5m
@@ -310,26 +394,36 @@ class LastHopeTradingEngine:
             # seed_1m_bars replays bars through ATR/EMA/VWAP/TF-trackers, so
             # seeding prior-day + today's completed bars reproduces the sweep's
             # exact state at this minute.
+            #
+            # FULL10 v6: seed the prior day's FULL session (up to 1200 bars —
+            # matches the certified recorder's 3-day tail). Stochs carry across
+            # days intentionally (carried state = decoded spec); the TF fallback
+            # (last_lo/last_cl) is day-reset inside reset_session()/seed.
+            # FULL10 v6 (geoms parity): seed the LAST THREE prior days'
+            # session bars (tail 1200, matching the certified recorder's
+            # 3-day tail). Stochs carry across days intentionally (carried
+            # state = decoded spec); last_lo/last_cl are day-reset inside
+            # seed_bars between prior and today seeding.
             prior_bars: List[Bar1m] = []
             if valid_prev_days:
-                seed_day = valid_prev_days[-1]
-                seed_rows = by_day.get(seed_day, [])
-                for r in seed_rows:
-                    try:
-                        dt = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
-                    except (TypeError, ValueError):
-                        continue
-                    m = dt.hour * 60 + dt.minute
-                    if 555 <= m <= 930:
-                        o = float(r.get("open", r.get("into", 0.0)))
-                        h = float(r.get("high", r.get("inth", 0.0)))
-                        l = float(r.get("low", r.get("intl", 0.0)))
-                        c = float(r.get("close", r.get("intc", 0.0)))
-                        v = float(r.get("volume", r.get("intv", r.get("v", 100.0))))
-                        if h >= l > 0:
-                            prior_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt, volume=v))
-                # Keep only the LAST 300 session bars of the prior day (the sweep's seed)
-                prior_bars = prior_bars[-300:]
+                seed_days = valid_prev_days[-3:] if self.full10 else [valid_prev_days[-1]]
+                for seed_day in seed_days:
+                    for r in by_day.get(seed_day, []):
+                        try:
+                            dt = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
+                        except (TypeError, ValueError):
+                            continue
+                        m = dt.hour * 60 + dt.minute
+                        if 555 <= m <= 930:
+                            o = float(r.get("open", r.get("into", 0.0)))
+                            h = float(r.get("high", r.get("inth", 0.0)))
+                            l = float(r.get("low", r.get("intl", 0.0)))
+                            c = float(r.get("close", r.get("intc", 0.0)))
+                            v = float(r.get("volume", r.get("intv", r.get("v", 100.0))))
+                            if h >= l > 0:
+                                prior_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt, volume=v))
+                # Keep only the LAST 300 session bars (§44) / 1200 (Full10 tail)
+                prior_bars = prior_bars[-300:] if not self.full10 else prior_bars[-1200:]
 
             # Today's completed candles (backtest-identical state reconstruction)
             today_bars: List[Bar1m] = []
@@ -351,7 +445,10 @@ class LastHopeTradingEngine:
                             today_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt, volume=v))
 
             if prior_bars or today_bars:
-                contract_state.seed_1m_bars(prior_bars, today_bars, session_date=today_str)
+                if self.full10 and hasattr(contract_state, "seed_bars"):
+                    contract_state.seed_bars(prior_bars, today_bars, session_date=today_str)
+                else:
+                    contract_state.seed_1m_bars(prior_bars, today_bars, session_date=today_str)
                 logger.info(f"✅ Fully seeded {len(prior_bars)} prior + {len(today_bars)} today 1m bars for {symbol}")
         except Exception as e:
             logger.warning(f"Async warmup failed for {symbol}: {e}")
@@ -504,6 +601,52 @@ class LastHopeTradingEngine:
             logger.warning("1st-ITM fallback resolution failed: %s", e)
             return None
 
+    async def _open_with_renew(
+        self,
+        sig: Dict[str, Any],
+        symbol: str,
+        token: str,
+        dist: float,
+        entry_price: float,
+        now: datetime,
+        cur_min: int,
+        signal_suffix: str = "",
+    ) -> Dict[str, Any]:
+        """open_trade + one session-expired re-auth retry (the 2026-09-07
+        incident: dead token rejected entries forever with no re-login)."""
+        res = await self.executor.open_trade(
+            side=sig["side"],
+            order_symbol=symbol,
+            display_symbol=symbol,
+            token=token,
+            timeframe="1m",
+            signal=f"{sig['trigger']}_{sig['level']}{signal_suffix}",
+            entry_price=entry_price,
+            sl_points=dist,
+            tp_points=dist,
+            current_min=cur_min,
+            opened_at=now,
+        )
+        if not res.get("accepted"):
+            resp = res.get("response")
+            if isinstance(resp, dict) and is_session_expired_response(resp):
+                logger.warning("Entry rejected: session expired — renewing token and retrying entry once")
+                if await self._renew_token_if_expired(resp):
+                    res = await self.executor.open_trade(
+                        side=sig["side"],
+                        order_symbol=symbol,
+                        display_symbol=symbol,
+                        token=token,
+                        timeframe="1m",
+                        signal=f"{sig['trigger']}_{sig['level']}{signal_suffix}",
+                        entry_price=entry_price,
+                        sl_points=dist,
+                        tp_points=dist,
+                        current_min=cur_min,
+                        opened_at=now,
+                    )
+        return res
+
     async def _try_enter(self, sig: Dict[str, Any]):
         # Re-entrancy guard: while one entry is confirming at the broker, ignore
         # all other signals (this is what caused duplicate live positions).
@@ -523,26 +666,19 @@ class LastHopeTradingEngine:
         display = sig["symbol"]
         token = sig["token"]
         entry = sig["entry"]
-        dist = sig["dist"]
-        sl = sig["sl"]
-        tp = sig["tp"]
+        if self.full10:
+            dist = float(sig["sl_points"])          # SL 10 (fixed)
+            sl = round(entry - float(sig["sl_points"]), 2)
+            tp = round(entry + float(sig["tp_points"]), 2)
+        else:
+            dist = sig["dist"]
+            sl = sig["sl"]
+            tp = sig["tp"]
 
         if self.live_orders and self.executor is not None:
             self._entering = True
             try:
-                res = await self.executor.open_trade(
-                    side=sig["side"],
-                    order_symbol=display,
-                    display_symbol=display,
-                    token=token,
-                    timeframe="1m",
-                    signal=f"{sig['trigger']}_{sig['level']}",
-                    entry_price=entry,
-                    sl_points=dist,
-                    tp_points=dist,
-                    current_min=cur_min,
-                    opened_at=now,
-                )
+                res = await self._open_with_renew(sig, display, token, dist, entry, now, cur_min)
 
                 # FUNDS FALLBACK (per-buy only; default stays 2nd ITM):
                 # if the 2nd ITM buy was rejected for margin/funds, retry the
@@ -554,18 +690,9 @@ class LastHopeTradingEngine:
                             "Funds rejection on %s — retrying on 1st ITM %s @ %.2f",
                             display, fb["symbol"], fb["ltp"],
                         )
-                        res = await self.executor.open_trade(
-                            side=sig["side"],
-                            order_symbol=fb["symbol"],
-                            display_symbol=fb["symbol"],
-                            token=fb["token"],
-                            timeframe="1m",
-                            signal=f"{sig['trigger']}_{sig['level']}_1ITM",
-                            entry_price=fb["ltp"],
-                            sl_points=dist,
-                            tp_points=dist,
-                            current_min=cur_min,
-                            opened_at=now,
+                        res = await self._open_with_renew(
+                            sig, fb["symbol"], fb["token"], dist, fb["ltp"], now, cur_min,
+                            signal_suffix="_1ITM",
                         )
             finally:
                 self._entering = False
@@ -592,7 +719,7 @@ class LastHopeTradingEngine:
                 "entry": fill,
                 "sl": sl,
                 "tp": tp,
-                "be_done": False,
+                **({} if self.full10 else {"be_done": False}),
             })
         else:
             self.paper_position = {
@@ -605,11 +732,13 @@ class LastHopeTradingEngine:
                 "sl": sl,
                 "target": tp,
                 "dist": dist,
-                "be_trigger_px": sig["be_trigger_px"],
-                "be_hardened_sl": sig["be_hardened_sl"],
-                "be_done": False,
                 "opened_at": now,
                 "signal": f"{sig['trigger']}_{sig['level']}",
+                **({} if self.full10 else {
+                    "be_trigger_px": sig["be_trigger_px"],
+                    "be_hardened_sl": sig["be_hardened_sl"],
+                    "be_done": False,
+                }),
             }
             self.engine.on_trade_opened(self.paper_position)
             fill = entry
@@ -625,7 +754,10 @@ class LastHopeTradingEngine:
         held_symbol = str(res.get("position", {}).get("order_symbol") or res.get("position", {}).get("symbol") or display) if (self.live_orders and self.executor is not None) else display
         held_strike = self._strike_from_symbol(held_symbol, sig["strike"], sig["side"])
         self.active_position_key = f"{sig['side']}:{held_strike}"
-        logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} BE_trig={sig['be_trigger_px']:.2f}")
+        if self.full10:
+            logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} (fixed 10/15, no BE)")
+        else:
+            logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} BE_trig={sig['be_trigger_px']:.2f}")
 
         # Fire-and-forget Discord alert — must never block the tick loop (10s webhook timeout)
         asyncio.create_task(
@@ -636,7 +768,7 @@ class LastHopeTradingEngine:
                 entry_price=fill,
                 sl_price=sl,
                 tp_price=tp,
-                notes=f"{sig['trigger']} trigger | SR={sig['level']} | dist={dist:.2f} | BE at {sig['be_trigger_px']:.2f}",
+                notes=f"{sig['trigger']} trigger | SR={sig['level']} | SL {dist:.0f} / TP {float(sig['tp_points']):.0f} pts" if self.full10 else f"{sig['trigger']} trigger | SR={sig['level']} | dist={dist:.2f} | BE at {sig['be_trigger_px']:.2f}",
                 lot_size=settings.LOT_SIZE,
                 mode="LIVE" if self.live_orders else "PAPER",
             )
@@ -663,6 +795,20 @@ class LastHopeTradingEngine:
                 await self._record_close(res.get("trade", {}))
                 logger.info(f"✅ Position Closed on Flattrade: {res.get('trade', {}).get('reason')}")
             else:
+                # SESSION-EXPIRED RE-AUTH (the 2026-09-07 13:07 incident): a
+                # dead token rejected every exit sell for 11+ minutes while the
+                # bot retried the SAME dead token. Renew once, retry the close
+                # immediately with the fresh token.
+                resp = res.get("response")
+                if isinstance(resp, dict) and is_session_expired_response(resp):
+                    logger.warning("Exit rejected: session expired — renewing token and retrying close once")
+                    renewed = await self._renew_token_if_expired(resp)
+                    if renewed:
+                        res = await self.executor.close_position(ltp, now, reason)
+                        if res.get("accepted"):
+                            await self._record_close(res.get("trade", {}))
+                            logger.info(f"✅ Position Closed on Flattrade (post-renew): {res.get('trade', {}).get('reason')}")
+                            return
                 logger.warning("Background close not accepted: %s — will retrigger next tick", res.get("reason"))
         except Exception as e:
             logger.error("Background close failed: %s — will retrigger next tick", e, exc_info=True)
@@ -682,6 +828,9 @@ class LastHopeTradingEngine:
             logger.warning(f"Trade persistence failed: {e}")
         if float(trade.get("pts", 0.0)) > 0:
             self._wins_today += 1
+        # FULL10 circuit breaker: accumulate closed points for the day
+        if self.full10 and hasattr(self.engine, "record_closed_points"):
+            self.engine.record_closed_points(float(trade.get("pts", 0.0)), f"{ist_now():%Y-%m-%d}")
         self.engine.on_trade_closed()
         self.active_position_key = None
         self.paper_position = None
@@ -702,6 +851,20 @@ class LastHopeTradingEngine:
                     except ValueError:
                         continue
             self._wins_today = sum(1 for t in self.trades_today if float(t.get("pts", 0.0)) > 0)
+            # FULL10: rehydrate the daily-cap circuit breaker from the JSONL —
+            # a mid-session restart must NOT reset the ±29pt halt (2026-09-10
+            # incident: 09:32 restart wiped the counter at +33.2 pts and the
+            # bot re-entered at 09:35/09:41).
+            if self.full10 and hasattr(self.engine, "record_closed_points"):
+                day_key = ist_now().strftime("%Y-%m-%d")
+                closed = [t for t in self.trades_today if t.get("reason")]
+                for t in closed:
+                    self.engine.record_closed_points(float(t.get("pts", 0.0)), day_key)
+                if closed:
+                    logger.info(
+                        "🚦 Cap counter rehydrated from %d closed trades — cum %.1f pts, halted=%s",
+                        len(closed), self.engine._day_cum_pts, self.engine.entries_halted(day_key),
+                    )
             if self.trades_today:
                 logger.info(f"📂 Restored {len(self.trades_today)} earlier trades from {path}")
         except Exception as e:
@@ -738,7 +901,8 @@ class LastHopeTradingEngine:
                 return
 
             # Sync SL if Breakeven triggered (engine is authoritative for BE)
-            if self.engine.active_trade:
+            # FULL10 v6: NO BE — this block is legacy44-only
+            if not self.full10 and self.engine.active_trade:
                 if self.engine.active_trade.get("be_done") and not pos.get("be_notified"):
                     pos["be_notified"] = True
                     pos["sl"] = self.engine.active_trade["sl"]
@@ -774,11 +938,13 @@ class LastHopeTradingEngine:
         if ltp is None:
             return
 
-        # Breakeven Stop Check
-        if not pos.get("be_done") and ltp >= pos["be_trigger_px"]:
-            pos["be_done"] = True
-            pos["sl"] = pos["be_hardened_sl"]
-            logger.info(f"Paper Breakeven Triggered on {pos['symbol']}: SL moved to {pos['sl']:.2f}")
+        # Breakeven Stop Check — BAR-CLOSE ONLY (kernel parity): the engine's
+        # on_bar_close_be_check (fired on 1m bar rollover of the held
+        # contract) is authoritative; this per-tick arming is REMOVED (it
+        # armed on intra-minute noise and stopped trades the backtest kept).
+        # FULL10 v6: NO BE — legacy44-only.
+        if not self.full10 and pos.get("be_done") and not pos.get("be_notified"):
+            pos["be_notified"] = True
             asyncio.create_task(
                 self.discord.notify_breakeven_locked(
                     symbol=pos["symbol"],
@@ -883,7 +1049,7 @@ class LastHopeTradingEngine:
             return False
         now_ts = time.time()
         if now_ts - getattr(self, "_last_token_renew", 0.0) < 60:
-            return True
+            return False
         logger.warning("Session expired. Renewing token via REST API...")
         try:
             from flattrade_bot.broker.auto_login import automated_flattrade_login_rest
@@ -909,7 +1075,7 @@ class LastHopeTradingEngine:
                 logger.error("Token renewal returned empty — will retry in 60s")
         except Exception as e:
             logger.error(f"Token renewal failed: {e} — will retry in 60s")
-        return True
+        return False
 
     def render_dashboard(self):
         """Builds the full dashboard as one Rich renderable (banner + tables +
@@ -928,35 +1094,82 @@ class LastHopeTradingEngine:
         sess = "ACTIVE" if sess_active else "CLOSED"
         pnl_style = "bold green" if net_rs >= 0 else "bold red"
 
-        header = Text.from_markup(
-            f" [bold bright_yellow]LAST HOPE GPU WINNER[/bold bright_yellow] "
-            f"| [bold white]2nd ITM (dynamic) · Multi-TF Stoch · S/R Bounce · ATRx1.5 + BE@40%[/bold white] "
-            f"| [cyan]{time_str} IST[/cyan]"
-        )
-        banner = Panel(header, box=box.ROUNDED, style="bright_blue", padding=(0, 1))
+        if self.full10:
+            header = Text.from_markup(
+                f" [bold bright_yellow]FULL10 v6[/bold bright_yellow] "
+                f"| [bold white]2nd ITM · S1/S3/S4 12/40/60 (raw) · ARM ≤30 any-TF · 12-LVL same-TF bounce · SL10/TP15 · cap ±{F10_DAILY_CAP_PTS:.0f}p[/bold white] "
+                f"| [cyan]{time_str} IST[/cyan]"
+            )
+        else:
+            header = Text.from_markup(
+                f" [bold bright_yellow]LAST HOPE GPU WINNER[/bold bright_yellow] "
+                f"| [bold white]2nd ITM (dynamic) · Multi-TF Stoch · S/R Bounce · ATRx1.5 + BE@40%[/bold white] "
+                f"| [cyan]{time_str} IST[/cyan]"
+            )
+        if self.full10:
+            header = Text.from_markup(
+                f" [bold bright_yellow]FULL10 v6[/bold bright_yellow] "
+                f"| [bold white]2nd ITM · Stoch 12/40/60 raw · ARM≤30 · 12-LVL same-TF bounce · SL10/TP15 · cap ±29p[/bold white] "
+                f"| [cyan]{time_str} IST[/cyan]"
+            )
+        else:
+            header = Text.from_markup(
+                f" [bold bright_yellow]LAST HOPE GPU WINNER[/bold bright_yellow] "
+                f"| [bold white]2nd ITM (dynamic) · Multi-TF Stoch · S/R Bounce · ATRx1.5 + BE@40%[/bold white] "
+                f"| [cyan]{time_str} IST[/cyan]"
+            )
+        banner = Panel(header, box=box.ROUNDED, style="bright_blue", padding=(0, 0))
 
-        sys_table = Table(box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
-        for col, style in (("MODE", "bold white"), ("SPOT (ATM)", "bold yellow"),
-                           ("2nd ITM (CE/PE)", "bold cyan"), ("EXPIRY", "bold magenta"),
-                           ("SESSION", "bold green"),
-                           ("TRADES (W/L)", "bold white"), ("NET P&L", "bold white")):
+        sys_table = Table(box=box.SIMPLE_HEAD, expand=True, padding=(0, 0))
+        if self.full10:
+            cap_state = getattr(self.engine, "_day_cum_pts", 0.0) or 0.0
+            halted = getattr(self.engine, "entries_halted", lambda d: False)(f"{now:%Y-%m-%d}")
+            cap_col = ("HALTED" if halted else
+                       f"{cap_state:+.0f}/{F10_DAILY_CAP_PTS:.0f}p")
+            sys_cols = (("MODE", "bold white"), ("SPOT (ATM)", "bold yellow"),
+                        ("2nd ITM (CE/PE)", "bold cyan"), ("EXPIRY", "bold magenta"),
+                        ("SESSION", "bold green"),
+                        ("TRADES (W/L)", "bold white"), ("DAY CAP", "bold magenta"),
+                        ("NET P&L", "bold white"))
+        else:
+            cap_col = "--"
+            sys_cols = (("MODE", "bold white"), ("SPOT (ATM)", "bold yellow"),
+                        ("2nd ITM (CE/PE)", "bold cyan"), ("EXPIRY", "bold magenta"),
+                        ("SESSION", "bold green"),
+                        ("TRADES (W/L)", "bold white"), ("NET P&L", "bold white"))
+        for col, style in sys_cols:
             sys_table.add_column(col, style=style, justify="center", no_wrap=True)
         # Weekly expiry shared by all tracked contracts (from the first symbol)
         first_cs = next(iter(self.engine.contracts.values()), None)
         exp_str = expiry_info(first_cs.symbol, now) if first_cs else "--"
-        sys_table.add_row(
-            f"[bold {'red' if self.live_orders else 'blue'}]{mode}[/bold {'red' if self.live_orders else 'blue'}]",
-            f"Rs {self.spot_price:,.1f} ({atm})" if self.spot_price else "--",
-            f"Rs {atm-100} CE / Rs {atm+100} PE",
-            exp_str or "--",
-            "[bold green]ACTIVE[/bold green]" if sess_active else "[yellow]CLOSED[/yellow]",
-            f"{total} ({self._wins_today}W/{total - self._wins_today}L | {wr:.0f}%)",
-            f"[{pnl_style}]Rs {net_rs:+,.2f} ({net_pts:+.1f}p)[/{pnl_style}]",
-        )
+        cap_style = "bold red" if (self.full10 and getattr(self.engine, "entries_halted", lambda d: False)(f"{now:%Y-%m-%d}")) else "bold green"
+        if self.full10:
+            sys_table.add_row(
+                f"[bold {'red' if self.live_orders else 'blue'}]{mode}[/bold {'red' if self.live_orders else 'blue'}]",
+                f"Rs {self.spot_price:,.1f} ({atm})" if self.spot_price else "--",
+                f"Rs {atm-100} CE / Rs {atm+100} PE",
+                exp_str or "--",
+                "[bold green]ACTIVE[/bold green]" if sess_active else "[yellow]CLOSED[/yellow]",
+                f"{total} ({self._wins_today}W/{total - self._wins_today}L | {wr:.0f}%)",
+                f"[{cap_style}]{cap_col}[/{cap_style}]",
+                f"[{pnl_style}]Rs {net_rs:+,.2f} ({net_pts:+.1f}p)[/{pnl_style}]",
+            )
+        else:
+            sys_table.add_row(
+                f"[bold {'red' if self.live_orders else 'blue'}]{mode}[/bold {'red' if self.live_orders else 'blue'}]",
+                f"Rs {self.spot_price:,.1f} ({atm})" if self.spot_price else "--",
+                f"Rs {atm-100} CE / Rs {atm+100} PE",
+                exp_str or "--",
+                "[bold green]ACTIVE[/bold green]" if sess_active else "[yellow]CLOSED[/yellow]",
+                f"{total} ({self._wins_today}W/{total - self._wins_today}L | {wr:.0f}%)",
+                f"[{pnl_style}]Rs {net_rs:+,.2f} ({net_pts:+.1f}p)[/{pnl_style}]",
+            )
 
         mon_table = Table(
-            title="[bold cyan]STRATEGY SETUP RADAR & ARMING MATRIX (S1 12,3 · S3 40,4 · S4 50,10 · SR Suite)[/bold cyan]",
-            box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
+            title=("[bold cyan]FULL10 RADAR (ARM≤30 any-TF · 12-LVL gate)[/bold cyan]"
+                   if self.full10 else
+                   "[bold cyan]STRATEGY SETUP RADAR & ARMING MATRIX (S1 12,3 · S3 40,4 · S4 50,10 · SR Suite)[/bold cyan]"),
+            box=box.SIMPLE_HEAD, expand=True, padding=(0, 0))
         for col, style, j in (("STRIKE", "bold white", "left"), ("ARMING", "bold yellow", "center"),
                               ("1m S1/S3/S4", "bold white", "center"), ("2m/3m/5m S4", "bold white", "center"),
                               ("ACTIVE TF SETUPS", "bold magenta", "left"),
@@ -964,36 +1177,67 @@ class LastHopeTradingEngine:
             mon_table.add_column(col, style=style, justify=j, no_wrap=True)
 
         for key, cs in self.engine.contracts.items():
-            s1 = cs.tf_trackers[1].last_s1
-            s3 = cs.tf_trackers[1].last_s3
-            s4 = cs.tf_trackers[1].last_s4
+            trackers = cs.tf if self.full10 else cs.tf_trackers
+            s1 = trackers[1].last_s1
+            s3 = trackers[1].last_s3
+            s4 = trackers[1].last_s4
             bar_count = len(cs.bars)
             ltp = self._last_ltp.get(key, 0.0)
             f0 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
 
-            arm = "[dim]FLAT[/dim]"
-            if cs.flag_armed or cs.super_armed:
-                arm_age = max(0, bar_count - max(cs.flag_arm_bar, cs.super_arm_bar))
-                arm_rem = max(0, ARM_WINDOW - arm_age)
-                arm = f"[bold green]ARMED ({arm_rem}b)[/bold green]"
+            if self.full10:
+                # Full10 arming: any-TF S1<=30 within 1 bar of anchor
+                armed_any = any(
+                    (getattr(trackers[tfv], "last_s1", None) or 99) <= 30.0
+                    for tfv in (1, 2, 3, 5)
+                )
+                in_win = (cs.baridx - cs.anchor_bar) <= 1
+                arm = "[bold green]ARMED (≤1b)[/bold green]" if (armed_any and in_win) else "[dim]FLAT[/dim]"
+            else:
+                arm = "[dim]FLAT[/dim]"
+                if cs.flag_armed or cs.super_armed:
+                    arm_age = max(0, bar_count - max(cs.flag_arm_bar, cs.super_arm_bar))
+                    arm_rem = max(0, ARM_WINDOW - arm_age)
+                    arm = f"[bold green]ARMED ({arm_rem}b)[/bold green]"
 
             tf_signals = []
-            for tf, trk in cs.tf_trackers.items():
+            for tf, trk in trackers.items():
                 t_s1, t_s3, t_s4 = trk.last_s1, trk.last_s3, trk.last_s4
-                if t_s4 is not None and t_s1 is not None:
-                    if t_s4 >= M6_S4 and t_s1 < M6_S1:
-                        tf_signals.append(f"[bold green]FLAG {tf}m[/bold green]")
-                    elif t_s4 >= 72.0:
-                        tf_signals.append(f"[yellow]Flag {tf}m[/yellow]")
-                if t_s1 is not None and t_s3 is not None and t_s4 is not None:
-                    if t_s1 < SUPER_THRESH and t_s3 < SUPER_THRESH and t_s4 < SUPER_THRESH:
-                        is_rise = t_s1 > (trk.prev_s1 or 0)
-                        tf_signals.append(f"[bold green]SUPER {tf}m{'+' if is_rise else ''}[/bold green]")
+                if self.full10:
+                    if t_s4 is not None and t_s1 is not None:
+                        if t_s4 >= 75.0 and t_s1 < 30.0:
+                            tf_signals.append(f"[bold green]FLAG {tf}m[/bold green]")
+                        elif t_s4 >= 72.0:
+                            tf_signals.append(f"[yellow]Flag {tf}m[/yellow]")
+                    if t_s1 is not None and t_s3 is not None and t_s4 is not None:
+                        if t_s1 < 30.0 and t_s3 < 30.0 and t_s4 < 30.0:
+                            is_rise = t_s1 > (trk.prev_s1 or 0)
+                            tf_signals.append(f"[bold green]SUPER {tf}m{'+' if is_rise else ''}[/bold green]")
+                else:
+                    if t_s4 is not None and t_s1 is not None:
+                        if t_s4 >= M6_S4 and t_s1 < M6_S1:
+                            tf_signals.append(f"[bold green]FLAG {tf}m[/bold green]")
+                        elif t_s4 >= 72.0:
+                            tf_signals.append(f"[yellow]Flag {tf}m[/yellow]")
+                    if t_s1 is not None and t_s3 is not None and t_s4 is not None:
+                        if t_s1 < SUPER_THRESH and t_s3 < SUPER_THRESH and t_s4 < SUPER_THRESH:
+                            is_rise = t_s1 > (trk.prev_s1 or 0)
+                            tf_signals.append(f"[bold green]SUPER {tf}m{'+' if is_rise else ''}[/bold green]")
             setup = ", ".join(tf_signals) if tf_signals else "[dim]Scanning...[/dim]"
 
             prox = "--"
-            # §43: proximity display vs the GATE level (EMA20) + display suite
-            if ltp > 0 and cs.ema20.value:
+            if self.full10:
+                # Full10: proximity vs the FULL 12-level gate suite
+                if ltp > 0:
+                    lv = dict(cs._levels_now()) if hasattr(cs, "_levels_now") else {}
+                    if lv:
+                        nearest, nv = min(lv.items(), key=lambda x: abs(ltp - x[1]))
+                        diff = ltp - nv
+                        if abs(diff) <= 0.5:
+                            prox = f"{nearest} [bold green](TOUCH {diff:+.1f})[/bold green]"
+                        else:
+                            prox = f"{nearest} ({diff:+.1f}p)"
+            elif ltp > 0 and cs.ema20.value:
                 gate_lv = {"EMA20": cs.ema20.value}
                 display_sr = dict(gate_lv)
                 if cs.display_levels:
@@ -1001,7 +1245,6 @@ class LastHopeTradingEngine:
                 if cs.vwap.value: display_sr["VWAP"] = cs.vwap.value
                 closest = min(gate_lv.items(), key=lambda x: abs(ltp - x[1]))
                 diff = ltp - closest[1]
-                # nearest overall level (any family) for context
                 nearest_all = min(display_sr.items(), key=lambda x: abs(ltp - x[1]))
                 if abs(diff) <= 0.5:
                     prox = f"{closest[0]} [bold green](TOUCH {diff:+.1f})[/bold green]"
@@ -1016,64 +1259,135 @@ class LastHopeTradingEngine:
                 f"[{side_color}]{cs.strike} {cs.side}[/{side_color}][dim] {exp_tok.split(' ')[0] if exp_tok else ''}[/dim]",
                 arm,
                 f"{f0(s1)}/{f0(s3)}/{f0(s4)}",
-                f"{f0(cs.tf_trackers[2].last_s4)}/{f0(cs.tf_trackers[3].last_s4)}/{f0(cs.tf_trackers[5].last_s4)}",
+                f"{f0(trackers[2].last_s4)}/{f0(trackers[3].last_s4)}/{f0(trackers[5].last_s4)}",
                 setup, prox,
                 f"Rs {ltp:.2f}" if ltp > 0 else "--",
             )
 
-        sr_table = Table(
-            title="[bold cyan]S/R LEVELS (TradingView verify)[/bold cyan]",
-            box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
-        for col, style, j in (("STRIKE", "bold white", "left"), ("LTP", "bold yellow", "right"),
-                              ("PDH/PDL", "bold white", "center"), ("CPR (BC/P/T)", "bold white", "center"),
-                              ("EMA20/200", "bold white", "center"), ("VWAP", "bold white", "center"),
-                              ("ATR DIST", "bold white", "center")):
-            sr_table.add_column(col, style=style, justify=j, no_wrap=True)
-
-        for key, cs in self.engine.contracts.items():
-            ltp = self._last_ltp.get(key, 0.0)
-            f2 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
-            atr = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
-            side_color = "bold green" if cs.side == "CE" else "bold red"
-            exp_tok = expiry_info(cs.symbol, now)
-            sr_table.add_row(
-                f"[{side_color}]{cs.strike} {cs.side}[/{side_color}][dim] {exp_tok.split(' ')[0] if exp_tok else ''}[/dim]",
-                f"Rs {ltp:.0f}" if ltp > 0 else "--",
-                f"{f2(cs.display_levels.get('PDH'))}/{f2(cs.display_levels.get('PDL'))}",
-                f"{f2(cs.display_levels.get('CPR_BC'))}/{f2(cs.display_levels.get('CPR_Pivot'))}/{f2(cs.display_levels.get('CPR_TC'))}",
-                f"{f2(cs.ema20.value)}/{f2(cs.ema200.value)}",
-                f"{f2(cs.vwap.value)}",
-                f"+/-{atr:.1f}",
-            )
+        if self.full10:
+            # ---- Full10: STATIC pivots (prior-day) — 9 levels ----
+            sr_table = Table(
+                title="[bold cyan]S/R — STATIC (prior-day: PDH/PDL · BC/CPR/TC · fibR3/S3 · camR3/L3)[/bold cyan]",
+                box=box.SIMPLE_HEAD, expand=True, padding=(0, 0))
+            for col, style, j in (("STRIKE", "bold white", "left"), ("LTP", "bold yellow", "right"),
+                                  ("PDH", "white", "center"), ("PDL", "white", "center"),
+                                  ("BC", "white", "center"), ("CPR", "bold white", "center"),
+                                  ("TC", "white", "center"), ("fibR3", "white", "center"),
+                                  ("fibS3", "white", "center"), ("camR3", "white", "center"),
+                                  ("camL3", "white", "center")):
+                sr_table.add_column(col, style=style, justify=j, no_wrap=True)
+            for key, cs in self.engine.contracts.items():
+                ltp = self._last_ltp.get(key, 0.0)
+                f2 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
+                side_color = "bold green" if cs.side == "CE" else "bold red"
+                dl = cs.levels_day
+                sr_table.add_row(
+                    f"[{side_color}]{cs.strike} {cs.side}[/{side_color}]",
+                    f"Rs {ltp:.0f}" if ltp > 0 else "--",
+                    f2(dl.get('PDH')), f2(dl.get('PDL')),
+                    f2(dl.get('BC')), f2(dl.get('CPR')), f2(dl.get('TC')),
+                    f2(dl.get('fibR3')), f2(dl.get('fibS3')),
+                    f2(dl.get('camR3')), f2(dl.get('camL3')),
+                )
+            # ---- Full10: DYNAMIC levels — EMA20/200 · VWAP · PDVWAP · virgins ----
+            dyn_table = Table(
+                title="[bold cyan]S/R — DYNAMIC (EMA20/200 · VWAP · PDVWAP · V-BC/CPR/TC)  |  RISK SL-10/TP+15[/bold cyan]",
+                box=box.SIMPLE_HEAD, expand=True, padding=(0, 0))
+            for col, style, j in (("STRIKE", "bold white", "left"), ("LTP", "bold yellow", "right"),
+                                  ("EMA20", "bold white", "center"), ("EMA200", "white", "center"),
+                                  ("VWAP", "bold white", "center"), ("PDVWAP", "white", "center"),
+                                  ("V-BC", "dim", "center"), ("V-CPR", "dim", "center"),
+                                  ("V-TC", "dim", "center")):
+                dyn_table.add_column(col, style=style, justify=j, no_wrap=True)
+            for key, cs in self.engine.contracts.items():
+                ltp = self._last_ltp.get(key, 0.0)
+                f2 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
+                side_color = "bold green" if cs.side == "CE" else "bold red"
+                vir = cs.virgin or {}
+                # nearest dynamic level distance (proximity heat)
+                lv_dyn = {"EMA20": cs.ema20.value, "EMA200": cs.ema200.value,
+                          "VWAP": cs.vwap.value, "PDVWAP": cs.pdvwap}
+                near = "--"
+                if ltp > 0:
+                    cand = [(abs(ltp - v), nm) for nm, v in lv_dyn.items()
+                            if isinstance(v, (int, float)) and v]
+                    if cand:
+                        d, nm = min(cand)
+                        near = f"{nm} {d:+.0f}" if d < 50 else "--"
+                dyn_table.add_row(
+                    f"[{side_color}]{cs.strike} {cs.side}[/{side_color}]",
+                    f"Rs {ltp:.0f}" if ltp > 0 else "--",
+                    f2(lv_dyn["EMA20"]), f2(lv_dyn["EMA200"]),
+                    f2(lv_dyn["VWAP"]), f2(lv_dyn["PDVWAP"]),
+                    f2(vir.get('VBC')), f2(vir.get('VCPR')), f2(vir.get('VTC')),
+                )
+            sr_tables = [sr_table, dyn_table]
+        else:
+            sr_table = Table(
+                title="[bold cyan]S/R LEVELS (TradingView verify)[/bold cyan]",
+                box=box.SIMPLE_HEAD, expand=True, padding=(0, 0))
+            for col, style, j in (("STRIKE", "bold white", "left"), ("LTP", "bold yellow", "right"),
+                                  ("PDH/PDL", "bold white", "center"), ("CPR (BC/P/T)", "bold white", "center"),
+                                  ("EMA20/200", "bold white", "center"), ("VWAP", "bold white", "center"),
+                                  ("RISK", "bold white", "center")):
+                sr_table.add_column(col, style=style, justify=j, no_wrap=True)
+            for key, cs in self.engine.contracts.items():
+                ltp = self._last_ltp.get(key, 0.0)
+                f2 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
+                side_color = "bold green" if cs.side == "CE" else "bold red"
+                exp_tok = expiry_info(cs.symbol, now)
+                atr = min(max(cs.latest_atr * ATR_MULT, 2.0), TP_PTS_CAP)
+                sr_table.add_row(
+                    f"[{side_color}]{cs.strike} {cs.side}[/{side_color}][dim] {exp_tok.split(' ')[0] if exp_tok else ''}[/dim]",
+                    f"Rs {ltp:.0f}" if ltp > 0 else "--",
+                    f"{f2(cs.display_levels.get('PDH'))}/{f2(cs.display_levels.get('PDL'))}",
+                    f"{f2(cs.display_levels.get('CPR_BC'))}/{f2(cs.display_levels.get('CPR_Pivot'))}/{f2(cs.display_levels.get('CPR_TC'))}",
+                    f"{f2(cs.ema20.value)}/{f2(cs.ema200.value)}",
+                    f"{f2(cs.vwap.value)}",
+                    f"+/-{atr:.1f}",
+                )
+            sr_tables = [sr_table]
 
         pos_lines = []
         pos_data = None
         if self.live_orders and self.executor is not None and self.executor.position:
             p = self.executor.position
-            be_trig = self.engine.active_trade.get("be_trigger_px", 0.0) if self.engine.active_trade else 0.0
-            be_done = self.engine.active_trade.get("be_done", False) if self.engine.active_trade else False
-            pos_data = {**p, "be_trigger_px": be_trig, "be_done": be_done}
+            if self.full10:
+                pos_data = {**p}
+            else:
+                be_trig = self.engine.active_trade.get("be_trigger_px", 0.0) if self.engine.active_trade else 0.0
+                be_done = self.engine.active_trade.get("be_done", False) if self.engine.active_trade else False
+                pos_data = {**p, "be_trigger_px": be_trig, "be_done": be_done}
         elif self.paper_position is not None:
             pos_data = self.paper_position
         if pos_data is not None:
             ltp = float(self._last_ltp.get(self.active_position_key, pos_data["entry"]))
             pts = ltp - float(pos_data["entry"])
             c = "green" if pts >= 0 else "red"
-            be_status = "[bold green]LOCKED (+1.0pt BE)[/bold green]" if pos_data.get("be_done") \
-                else f"[yellow]trig Rs {float(pos_data.get('be_trigger_px', 0)):.2f}[/yellow]"
             pos_table = Table(
                 title=f"[bold green]ACTIVE TRADE — {pos_data['symbol']} | P&L [{c}]{pts:+.2f} pts[/{c}] [/bold green]",
-                box=box.SIMPLE_HEAD, expand=True, padding=(0, 1))
-            for col in ("ENTRY", "LTP", "SL", "TP", "BE STATUS", "SIGNAL"):
-                pos_table.add_column(col, justify="center")
-            pos_table.add_row(
-                f"Rs {float(pos_data['entry']):.2f}", f"Rs {ltp:.2f}",
-                f"Rs {float(pos_data['sl']):.2f}", f"Rs {float(pos_data.get('target', pos_data.get('tp', 0))):.2f}",
-                be_status, str(pos_data.get("signal", "--")),
-            )
+                box=box.SIMPLE_HEAD, expand=True, padding=(0, 0))
+            if self.full10:
+                for col in ("ENTRY", "LTP", "SL", "TP", "SIGNAL"):
+                    pos_table.add_column(col, justify="center")
+                pos_table.add_row(
+                    f"Rs {float(pos_data['entry']):.2f}", f"Rs {ltp:.2f}",
+                    f"Rs {float(pos_data['sl']):.2f}", f"Rs {float(pos_data.get('target', pos_data.get('tp', 0))):.2f}",
+                    str(pos_data.get("signal", "--")),
+                )
+            else:
+                be_status = "[bold green]LOCKED (+1.0pt BE)[/bold green]" if pos_data.get("be_done") \
+                    else f"[yellow]trig Rs {float(pos_data.get('be_trigger_px', 0)):.2f}[/yellow]"
+                for col in ("ENTRY", "LTP", "SL", "TP", "BE STATUS", "SIGNAL"):
+                    pos_table.add_column(col, justify="center")
+                pos_table.add_row(
+                    f"Rs {float(pos_data['entry']):.2f}", f"Rs {ltp:.2f}",
+                    f"Rs {float(pos_data['sl']):.2f}", f"Rs {float(pos_data.get('target', pos_data.get('tp', 0))):.2f}",
+                    be_status, str(pos_data.get("signal", "--")),
+                )
             pos_lines = [pos_table]
 
-        group = Group(banner, sys_table, mon_table, sr_table, *pos_lines)
+        group = Group(banner, sys_table, mon_table, *sr_tables, *pos_lines)
         return group
 
 
@@ -1086,6 +1400,11 @@ class LastHopeTradingEngine:
         self._wins_today = 0
         self._eod_done = False
         self.risk.reset_day()
+        # Full10: daily circuit breaker resets with the day
+        if self.full10:
+            self.engine._day_key = f"{now:%Y-%m-%d}"
+            self.engine._day_cum_pts = 0.0
+            self.engine._day_halted = False
 
         # Parked contracts are same-day only — never carry across midnight
         if hasattr(self, "_parked_contracts"):
@@ -1115,10 +1434,12 @@ class LastHopeTradingEngine:
                 "fields": [
                     {"name": "Date", "value": str(now.date()), "inline": True},
                     {"name": "Mode", "value": "LIVE ORDERS" if self.live_orders else "PAPER SIM", "inline": True},
-                    {"name": "Risk", "value": "Daily counters reset (4-loss block, shutdown cleared)", "inline": False},
+                    {"name": "Risk", "value": ("Daily counters reset (4-loss block, shutdown cleared, day cap ±29p cleared)"
+                                               if self.full10 else
+                                               "Daily counters reset (4-loss block, shutdown cleared)"), "inline": False},
                 ],
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "footer": {"text": "Flattrade Last Hope Bot"},
+                "footer": {"text": "Flattrade Full10 Bot" if self.full10 else "Flattrade Last Hope Bot"},
             })
         )
 
@@ -1200,7 +1521,8 @@ class LastHopeTradingEngine:
             opt_ltp = self.ws_feed.last_ltp("NFO", cs.token)
             if opt_ltp and opt_ltp > 0:
                 self._last_ltp[key] = opt_ltp
-                sig = self.engine.push_tick(key, opt_ltp, now)
+                cum_v = self.ws_feed.last_cum_volume("NFO", cs.token)
+                sig = self.engine.push_tick(key, opt_ltp, now, cum_volume=cum_v)
                 if sig and not self._has_position() and key in spec_keys:
                     await self._try_enter(sig)
 
@@ -1248,7 +1570,8 @@ class LastHopeTradingEngine:
                     self._broker_status = "LIVE CONNECTED (REST)"
                 else:
                     self._last_ltp[label] = ltp_val
-                    sig = self.engine.push_tick(label, ltp_val, now)
+                    cum_v = float(result.get("v", 0) or 0) or None
+                    sig = self.engine.push_tick(label, ltp_val, now, cum_volume=cum_v)
                     if sig and not self._has_position() and label in spec_keys:
                         await self._try_enter(sig)
 
@@ -1300,9 +1623,30 @@ class LastHopeTradingEngine:
         )
         # Log S/R levels for TradingView verification (display suite + live gate level)
         for key, cs in self.engine.contracts.items():
+            ltp = self._last_ltp.get(key, 0)
+            if self.full10:
+                sr_parts = []
+                for name, price in cs.levels_day.items():
+                    sr_parts.append(f"{name}={price:.2f}")
+                if cs.pdvwap is not None:
+                    sr_parts.append(f"PDVWAP={cs.pdvwap:.2f}")
+                for name, price in cs.virgin.items():
+                    sr_parts.append(f"V_{name}={price:.2f}")
+                if cs.ema20.value:
+                    sr_parts.append(f"EMA20={cs.ema20.value:.2f}")
+                if cs.ema200.value:
+                    sr_parts.append(f"EMA200={cs.ema200.value:.2f}")
+                if cs.vwap.value:
+                    sr_parts.append(f"VWAP={cs.vwap.value:.2f}")
+                trackers = cs.tf
+                logger.info(
+                    "[SR-F10] %s %s | LTP=%.2f | SL-%.0f/TP+%.0f | %s",
+                    cs.side, cs.strike, ltp, F10_SL_PTS, F10_TP_PTS,
+                    " | ".join(sr_parts),
+                )
+                continue
             if not cs.display_levels:
                 continue
-            ltp = self._last_ltp.get(key, 0)
             sr_parts = []
             for name, price in cs.display_levels.items():
                 sr_parts.append(f"{name}={price:.2f}")

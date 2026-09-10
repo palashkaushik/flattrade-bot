@@ -63,6 +63,7 @@ class FlattradeWebSocketFeed:
         self._subscribed: Set[str] = set()          # "EXCH|token" keys
         self._last_tick_at: Dict[str, float] = {}   # "EXCH|token" -> monotonic ts
         self._latest: Dict[str, float] = {}         # "EXCH|token" -> ltp
+        self._last_cum_vol: Dict[str, float] = {}   # "EXCH|token" -> cumulative day volume ("v")
         self._lock = threading.Lock()
         self._connected_at: Optional[float] = None
         self._last_msg_at: Optional[float] = None   # any-frame liveness
@@ -81,6 +82,12 @@ class FlattradeWebSocketFeed:
         key = f"{exchange}|{token}"
         with self._lock:
             return self._latest.get(key)
+
+    def last_cum_volume(self, exchange: str, token: str) -> Optional[float]:
+        """Latest cumulative day volume from the touchline feed ("v" field)."""
+        key = f"{exchange}|{token}"
+        with self._lock:
+            return self._last_cum_vol.get(key)
 
     def age_seconds(self, exchange: str, token: str) -> float:
         """Seconds since the last tick for this instrument (inf if none)."""
@@ -256,10 +263,19 @@ class FlattradeWebSocketFeed:
         exchange = str(res.get("e", ""))
         token = str(res.get("tk", ""))
         lp = res.get("lp")
+        key = f"{exchange}|{token}"
+        # Touchline volume (cumulative day volume, docs §Touchline "v").
+        # Update even on lp-less frames so volume never goes stale.
+        vv = res.get("v")
+        if vv not in (None, ""):
+            try:
+                self._last_cum_vol[key] = float(vv)
+            except (TypeError, ValueError):
+                pass
         if not exchange or not token or lp in (None, ""):
             # tf updates may carry only OI/volume; treat as keep-alive
             with self._lock:
-                self._last_tick_at[f"{exchange}|{token}"] = time.monotonic()
+                self._last_tick_at[key] = time.monotonic()
             return
         try:
             ltp = float(lp)
@@ -267,7 +283,6 @@ class FlattradeWebSocketFeed:
             return
         if ltp <= 0:
             return
-        key = f"{exchange}|{token}"
         with self._lock:
             self._latest[key] = ltp
             self._last_tick_at[key] = time.monotonic()

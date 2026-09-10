@@ -120,6 +120,24 @@ class IncrementalEMA:
         return self.value
 
 
+class IncrementalRMA:
+    """Wilder-smoothed average (alpha = 1/period) — matches Upstox chart
+    'EMA (20/200, close, 0)' readings (verified Sep 9 2026: chart EMA20
+    298.44 = RMA20, not EMA alpha 2/21 which reads 278.59)."""
+
+    def __init__(self, period: int):
+        self.period = period
+        self.alpha = 1.0 / period
+        self.value: Optional[float] = None
+
+    def update(self, close: float) -> float:
+        if self.value is None:
+            self.value = close
+        else:
+            self.value = (close * self.alpha) + (self.value * (1.0 - self.alpha))
+        return self.value
+
+
 class IncrementalVWAP:
     """Volume Weighted Average Price (intraday session, resets daily)."""
 
@@ -222,6 +240,7 @@ class OptionContractState:
 
     # 1m Bar History & Indicators
     bars: List[Bar1m] = field(default_factory=list)
+    last_completed_bar: Optional[Bar1m] = None
     atr: IncrementalATR = field(default_factory=lambda: IncrementalATR(ATR_PERIOD))
     ema20: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(20))
     ema200: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(200))
@@ -260,6 +279,7 @@ class OptionContractState:
         live state equals the validated seeded-sweep state at any minute.
         (Arming is intentionally reset — a new day needs fresh S1<=25 arming.)"""
         self.bars = []
+        self.last_completed_bar = None
         self.current_min = -1
         self.cur_open = self.cur_high = self.cur_low = self.cur_close = None
         self.cur_ticks = 0
@@ -383,6 +403,7 @@ class OptionContractState:
             timestamp=dt,
         )
         self.bars.append(completed_bar)
+        self.last_completed_bar = completed_bar
 
         # Start new forming 1m bar
         self.current_min = minute
@@ -545,20 +566,32 @@ class LastHopeWinnerEngine:
         }
 
     def push_tick(self, key: str, ltp: float, dt: datetime) -> Optional[Dict[str, Any]]:
-        """Pushes tick to contract state. If trigger fires and we are flat, returns setup."""
+        """Pushes tick to contract state. If trigger fires and we are flat, returns setup.
+
+        BE ARMING IS BAR-CLOSE ONLY (kernel parity, lh_sweep_cuda3.py:699): the
+        backtest evaluates hi >= be_trig once per completed 1m bar; the new SL
+        applies from the NEXT bar. Tick-level arming (ltp >= be_trig on every
+        tick) armed the BE lock on intra-minute noise and stopped trades out
+        that the backtest kept running — the 2026-09-07 live vs backtest
+        divergence. The BE check now lives in _on_1m_bar_close below.
+        """
         contract = self.contracts.get(key)
         if not contract:
             return None
 
-        # Check Active Trade Breakeven & SL/TP
+        pre_sig = None
         if self.active_trade and self.active_trade.get("symbol") == contract.symbol:
-            pos = self.active_trade
-            if not pos.get("be_done") and ltp >= pos["be_trigger_px"]:
-                pos["be_done"] = True
-                pos["sl"] = pos["be_hardened_sl"]
-                logger.info(f"🔒 BREAKEVEN STOP TRIGGERED on {pos['symbol']}: SL moved to {pos['sl']:.2f}")
-
-        sig = contract.push_tick(ltp, dt)
+            # Active-trade contract: BE arming must be evaluated on the bar this
+            # tick completes (kernel order: signal/exit checks run BEFORE the
+            # just-closed bar's BE arming). ContractState.push_tick returns the
+            # signal when it rolls the minute — capture it, run the bar-close BE
+            # check, then return the signal.
+            pre_sig = contract.push_tick(ltp, dt)
+            if isinstance(pre_sig, dict) or self._trade_bar_rollover_pending(contract, dt):
+                self.on_bar_close_be_check(contract.last_completed_bar)
+        else:
+            pre_sig = contract.push_tick(ltp, dt)
+        sig = pre_sig
         # CONGRUENCE (gpu_sim line 339): arming only while flat & not blocked. An
         # armed setup must never persist across a position open/close cycle.
         if self.active_trade:
@@ -570,6 +603,32 @@ class LastHopeWinnerEngine:
                 return sig
 
         return None
+
+    def _trade_bar_rollover_pending(self, contract: "OptionContractState", dt: datetime) -> bool:
+        """True when a 1m bar completed on this tick for the held contract
+        (minute rolled over) but push_tick returned no signal — the BE check
+        still needs to run on that completed bar."""
+        bar = getattr(contract, "last_completed_bar", None)
+        if bar is None or getattr(bar, "minute", None) is None:
+            return False
+        return (dt.hour * 60 + dt.minute) > int(bar.minute)
+
+    def on_bar_close_be_check(self, bar: Optional["Bar1m"]):
+        """Engine-level hook: arms the BE lock on a completed 1m bar of the
+        HELD contract (kernel parity — once per minute, never intra-minute)."""
+        if bar is None or self.active_trade is None:
+            return
+        pos = self.active_trade
+        if pos.get("be_done"):
+            return
+        if bar.high >= pos["be_trigger_px"]:
+            pos["be_done"] = True
+            pos["sl"] = pos["be_hardened_sl"]
+            logger.info(
+                f"🔒 BREAKEVEN STOP TRIGGERED on {pos['symbol']} at bar close "
+                f"(bar H={bar.high:.2f} >= BE_trig={pos['be_trigger_px']:.2f}): "
+                f"SL moved to {pos['sl']:.2f}"
+            )
 
     def on_trade_opened(self, trade: Dict[str, Any]):
         """Registers the live trade. Re-bases BE geometry on the ACTUAL fill price

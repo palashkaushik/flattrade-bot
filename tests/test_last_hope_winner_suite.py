@@ -309,13 +309,20 @@ def test_risk_geometry_sl_tp_breakeven():
     assert engine.active_trade["sl"] == 94.0
     assert engine.active_trade["be_done"] is False
 
-    # Tick 2: Price reaches 102.50 (>= BE trigger 102.40) -> SL hardens to 101.0!
+    # Tick 2 (same minute): Price reaches 102.50 (>= BE trigger 102.40) —
+    # KERNEL PARITY (lh_sweep_cuda3.py:699): BE arms at BAR CLOSE only, so an
+    # intra-minute touch must NOT harden the SL.
     engine.push_tick("CE:24200", 102.50, now)
+    assert engine.active_trade["be_done"] is False
+
+    # Tick 3: minute rolls over -> the completed bar's high (102.50) >=
+    # be_trig -> BE arms at bar close, SL hardens to 101.0
+    engine.push_tick("CE:24200", 102.0, datetime(2026, 8, 28, 9, 31))
     assert engine.active_trade["be_done"] is True
     assert engine.active_trade["sl"] == 101.0
 
-    # Tick 3: Price pulls back to 103.0 -> SL MUST NEVER MOVE BACKWARDS
-    engine.push_tick("CE:24200", 103.0, now)
+    # Tick 4: Price pulls back to 103.0 -> SL MUST NEVER MOVE BACKWARDS
+    engine.push_tick("CE:24200", 103.0, datetime(2026, 8, 28, 9, 31, 5))
     assert engine.active_trade["sl"] == 101.0
 
 

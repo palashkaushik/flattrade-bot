@@ -97,35 +97,53 @@ When running ANY strategy on the FIRST 5 days of 2020 with standard settings:
 
 ## Nifty 50 Option Master Parquet (CANONICAL DATA)
 
-**ALL strategies MUST read option data from the single canonical parquet:**
+**ALL strategies MUST read option data from the single canonical parquet (v2):**
 
 ```
-C:\Users\user\Desktop\nifty50 data\nifty50_options_master.parquet
+C:\Users\user\Desktop\nifty50 data\nifty50_options_master_v2.parquet
+```
+
+Non-synced working copy (use this path in code — OneDrive stalls reads on
+the Desktop path, see GPU guide §16 BUG #5):
+
+```
+C:\Users\user\AppData\Local\Temp\opencode\data\nifty50_options_master_v2.parquet
 ```
 
 - This is the **only** option parquet any strategy may use. The old
-  `cache_marni_opt.parquet` is deprecated/removed (it held wrong-expiry
-  "malicious" rows) — do NOT point engines at it.
-- Built by `build_canonical_parquet.py`. Schema: `day, minute, symbol,
-  strike, side, open, high, low, close` (1-minute bars).
+  `nifty50_options_master.parquet` (v1) is now **DEPRECATED** — it hard-coded
+  the Tue/Thu expiry rule and therefore DROPPED genuine holiday-shifted
+  weekly contracts (Feb 25–Mar 2 `02MAR26` Monday expiry, Mar 25–30
+  `30MAR26` Monday, **Apr 8–13 `13APR26` Monday**). The old
+  `cache_marni_opt.parquet` is also banned (wrong-expiry "malicious" rows).
+- Built by `rebuild_parquet_v2.py`. Schema: `day, minute, symbol, strike,
+  side, open, high, low, close, exp_date` (1-minute bars). `exp_date` =
+  parsed contract expiry date (new in v2).
 - `minute` = minute-of-day (e.g. 555 = 09:15). Symbols are `NIFTY<DDMMMYY><STRIKE><CE|PE>`.
+- **1,526 trading days** (v1 had 1,510 — 16 recovered), 55.16M rows.
 - Underlying INDEX 1m (for bias/Elder) lives at
-  `C:\Users\user\Desktop\nifty50 data\index\NIFTY 50_minute.csv`.
+  `C:\Users\user\Desktop\nifty50 data\index\NIFTY 50_minute.csv`
+  (note: Flattrade TPSeries index history starts ~Jun 2022 only).
 
-### Expiry-Day Rule (NSE/SEBI, web-verified)
-Nifty 50 option expiry day changed exactly once in 2020–2026:
+### Expiry-Day Rule (TRUE rule — supersedes the old Tue/Thu table)
 
-| PERIOD | WEEKLY EXPIRY DAY |
-|:---|:---|
-| 2020-01-01 → 2025-08-28 | **Thursday** of the week |
-| 2025-09-01 → today | **Tuesday** of the week |
+The per-day contract in v2 is chosen as: **the expiry token present in that
+day's source CSV with the smallest expiry date ≥ trading day, at most 9
+calendar days ahead** (fallback: expiry == trading day). This correctly
+captures holiday-shifted Monday expiries that the old Thu→Tue rule missed:
 
-- Effective: end of trading 28-Aug-2025; new contracts from 1-Sep-2025 use Tuesday
-  (SEBI mandate limiting index-expiry days to Tue/Thu; NSE→Tue, BSE→Thu).
-- The canonical parquet keeps ONLY the **correct weekly contract per trading day**
-  (Thu pre-change, Tue post-change). Wrong-contract rows (e.g. a monthly expiry used
-  on a weekly-strategy day) were dropped. Engines must NOT re-filter by expiry.
+| PERIOD | NOMINAL WEEKLY EXPIRY DAY | EXCEPTIONS SEEN IN DATA |
+|:---|:---|:---|
+| 2020-01-01 → 2025-08-28 | Thursday | (verify per-day from `exp_date` column) |
+| 2025-09-01 → 2026-08-28 | Tuesday | **Monday expiries**: 02MAR26, 30MAR26, 13APR26 (holiday shifts, e.g. Apr 14 2026 = Ambedkar Jayanti) |
+
+- Engines must NOT re-filter by expiry — v2 already contains ONLY the
+  correct nearest-weekly contract per trading day.
 - 2nd ITM strike per day: **CE = ATM−100, PE = ATM+100** (ATM from index spot 09:15 open).
+- **Data-trust note (Sep 2026 audit):** April 2026's high premiums (2nd-ITM
+  200–450 vs Aug's 80–200) and −620 index gap days were verified bar-for-bar
+  against the independent source CSVs — genuine April tape, not a data bug.
+  April 2026 was a high-IV gap regime; do not "fix" it.
 
 ---
 
@@ -160,18 +178,56 @@ Critical facts (details in the docs file):
   registered IP; single login session (a new login invalidates the old
   token machine-wide)
 
-## Key Files
+## Certified Sweep Pipeline (MANDATORY — Supersedes All Prior Backtesting)
+
+**From 2026-09-05 onward, ANY strategy validation, parameter sweep, or backtest
+claim MUST be produced by the certified sweep pipeline. Read
+`CERTIFIED_SWEEP_BLUEPRINT.md` FIRST — it contains the full architecture,
+the fix ledger (14 bugs), the optimization inventory, and step-by-step
+instructions for sweeping ANY general strategy (RSI-based, stoch-based, or
+otherwise) through the same pipeline.**
+
+Files (the ONLY sanctioned backtest toolchain):
 
 | FILE | PURPOSE |
 |:---|:---|
-| `flattrade_bot/main.py` | Live trading entry point (Pocket Money 10s) |
-| `flattrade_bot/strategies/pocket_money.py` | Live Pocket Money engine (10s bars, stochastics, 15m filter, gating) |
-| `POCKET_MONEY_STRATEGY.md` | Official Pocket Money strategy rules + live mapping |
-| `artifacts/f6_hybrid/pocket_money_backtest.py` | Backtest reference (`process_day`, `PocketHTFFilter`) |
-| `backtest_5y_optimized.py` | Core backtest engine (reference) |
-| `backtest_unlimited_profit.py` | Unlimited profit variant (pmtrig reference) |
-| `BACKTEST_LEDGER.md` | All strategy test results |
-| `nifty50_options_master.parquet` | **Canonical** Nifty 50 option 1m bars (see Data section) |
-| `build_canonical_parquet.py` | Rebuilds the canonical parquet (correct weekly expiry per day) |
-| `graphify-out/GRAPH_REPORT.md` | Knowledge graph audit report |
-| `.env` | Live credentials (local only) |
+| `CERTIFIED_SWEEP_BLUEPRINT.md` | **Read this first** — architecture, fixes, do's/don'ts, how to sweep any strategy |
+| `lh_sweep_build2.py` | Phase 1: event-stream recorder (raw indicator values; `--stochset` variants) |
+| `lh_sweep_replay_cpu.py` | Phase 2: njit CPU twin — the executable strategy spec |
+| `lh_sweep_cuda.py` | Phase 3a: CUDA sweep v1 (fixed thresholds; 48/48 parity-certified) |
+| `lh_sweep_cuda2.py` | Phase 3b: CUDA sweep v2 — sweeps thresholds + indicator periods from raw recordings |
+| `lh_parity_gate.py` | 48-check parity gate vs the live-validated certified harness |
+| `lh_cuda_sweep_results.csv` | Certified ledger: 2,940-config sweep (2026-09-05) |
+| `lh_cuda_sweep2_results.csv` | Certified ledger: extended-parameter sweep |
+
+Hard rules:
+1. **Parity gate before any sweep report** — the CUDA kernel must reproduce
+   the CPU twin exactly (48/48-style) on the reference window, every time the
+   kernel or recordings change.
+2. **Independent ground truth required** — the certification chain must end at
+   live-bot logs or the live-validated harness. Self-parity of a shared engine
+   core is invalid (the dyn-engine conviction).
+3. **Top-K configs re-verified on the CPU twin** before publication.
+4. **All §41–§44 dyn-derived numbers are convicted/unverified** —
+   `gpu_sim_last_hope.py` and `dyn_strike_engine.py` are RESEARCH-GRADE only,
+   never cite them as truth. The certified ledger supersedes BACKTEST_LEDGER
+   entries for this family.
+5. **Fees always in** (`(exit−entry)×65 − 45`): the 2026-09-05 certified sweep
+   proved the whole 2nd-ITM bounce family is gross-profitable but
+   fee-destroyed (all 2,940 configs negative over 2020–2026; §44 itself
+   −₹821,080).
+6. **No config goes live** without positive certified net AND a walk-forward
+   pass on this pipeline.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
