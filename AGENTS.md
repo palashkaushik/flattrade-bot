@@ -153,6 +153,29 @@ captures holiday-shifted Monday expiries that the old Thu→Tue rule missed:
 - `.env.example` contains only placeholders — safe to commit
 - Rotate Flattrade API key/secret if ever exposed
 
+## VPS Access Discipline (MANDATORY — box is memory-starved)
+
+The live VPS (65.2.50.227, Lightsail 512MB plan) has **412Mi RAM total, NO swap,
+~130Mi free during session**. It lives at the edge of OOM every market session
+(168 oom-killer invocations logged Sep 10–17 2026).
+
+**Incident 2026-09-17 10:07 IST:** 4 parallel SSH sessions tipped the box over —
+the kernel OOM-killed the live trading bot mid-session (10s downtime, flat so
+no money at risk, auto-recovered via systemd + cap rehydration). Never repeat this.
+
+Hard rules for ANY VPS contact:
+1. **Single lightweight reads only** — ONE ssh session at a time, sequential,
+   never parallel. One command per call; wait for it to finish.
+2. **Reads are cheap, compute is not** — `tail`, `grep -c`, small `grep` on
+   today's log only. NEVER run python3, `journalctl` dumps, full-log greps,
+   or anything that allocates on the box.
+3. **Analyze locally, not on the box** — for anything beyond a one-line check,
+   `scp` the log file off the VPS and process it on this machine.
+4. **Reads only, always** — no writes, no deploys, no restarts, no `systemctl`
+   state changes without the user's explicit go-ahead, on or off session.
+5. **Market hours (09:15–15:30 IST) = minimum contact** — if a check can wait
+   until after 15:15 EOD exit, it waits.
+
 ## Flattrade API — MANDATORY REFERENCE
 
 **ANY Flattrade-related problem (auth, orders, quotes, WebSocket, rate limits,
