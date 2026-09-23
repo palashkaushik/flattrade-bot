@@ -1,6 +1,7 @@
 """Guarded live trade execution and position lifecycle management."""
 
 import asyncio
+import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
@@ -9,6 +10,8 @@ from flattrade_bot.broker.history import SessionExpiredError
 from flattrade_bot.config import settings
 from flattrade_bot.risk.manager import RiskManager
 from flattrade_bot.utils.discord import DiscordNotifier
+
+logger = logging.getLogger(__name__)
 
 
 class TradeExecutor:
