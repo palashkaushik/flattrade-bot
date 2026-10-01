@@ -4,13 +4,12 @@ Strategy: 🏆 Last Hope GPU Winner (7-Year Net ₹2,108,703 | 63.89% Win Rate |
 Specifications from LAST_HOPE_WINNER.md:
   - 1-minute option OHLC bars (09:15–15:00 IST)
   - 2nd ITM strikes (CE = ATM - 100, PE = ATM + 100)
-  - Multi-TF Option Stochastics (1m, 2m, 3m, 5m): S1(12,3), S3(40,4), S4(50,10)
-  - 10-bar Arming window (S1 <= 25.0)
-  - Triggers: Flag (M6: S4 >= 79.5 & S1 < 79.5) / Super (S3,S4,S1 < 25 & S1 rising)
+  - Multi-TF Option Stochastics (1m, 2m, 3m, 5m): S1(12,2), S3(40,4), S4(60,10)
+  - 1-bar Arming window (S1 <= 25.0)
+  - Triggers: Flag (S4 >= 75 & S1 < 25) / Super (S3,S4,S1 < 25 & S1 rising)
   - S/R Bounce Gate (touch_buffer = 0.0): Candle low <= S/R level and close >= level - 0.5
-  - Risk Geometry: dist = min(ATR(10) * 1.5, 15.0 pts), SL = Entry - dist, TP = Entry + dist
-  - Breakeven Stop (BE): At +50% of distance, SL hardens to Entry + 1.0 pt
-  - SL priority over TP
+  - Risk Geometry: fixed SL = Entry - 10 pts, TP = Entry + 15 pts, daily cap ±29 pts
+  - SL priority over TP; no breakeven lock
 """
 
 import asyncio
@@ -623,7 +622,7 @@ class LastHopeTradingEngine:
             signal=f"{sig['trigger']}_{sig['level']}{signal_suffix}",
             entry_price=entry_price,
             sl_points=dist,
-            tp_points=dist,
+            tp_points=float(sig["tp_points"]),
             current_min=cur_min,
             opened_at=now,
         )
@@ -641,7 +640,7 @@ class LastHopeTradingEngine:
                         signal=f"{sig['trigger']}_{sig['level']}{signal_suffix}",
                         entry_price=entry_price,
                         sl_points=dist,
-                        tp_points=dist,
+                        tp_points=float(sig["tp_points"]),
                         current_min=cur_min,
                         opened_at=now,
                     )

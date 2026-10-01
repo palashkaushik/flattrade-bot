@@ -1,8 +1,8 @@
 # FLATTRADE BOT — Knowledge Graph Report
 
-**Generated:** 2026-09-03  
+**Generated:** 2026-10-01  
 **Source:** `C:\\Websites\\FLATTRADE BOT`  
-**Graph:** 5546 nodes · 12810 edges · 1 communities
+**Graph:** 4453 nodes · 7433 edges · 1 communities
 
 ---
 
@@ -12,21 +12,21 @@ These are the most-connected modules — touching these affects the most other c
 
 | RANK | NODE | DEGREE CENTRALITY |
 |:---:|:---|:---:|
-| #1 | `flattrade_bot_indicators_patterns_candle` | 0.0696 |
-| #2 | `flattrade_bot_indicators_divergence_divergenceengine` | 0.0325 |
-| #3 | `backtest_5y_optimized_option_files` | 0.0323 |
-| #4 | `flattrade_bot_indicators_stochastic_incrementalstochastic` | 0.0303 |
-| #5 | `backtest_5y_optimized_load_spot` | 0.0251 |
-| #6 | `flattrade_bot_indicators_patterns_bullishpinbardetector` | 0.0209 |
-| #7 | `backtest_5y_optimized_latest_spot` | 0.0204 |
-| #8 | `backtest_5y_optimized` | 0.0198 |
-| #9 | `flattrade_bot_indicators_patterns` | 0.0186 |
-| #10 | `grid_optimize_f6_atr` | 0.0177 |
-| #11 | `artifacts_f6_hybrid_causal_live_parity_research_incrementalatr` | 0.0159 |
-| #12 | `opt_futures_quad` | 0.0155 |
-| #13 | `backtest_5y_optimized_summarize` | 0.0148 |
-| #14 | `backtest_5y_optimized_timeframetracker` | 0.0137 |
-| #15 | `flattrade_bot_execution_tradeexecutor` | 0.0121 |
+| #1 | `patterns_candle` | 0.0404 |
+| #2 | `divergence_divergenceengine` | 0.0231 |
+| #3 | `backtest_5y_optimized` | 0.0229 |
+| #4 | `stochastic_incrementalstochastic` | 0.0220 |
+| #5 | `opt_futures_quad` | 0.0202 |
+| #6 | `grid_optimize_f6_atr` | 0.0177 |
+| #7 | `patterns_bullishpinbardetector` | 0.0175 |
+| #8 | `optimized_gpu_backtest` | 0.0135 |
+| #9 | `causal_live_parity_research_incrementalatr` | 0.0133 |
+| #10 | `run_7y_v4_master` | 0.0128 |
+| #11 | `gpu_sim_last_hope` | 0.0117 |
+| #12 | `lh_sweep_cuda3` | 0.0115 |
+| #13 | `backtest_walkforward_fees` | 0.0103 |
+| #14 | `smart_fib_optimus_gpu` | 0.0097 |
+| #15 | `smart_fib_optimus_grid_gpu` | 0.0097 |
 
 ## Betweenness Centrality (Critical Bridges)
 
@@ -34,32 +34,32 @@ Nodes that act as bridges between communities — removing these would disconnec
 
 | RANK | NODE | BETWEENNESS |
 |:---:|:---|:---:|
-| #1 | `opt_futures_quad` | 0.1890 |
-| #2 | `flattrade_bot_indicators_patterns_candle` | 0.1457 |
-| #3 | `artifacts_f6_hybrid_tmp_winners_f` | 0.1097 |
-| #4 | `grid_optimize_f6_atr` | 0.0906 |
-| #5 | `artifacts_f6_hybrid_optimized_gpu_backtest` | 0.0779 |
-| #6 | `backtest_walkforward_fees` | 0.0673 |
-| #7 | `tests_test_b07_e2e_execution` | 0.0537 |
-| #8 | `flattrade_bot_indicators_divergence_divergenceengine` | 0.0509 |
-| #9 | `artifacts_f6_hybrid_smart_fib_optimus_gpu` | 0.0415 |
-| #10 | `backtest_5y_optimized_option_files` | 0.0410 |
+| #1 | `opt_futures_quad` | 0.1074 |
+| #2 | `backtest_walkforward_fees` | 0.0705 |
+| #3 | `backtest_5y_optimized` | 0.0682 |
+| #4 | `elder_incrementalelderimpulse` | 0.0602 |
+| #5 | `undisputed_main_combinedsupremetradingengine` | 0.0564 |
+| #6 | `patterns_candle` | 0.0517 |
+| #7 | `divergence_divergenceengine` | 0.0501 |
+| #8 | `pocket_money_pocketmoneyengine` | 0.0363 |
+| #9 | `grid_optimize_f6_atr` | 0.0351 |
+| #10 | `smart_fib_optimus_gpu` | 0.0295 |
 
 ## Community Structure (1 communities)
 
 | COMMUNITY | SIZE | KEY NODES |
 |:---:|:---:|:---|
-| 0 | 5546 | `flattrade_bot_indicators_patterns_candle`, `flattrade_bot_indicators_divergence_divergenceengine`, `backtest_5y_optimized_option_files` |
+| 0 | 4453 | `patterns_candle`, `divergence_divergenceengine`, `backtest_5y_optimized` |
 
 ## Architecture Summary
 
 | METRIC | VALUE |
 |:---|:---:|
 | Total Python Files | 63 |
-| Total Nodes | 5546 |
-| Total Edges | 12810 |
+| Total Nodes | 4453 |
+| Total Edges | 7433 |
 | Communities | 1 |
-| Avg Degree | 4.62 |
+| Avg Degree | 3.34 |
 
 ## Interactive Visualization
 
