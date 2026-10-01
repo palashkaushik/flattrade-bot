@@ -564,6 +564,16 @@ Out-of-Sample Test:  2024-01-01 to 2026-05-05 (580 trading days, untouched)
 | Win Rate = 0% in smoke test | Signal detection broken | Check `s4_ob` / `s1_os` thresholds; run 5-day smoke test first |
 | `IndexError: list index out of range` in option loader | Missing option file for a date | Call `source.option_day_files()` and check the returned keys |
 | GPU benchmark slower than expected first run | CUDA JIT warmup (first kernel compile) | First call always slow; subsequent calls are fast |
+| **WR jumps 78.5% → 84.4% after an unrelated-looking fix** | **State flag never reset on re-entry (`be_done` class of bug — see §26)** | **Every per-trade state flag MUST reset at BOTH entry sites; validate with trade-level replay** |
+| **Flattrade order rejected: `ALGO_CHK: MKT Order type not allowed for API order`** | Flattrade API prohibits MKT prctyp for algo orders | Aggressive LIMIT (fresh LTP ± 5.0) with a FRESH quote before every exit attempt (see §28) |
+| **LTPs frozen on VPS dashboard, WS "subscribing 0 instruments"** | Subscribe-on-fresh-only circular logic | Subscribe unconditionally (idempotent); gate reads on freshness (see §28.3) |
+| **"Session reset ... cold-started" log spam every ~30s** | Contract keys flip on ±50 spot boundary; reset wiped seeded indicators | Same-day re-registration guard (`session_date` + `seed_complete`) (see §28.4) |
+| **`Session Expired : Invalid Session Key` mid-fetch** | Login on the VPS (or another machine) invalidated this token — Flattrade sessions are single-login | Re-login + retry loop on every "Session Expired" response (see fetch_sep3.py pattern) |
+| **Flattrade SearchScrip returns nothing for `NIFTY08SEP26C24000`** | Wrong query format | Use the SPACED form: `NIFTY 24000 CE` |
+| **11 async tests fail on VPS but pass locally** | pytest-asyncio not installed there | `pip3 install pytest-asyncio --break-system-packages` |
+| **`import torch` test fails on VPS (no GPU)** | GPU backtest lib absent on live host | `pytest.skip("torch not installed")` guard — live host doesn't backtest |
+| **Post-commit graphify hook prints "Python was not found"** | Hook shell can't resolve python alias | Run `python run_graphify.py` manually after committing |
+| **Parquet read hangs with zero CPU/RAM usage** | OneDrive/AV sync-filter on open | Read from non-synced cache (`AppData\Local\Temp\opencode\data`) — see §24 BUG #5 |
 
 ---
 
@@ -1206,6 +1216,265 @@ purpose.
 [ ] 11. Report In-Sample vs. Out-of-Sample comparison table
 [ ] 12. Append results to BACKTEST_LEDGER.md
 ```
+
+---
+
+## 26. The `be_done` State Bug (Sept 2026) — The Costliest Bug in This Repo's History
+
+> **Impact:** EVERY backtest number produced before 2026-09-03 (§41, §42, §43
+> sweeps and the deployed champions) was computed with BE firing at most ONCE
+> per day per (config, day) cell. All §42/§43 numbers were silently wrong at
+> the trade level even though they "looked fine."
+
+### The bug
+
+`gpu_sim_last_hope.py:_eager_sim_core` initialized `be_done = torch.zeros(B, D)`
+once per run and set `be_done[trig] = True` when a trade's high crossed the BE
+trigger — but **never reset it to `False` when a new position opened**. After a
+cell's first BE ratchet of the day, `be_done` stayed `True` forever, so every
+subsequent trade in that cell rode to full SL/TP instead of BE-exiting.
+
+### Why it survived three whole sweep campaigns
+
+1. **Aggregate metrics masked it.** WR/net/count drift was small: §43 champion
+   went 78.5%→84.4% WR, ₹2.83M→₹2.80M net. Nothing "looked broken."
+2. **Parity checks compared the SAME buggy code against itself** (metrics_only
+   vs trade-list path both shared `_eager_sim_core`). Self-parity ≠ correctness.
+3. **No trade-level ground truth existed** until the dyn-strike engine forced a
+   bar-by-bar hand replay.
+
+### How it was finally caught
+
+The dynamic-strike engine (independent code path) disagreed with the static
+engine by exactly ONE trade on 2025-09-08. Three-way bisection (mask diffs
+S1/M6/SUPER/BOUNCE: 0/345 differing; session h/l/c arrays: 0/345) proved every
+INPUT identical — so a hand-written bar-by-bar replay of `_eager_sim_core`'s
+documented semantics was written (`replay_static.py`). The replay matched the
+DYN engine trade-for-trade (20 trades) and disagreed with `_eager_sim_core`'s
+own output (19 trades) — the vectorized core was violating its own spec.
+`grep be_done` then found the missing reset in 30 seconds.
+
+### The fix
+
+```python
+# gpu_sim_last_hope.py — BOTH entry sites (PE ~line 452, CE ~line 490):
+be_done[ent_pe] = False   # BE RESET (was never reset on entry)
+be_done[ent_ce] = False
+```
+
+### The rules this imposes (NON-NEGOTIABLE, apply to ANY vectorized state engine)
+
+1. **Every per-trade state flag MUST be reset at every position-open site.**
+   Audit `be_done`, `peak_price`, `trail_done`, `cap_hit`, any ratchet latches —
+   each needs an explicit reset next to `in_pos[ent] = True`. A flag with no
+   write-False anywhere is a time bomb.
+2. **Self-parity is not correctness.** A trade-list path and a metrics path
+   sharing the same core verify NOTHING about the core. Ground truth must be an
+   INDEPENDENT implementation (hand replay / event-driven CPU twin).
+3. **Validate on trade sequences, not aggregates.** Compare per-day entry lists
+   `(bar, side)` and per-trade exits. One trade diff on one day was the only
+   visible symptom of a 3-campaign-wide bug.
+4. **Write the semantics down, then replay them literally.** The replay script
+   is what turned a mystery into a 30-second grep. Keep `replay_static.py` as
+   the executable spec.
+5. **When two engines disagree by exactly one trade:** suspect state carryover
+   first (a flag/variable surviving across trades), indicator math LAST.
+
+### Corrected numbers (the ONLY valid reference values)
+
+| Engine/config | Trades | WR | Net ₹ | maxDD ₹ |
+|:---|---:|---:|---:|---:|
+| §43 static, PRE-fix (invalid) | 19,701 | 78.5% | 2,832,706 | 1,963 |
+| §43 static, POST-fix | 20,347 | 84.4% | 2,799,385 | 1,996 |
+| **§44 dynamic-strike, POST-fix (champion)** | **16,491** | **90.2%** | **3,623,562** | **1,504** |
+
+**Every ledger row before §44 that was produced by `_eager_sim_core` is
+pre-fix and must be treated as approximate.** Relative rankings survived
+(the bug affected all configs equally) but absolute values did not.
+
+---
+
+## 27. Dynamic Strikes (§44) — The Semantic Fix Worth +₹800K
+
+### What was wrong for THREE YEARS of sweeps
+
+Every sweep §41–§43 (and the original 4-TF engine) pinned the 2nd-ITM strike at
+the **09:15 ATM** for the whole day. The actual trading rule (per the trader)
+re-selects the 2nd-ITM strike **at each trade's time** from the current spot:
+`ATM(t) = round(spot(t)/50)*50`, CE = ATM−100, PE = ATM+100.
+
+### What the fix required (order matters — these were each separate bugs)
+
+1. **Per-strike-day seeded indicators.** Each (strike, day) needs its own
+   EMA20/ATR/TF-stoch chain seeded from the prior day's **same-token** last-300
+   bars (TradingView parity). A shared per-day indicator stack silently used the
+   09:15 strike's history for every strike. → `dyn_strike_engine.py`.
+2. **Seed slice direction.** Seeding accidentally used the prior day's FIRST
+   300 bars instead of the LAST 300. Symptom: ATR/EMA slightly off, masks
+   mostly matching — pure trap. Fix: `prior_bars[-300:]`.
+3. **`np.add.at` NaN-op.** Chunked indicator accumulation hit NaN rows
+   (missing minutes) and poisoned whole strikes. Fix: guard or fill before add.
+4. **Per-side arming.** A single shared `arm`/`arm_row` let a CE evaluation
+   clear PE's arming every bar (dyn showed 11 trades vs static's 19 — HALF the
+   trades silently vanished). Fix: independent `arm["PE"]`/`arm["CE"]` dicts
+   with per-side arm rows.
+5. **`metrics_only` parity is per-(B,D)-cell** — the B-dim batch state also had
+   the `be_done` bug (§26) on top.
+
+### Result
+
+| | Static-strike (post-fix) | Dynamic-strike (post-fix) |
+|:---|---:|---:|
+| Net 7y | ₹2.80M | **₹3.62M (+29%)** |
+| Calmar | 1,401 | **2,409 (+72%)** |
+| WR | 84.4% | **90.2%** |
+| maxDD | ₹1,996 | **₹1,504 (−25%)** |
+
+Champion: **arm10 / ATR(10)×1.5 / tb0.0 / BE 0.40+1.0 / EMA20-only gate**,
+plateau-stable across ALL arm values (Calmar 2,191–2,409 in the x1.5/be0.4
+column) — robustness verified, not a fragile peak (§42's arm15/×1.5 dropped
+−20% at neighbors; §44's neighbors hold).
+
+> **Rule:** when a strategy's semantic involves "the instrument traded at time
+> t", the backtest MUST model the instrument selection at time t. Any engine
+> feature that pins instruments at session start is unfaithful to its own
+> strategy. Ask the trader to confirm execution semantics BEFORE running
+> multi-day sweeps — this one change was worth more than every parameter
+> sweep of the previous three weeks combined.
+
+---
+
+## 28. Live Ops Bug Compendium (VPS, Sep 2–3 2026) — The −₹715 Lesson
+
+> Four independent ops bugs, each invisible in review, each catastrophic in
+> combination. The bot ran a stale build, rejected its own exit orders in a
+> loop, froze its dashboard, and spammed cold resets — while "passing" tests.
+> All fixes are in commit `32002c8`.
+
+### 28.1 MKT orders: Flattrade API rejects them (`ALGO_CHK`)
+
+* **Symptom:** SL/TP/EOD exit submits `MKT` → `Rejected : ALGO_CHK: MKT Order
+  type not allowed for API order` → retry every 2s for **45+ minutes** (2,500+
+  rejections). A SL exit bled from −₹868 planned to −₹715 realized.
+* **Root cause chain:** original code used LIMIT sells (LTP−5.0); on fast moves
+  with a **stale throttled LTP**, the limit fell outside the exchange price
+  band → rejected → retried at the SAME stale price → loop. The "fix" (commit
+  84c5b12, Sep 2) switched to MKT — which Flattrade forbids for API orders. A
+  fix deployed without a same-day live verification traded ONE day and blew up.
+* **Correct fix:** exits are **aggressive LIMIT sells at fresh LTP − 5.0**, and
+  `close_position()` fetches a **FRESH quote before EVERY attempt** so the
+  limit is always band-valid:
+  ```python
+  fresh = await self.client.get_quotes(exchange="NFO", token=pos["token"])
+  exit_ltp = float(fresh["lp"]) if fresh.get("stat") == "Ok" else ltp
+  place_market_order(..., ltp=exit_ltp, slippage_buffer=5.0, force_mkt=True)
+  # force_mkt now MEANS "wide-buffer aggressive limit", not prctyp MKT
+  ```
+* **Rules:** (1) any broker-side fix must be verified against the broker's
+  ACTUAL rejection messages, not assumed semantics; (2) every retry loop must
+  re-derive its pricing inputs from fresh data, never reuse the failing value;
+  (3) read the API docs — MKT-forbidding is documented Flattrade behavior.
+
+### 28.2 Stale-build deployment: the VPS was trading YESTERDAY's code
+
+* **Symptom:** 09:23 entry fired on `SR=VWAP` — a gate banned in §43 two days
+  earlier. Six orders in one second across six strikes at 11:20.
+* **Root cause:** the §43 deploy (commit `f44c16a`) was pushed to git but the
+  VPS's `git pull` step was never confirmed (SSH wasn't even possible from the
+  workstation then). The bot silently kept trading the §42-era build for a
+  FULL DAY.
+* **Rules:** (1) after ANY deploy, verify `git log --oneline -1` ON THE VPS,
+  grep the deployed constants ON THE VPS, and restart; (2) deployment is not
+  complete until the running process's code identity is proven; (3) keep an SSH
+  key at `~/.ssh/LightsailDefaultKey-ap-south-1.pem` (documented in
+  EMA20_WINNER_STRATEGY.md §4) so deploys never depend on the browser console.
+
+### 28.3 WS feed circular subscribe → REST throttle → frozen prices
+
+* **Symptom:** "Websocket connected … subscribing 0 instruments + spot";
+  dashboard LTPs frozen; user: "prices not updating every second."
+* **Root cause:** the tick loop only called `ws_feed.subscribe("NFO", token)`
+  **when a tick was already fresh** — but a never-subscribed instrument never
+  gets a tick. Circular. All 6 contracts fell back to REST polling ~7
+  GetQuotes/s → Flattrade throttled → prices stuck-then-alive. The WS path had
+  NEVER been live-tested because `websocket-client` wasn't installed on the VPS
+  (the import failure silently fell back to REST for a week).
+* **Fix:** subscribe **unconditionally** (idempotent — the broker just pushes
+  on change); use tick age only to decide WS-read vs REST-refresh:
+  ```python
+  if self.ws_feed.connected:
+      self.ws_feed.subscribe("NFO", cs.token)          # ALWAYS
+  if (self.ws_feed.connected and ltp_ws is not None
+          and self.ws_feed.age_seconds(...) <= 3.0):   # read gating only
+      ws_fresh_keys.add(key)
+  ```
+* **Rules:** (1) any new dependency must be installed on the VPS in the same
+  change that uses it (and `pip3 install ... --break-system-packages`); (2) a
+  "fallback" that silently engages on ImportError hides the primary path being
+  dead — log it at WARNING and alert; (3) subscribe logic must never depend on
+  having already received data from the thing you're subscribing to.
+
+### 28.4 ±50-boundary flip-flop wiped seeded indicators every ~30s
+
+* **Symptom:** `Session reset for NIFTY08SEP26…: indicators cold-started`
+  repeating; ATR/EMA geometry wrong all day (BE_trig=180.69 on a 128.80 entry —
+  nonsense).
+* **Root cause:** `ensure_contracts` recomputes the desired ±50 watch set every
+  3s from spot. With spot hovering near a 50-boundary, contract keys flip
+  in/out of the set; the prune deleted them and re-registration called
+  `reset_session()` — wiping the 300-bar seeded warmup in a loop.
+* **Fix:** same-day re-registration guard on `OptionContractState`:
+  `session_date` + `seed_complete` fields; `reset_session()` only when NOT
+  already warm today. Dynamic-strike rollovers keep indicator continuity.
+* **Rule:** state whose construction is expensive (warmup) must be preserved
+  across idempotent re-registration; only day-rollover may cold-reset.
+
+### 28.5 Multi-strike entry spam (6 orders in 1 second)
+
+* **Symptom:** 11:20:00.4–0.9 — six order IDs in 900ms across ALL registered
+  strikes (2nd-ITM pair + 4 watch pairs).
+* **Root cause:** signals were read from every registered contract; the watch
+  pairs are plumbing, not tradeable instruments.
+* **Fix:** signal gate in the tick loop — only the CURRENT 2nd-ITM pair
+  (`CE_SPEC`/`PE_SPEC` from `desired_strikes(spot)`) may open trades; watch
+  pairs warm-only.
+* **Rule:** enumerate which instruments may OPEN positions and enforce it at
+  the order path, not at registration.
+
+### 28.6 Trades erased on restart (dashboard said +0.00, broker held −715)
+
+* **Fix:** append-only `logs/trades_YYYY-MM-DD.jsonl`; `_load_today_trades()`
+  restores the day's record at startup.
+* **Rule:** any per-day ledger that lives only in RAM does not exist.
+
+### 28.7 Session-gate cosmetics vs reality (the 15:03 trigger)
+
+A 15:02-bar trigger LOGS "TRIGGERED" at 15:03 (the log fires inside
+`_on_1m_bar_close`, before the engine's `minute <= SESSION_END_MIN` gate). The
+gate correctly blocked the ORDER. **Log lines are not order attempts** — when
+auditing congruence, distinguish signal logs from order submissions.
+
+---
+
+## 29. Post-Deploy Verification Protocol (run after EVERY VPS deploy)
+
+```
+[ ] 1.  git log --oneline -1            # ON THE VPS — must match release HEAD
+[ ] 2.  grep constants on the VPS file  # ARM_WINDOW/ATR_MULT/BE_TRIGGER_RATIO
+[ ] 3.  systemctl restart flattrade-bot && systemctl is-active
+[ ] 4.  Wait 60s → grep "Websocket connected" + "subscribing N instruments" (N>0!)
+[ ] 5.  Watch spot update across 3 dashboard captures 30s apart (WS fresh)
+[ ] 6.  grep "Session reset" — must appear ONLY at startup warmup, never after
+[ ] 7.  python3 -m pytest tests/... -q  # on the VPS (needs pytest, pytest-asyncio, numpy)
+[ ] 8.  Position book: netqty == 0 for every row outside trading hours
+[ ] 9.  After first session: compare VPS trigger log vs reference replay
+       (fetch day → sep3_congruence.py pattern → diff signals 1:1)
+[ ] 10. Confirm EOD square-off fired at 15:15 and left no open position
+```
+
+> The 2026-09-03 session failed checks 1, 4, 5, 6 (stale build, WS dead,
+> frozen prices, reset spam) — and had traded for a full day before anyone
+> noticed. This checklist exists so that never happens again.
 
 
 

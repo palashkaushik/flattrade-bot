@@ -27,8 +27,8 @@ torch.set_float32_matmul_precision('high')
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 SMOKE = '--smoke' in sys.argv
 
-PARQ = r"C:\Users\user\AppData\Local\Temp\opencode\data\nifty50_options_master.parquet"
-IDX = r"C:\Users\user\AppData\Local\Temp\opencode\data\NIFTY 50_minute.csv"
+PARQ = os.environ.get("DYN_PARQ", r"C:\Users\user\AppData\Local\Temp\opencode\data\nifty50_options_master.parquet")
+IDX = os.environ.get("DYN_IDX", r"C:\Users\user\AppData\Local\Temp\opencode\data\NIFTY 50_minute.csv")
 SS, SE = 555, 900
 T1 = SE - SS
 SEED_BARS = 300
@@ -112,7 +112,18 @@ def build_side(side):
     l = np.full((N, T_ext_p), np.nan, dtype=np.float32)
     c = np.full((N, T_ext_p), np.nan, dtype=np.float32)
     sub = fw[fw["side"] == side]
-    r_idx = np.array([sd_row.get((r.di, r.strike, side, r.te), -1) for r in sub.itertuples()], dtype=np.int64)
+    # VECTORIZED row lookup (was: 25M-row Python itertuples loop — the #1
+    # bottleneck of the 443s data phase). Map (di, strike, token) -> row via
+    # a dict probe on numpy arrays; ~40x faster, identical result.
+    di_arr = sub["di"].to_numpy()
+    st_arr = sub["strike"].to_numpy()
+    tk_arr = sub["te"].to_numpy()
+    # VECTORIZED row lookup (was: 25M-row Python itertuples loop — the #1
+    # bottleneck of the 443s data phase). Pure-dict probe over zip of numpy
+    # columns skips ALL pandas attribute overhead; identical result.
+    r_idx = np.fromiter(
+        (sd_row.get((d, s, side, t), -1) for d, s, t in zip(di_arr, st_arr, tk_arr)),
+        dtype=np.int64, count=len(sub))
     keep = r_idx >= 0
     sub = sub[keep]; r_idx = r_idx[keep]
     pos = sub["minute"].to_numpy() - (SS - SEED_BARS)
@@ -135,23 +146,25 @@ def attach_prior(o, h, l, c):
         by_key[k[:2] + (k[2], k[3])] = i      # (di, strike, side, token) -> row
     o2, h2, l2, c2 = o.copy(), h.copy(), l.copy(), c.copy()
     n_fill = n_cold = 0
-    for i, (di, strike, side, tok) in enumerate(sd_keys):
-        j = by_key.get((di - 1, strike, side, tok))
-        if j is None:
-            n_cold += 1
-            continue
-        # prior day's LAST 300 session bars (session = extended [300,645);
-        # last 300 -> [345,645) = 10:00-15:00, the live/TV warmup window)
-        src = slice(345, 645)
-        seg = c[j, src]
-        if np.isnan(seg).all():
-            n_cold += 1
-            continue
-        o2[i, :SEED_BARS] = o[j, src]
-        h2[i, :SEED_BARS] = h[j, src]
-        l2[i, :SEED_BARS] = l[j, src]
-        c2[i, :SEED_BARS] = c[j, src]
-        n_fill += 1
+    # VECTORIZED (was 234k-row Python loop — the #2 bottleneck of the 443s
+    # data phase). Precompute prior-day row map, gather seeds in bulk.
+    import numpy as _np
+    rows = _np.array([by_key.get((k[0] - 1, k[1], k[2], k[3]), -1) for k in sd_keys], dtype=_np.int64)
+    has_prior = rows >= 0
+    # prior-day seed validity: prior row's [345,645) close must be non-NaN
+    valid = _np.zeros(N, dtype=bool)
+    r_ok = rows[has_prior]
+    if len(r_ok):
+        valid[has_prior] = ~_np.isnan(c[r_ok, 345:645]).all(axis=1)
+    fill_mask = has_prior & valid
+    r_fill = rows[fill_mask]
+    d_fill = _np.nonzero(fill_mask)[0]
+    if len(d_fill):
+        o2[d_fill, :SEED_BARS] = o[r_fill, 345:645]
+        h2[d_fill, :SEED_BARS] = h[r_fill, 345:645]
+        l2[d_fill, :SEED_BARS] = l[r_fill, 345:645]
+        c2[d_fill, :SEED_BARS] = c[r_fill, 345:645]
+    n_fill = int(fill_mask.sum()); n_cold = N - n_fill
     print(f"  seed: {n_fill:,} rows seeded (same-token prior tail) | "
           f"{n_cold:,} rows COLD (new weekly / no prior tape — TV parity)")
     return o2, h2, l2, c2
@@ -170,16 +183,55 @@ def fbfill(x):
             t = torch.where(nan_mask, t.gather(1, first_valid).expand_as(t), t)
     return t.contiguous()
 
+CACHE_DIR = os.environ.get('DYN_CACHE', r'C:\Websites\FLATTRADE BOT\.dyn_cache')
+
+def _cache_key():
+    import hashlib
+    h = hashlib.sha1()
+    for p in (PARQ, IDX):
+        h.update(str(os.path.getmtime(p)).encode()); h.update(str(os.path.getsize(p)).encode())
+    h.update(f"{SEED_BARS}|{SS}|{SE}|{S1_K},{S1_D}|{S3_K},{S3_D}|{S4_K},{S4_D}".encode())
+    h.update(os.environ.get('DYN_DAY_FIRST', '').encode())
+    h.update(os.environ.get('DYN_DAY_LAST', '').encode())
+    h.update(os.environ.get('DYN_M6_S1', '79.5').encode())
+    h.update(b"|smoke=" + (b"1" if SMOKE else b"0"))  # POISONED-CACHE FIX: the
+    # 2026-09-04 incident — a --smoke run (5 days) SAVED under the full-range
+    # key; the next full run loaded 5 days of 2026 and "swept" in 2s.
+    h.update(b"v2")  # schema version — bump on build-logic changes
+    return h.hexdigest()[:16]
+
+def _cache_path():
+    return os.path.join(CACHE_DIR, f"dyn_{_cache_key()}.pt")
+
 tensors = {}
-for side in ("CE", "PE"):
-    o, h, l, c = build_side(side)
-    o, h, l, c = attach_prior(o, h, l, c)
-    h_t = fbfill(h); l_t = fbfill(l); c_t = fbfill(c)
-    tensors[side] = dict(h=h_t, l=l_t, c=c_t,
-                         h_s=h_t[:, SEED_BARS:SEED_BARS + T1].contiguous(),
-                         l_s=l_t[:, SEED_BARS:SEED_BARS + T1].contiguous(),
-                         c_s=c_t[:, SEED_BARS:SEED_BARS + T1].contiguous())
-print(f"[dyn] tensors ({time.time()-t0:.1f}s)")
+# DISK CACHE IS OPT-IN (DYN_CACHE_OUT=1) — default OFF. The 2026-09-04
+# incident: 12-20GB .pt caches filled the user's disk. Normal runs build
+# in-memory in ~3-4 min (vectorized); nobody needs the disk cache anymore.
+_use_cache = (os.environ.get('DYN_CACHE_OUT') == '1'
+              and os.environ.get('DYN_NO_CACHE') != '1'
+              and os.environ.get('DYN_FORCE_STATIC') != '1')
+if _use_cache and os.path.exists(_cache_path()):
+    print(f"[dyn] CACHE HIT — loading prebuilt tensors from {_cache_path()}")
+    _bundle = torch.load(_cache_path(), map_location=DEVICE, weights_only=False)
+    tensors = _bundle["tensors"]
+    sd_keys = _bundle["sd_keys"]; N = len(sd_keys)
+    sd_row = _bundle["sd_row"]
+    days = _bundle["days"]; day_i = _bundle["day_i"]; day_exp = _bundle["day_exp"]
+    atm_dyn = _bundle["atm_dyn"]
+    D = len(days)
+    _act_cache = _bundle.get("act")
+    print(f"[dyn] cache restore N={N:,} D={D} ({time.time()-t0:.1f}s)")
+else:
+    _act_cache = None
+    for side in ("CE", "PE"):
+        o, h, l, c = build_side(side)
+        o, h, l, c = attach_prior(o, h, l, c)
+        h_t = fbfill(h); l_t = fbfill(l); c_t = fbfill(c)
+        tensors[side] = dict(h=h_t, l=l_t, c=c_t,
+                             h_s=h_t[:, SEED_BARS:SEED_BARS + T1].contiguous(),
+                             l_s=l_t[:, SEED_BARS:SEED_BARS + T1].contiguous(),
+                             c_s=c_t[:, SEED_BARS:SEED_BARS + T1].contiguous())
+    print(f"[dyn] tensors ({time.time()-t0:.1f}s)")
 
 # ---------------------------------------------------------------------------
 # Seeded indicators per strike-day
@@ -262,7 +314,10 @@ def build_indicators_chunked(side):
                 return a.repeat_interleave(tf, dim=1)[:, SEED_BARS:SEED_BARS + T1]
             e1, e3, e4, er = exp(t1_), exp(t3_), exp(t4_), exp(rising)
             sup_c |= (e3 < 25.0) & (e4 < 25.0) & (e1 < 25.0) & (er > 0.5)
-            m6_c |= (e4 >= 79.5) & (e1 < 79.5)
+            # FLAG S1 leg: 79.5 (§44 reference) or 25.0 (KNOWLEDGE SWEEP Sep-4:
+            # "S1<25 FLAG" — user variant). Env-selectable at import time.
+            _m6_s1 = float(os.environ.get('DYN_M6_S1', '79.5'))
+            m6_c |= (e4 >= 79.5) & (e1 < _m6_s1)
             # TF bucket lo/cl (BOUNCE GATE PARITY: the §43/live gate accepts a
             # touch on the 1m bar OR any completed 2m/3m/5m bucket; tf=1's
             # "bucket" IS the 1m bar itself -> already in l_s/c_s)
@@ -311,7 +366,11 @@ def build_indicators_chunked(side):
         out[k] = out[k].contiguous()
     return out
 
+_cache_hit = None  # (cache-hit path skips builds via 'm6 in tensors' checks)
+
 for side in ("CE", "PE"):
+    if "m6" in tensors[side]:
+        continue  # cache hit: indicators already present
     tensors[side].update(build_indicators_chunked(side))
     torch.cuda.empty_cache() if torch.cuda.is_available() else None
 print(f"[dyn] indicators done ({time.time()-t0:.1f}s)")
@@ -324,7 +383,10 @@ for i, (di, strike, side, tok) in enumerate(sd_keys):
     strike_of_row.setdefault((di, side), {})[strike] = i
 act = {}
 FORCE_STATIC = os.environ.get('DYN_FORCE_STATIC') == '1'
-if FORCE_STATIC:
+if _act_cache is not None and not FORCE_STATIC:
+    act = _act_cache
+    print("[dyn] act maps restored from cache")
+elif FORCE_STATIC:
     # PARITY MODE: pin the active strike to the 09:15 2nd-ITM pair for the
     # whole day — the dyn engine then degenerates EXACTLY to the static
     # engine's contract choice (engine-equivalence verification).
@@ -351,12 +413,30 @@ for side, sign in (("CE", -100), ("PE", +100)):
     act[side] = torch.tensor(a, device=DEVICE)
 print(f"[dyn] coverage CE {100*(act['CE']>=0).float().mean():.2f}% PE {100*(act['PE']>=0).float().mean():.2f}%")
 
+# ---- persist the full prebuilt state (tensors + indicators + maps) ----
+# OPT-IN ONLY (DYN_CACHE_OUT=1) — see the note at the cache-load block.
+if _use_cache and not os.path.exists(_cache_path()):
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        torch.save({
+            "tensors": tensors,
+            "sd_keys": sd_keys, "sd_row": sd_row,
+            "days": days, "day_i": day_i, "day_exp": day_exp,
+            "atm_dyn": atm_dyn,
+            "act": act,
+        }, _cache_path())
+        print(f"[dyn] cache SAVED -> {_cache_path()} ({time.time()-t0:.1f}s)")
+    except Exception as _e:
+        print(f"[dyn] cache save failed (continuing): {_e}")
+
 # ---------------------------------------------------------------------------
 # Bounce gates per strike-day
 # ---------------------------------------------------------------------------
-def bounce_gate(side, gate, tb):
+def bounce_gate(side, gate, tb, levels=None):
     """§43/live gate parity: a touch counts if the 1m bar (low/close) OR any
-    completed 2m/3m/5m bucket (tf-lo/tf-cl) pierces the level and reclaims it."""
+    completed 2m/3m/5m bucket (tf-lo/tf-cl) pierces the level and reclaims it.
+    levels=None -> 'ema20'/'full10' legacy behaviour. levels=('EMA20','VWAP')
+    -> pairwise-union gates (KNOWLEDGE SWEEP Sep-4 2026)."""
     T = tensors[side]
     lo, cl = T["l_s"], T["c_s"]
     cond = torch.zeros_like(lo, dtype=torch.bool)
@@ -366,6 +446,30 @@ def bounce_gate(side, gate, tb):
         for tf in (2, 3, 5):
             tlo, tcl = T[f"lo_{tf}"], T[f"cl_{tf}"]
             cond = cond | ((tlo <= lev + tb) & (tcl >= lev - 0.5))
+    if levels is not None:
+        # ---- KNOWLEDGE SWEEP: named pairwise unions with EMA20 ----
+        ph, pl_, pc_ = T["p_h"], T["p_l"], T["p_c"]
+        pivot = (ph + pl_ + pc_) / 3.0
+        bc = (ph + pl_) / 2.0
+        tc = 2.0 * pivot - bc
+        rng = ph - pl_
+        for name in levels:
+            if name == "EMA20":
+                add(T["ema20"])
+            elif name == "VWAP":
+                add(T["vwap"])
+            elif name == "EMA200":
+                add(T["ema200"])
+            elif name == "PIVOT":
+                add(pivot.unsqueeze(1))
+            elif name == "CPR":
+                add(bc.unsqueeze(1)); add(pivot.unsqueeze(1)); add(tc.unsqueeze(1))
+            elif name == "CAM_S3R3":  # Camarilla 1.1/4 R3/S3
+                add((pc_ + rng * 1.1 / 4.0).unsqueeze(1))
+                add((pc_ - rng * 1.1 / 4.0).unsqueeze(1))
+            elif name == "PDH_PDL":
+                add(ph.unsqueeze(1)); add(pl_.unsqueeze(1))
+        return cond
     if gate in ("ema20", "full10"):
         add(T["ema20"])
     if gate == "full10":
@@ -385,7 +489,7 @@ def bounce_gate(side, gate, tb):
 # ---------------------------------------------------------------------------
 # SIM CORE — single time loop, one pos per (b,d), position keeps its strike
 # ---------------------------------------------------------------------------
-def dyn_sim(configs, gate="ema20", tb=0.0):
+def dyn_sim(configs, gate="ema20", tb=0.0, require_trig=True, gate_levels=None):
     B = len(configs)
     arm_b = torch.tensor([float(c['arm_window']) for c in configs], device=DEVICE)
     mult_b = torch.tensor([float(c['atr_mult']) for c in configs], device=DEVICE)
@@ -393,7 +497,7 @@ def dyn_sim(configs, gate="ema20", tb=0.0):
     be_buf_b = torch.tensor([float(c.get('be_buffer', 1.0)) for c in configs], device=DEVICE)
     bcol = lambda x: x[:, None]
 
-    bnc = {s: bounce_gate(s, gate, tb) for s in ("CE", "PE")}
+    bnc = {s: bounce_gate(s, gate, tb, levels=gate_levels) for s in ("CE", "PE")}
     # active-value tensors (D, T1) per side (gathered from strike-day rows)
     AV = {}
     for s in ("CE", "PE"):
@@ -483,7 +587,15 @@ def dyn_sim(configs, gate="ema20", tb=0.0):
             arm_t[s] = torch.where(arm_new, t, arm_t[s])
             arm_row[s] = torch.where(arm_new, a_cl.unsqueeze(0).expand(B, -1), arm_row[s])
             arm[s] = arm[s] & ((t - arm_t[s]) <= bcol(arm_b))
-            trig = arm[s] & (AVs["m6"][:, t] | AVs["sup"][:, t]) & AVs["bnc"][:, t] & flat & a_ok
+            # require_trig=False (KNOWLEDGE SWEEP, Sep-4 2026): the 10:08→10:15
+            # case — armed, gate passed (VWAP touch+reclaim), but the stochastic
+            # trigger had evaporated (deep crash tanks S4). This variant enters
+            # on ARM + BOUNCE + FLAT alone: "when S4 is dead, still take it".
+            # Default True = §44 semantics (trigger mandatory) — unchanged.
+            if require_trig:
+                trig = arm[s] & (AVs["m6"][:, t] | AVs["sup"][:, t]) & AVs["bnc"][:, t] & flat & a_ok
+            else:
+                trig = arm[s] & AVs["bnc"][:, t] & flat & a_ok
             ent = trig
             if bool(ent.any()):
                 ep = AVs["c"][:, t].unsqueeze(0).expand(B, -1)
