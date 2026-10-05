@@ -48,10 +48,14 @@ from flattrade_bot.strategies.last_hope_winner import (
     TP_PTS_CAP,
 )
 from flattrade_bot.strategies.full10_engine import (
+    ARM_S1,
     DAILY_CAP_PTS as F10_DAILY_CAP_PTS,
+    FLAG_S1,
+    FLAG_S4,
     Full10ContractState,
     Full10Engine,
     SL_PTS as F10_SL_PTS,
+    SUP_T,
     TP_PTS as F10_TP_PTS,
 )
 from flattrade_bot.utils.discord import DiscordNotifier
@@ -1096,7 +1100,7 @@ class LastHopeTradingEngine:
         if self.full10:
             header = Text.from_markup(
                 f" [bold bright_yellow]FULL10 v6[/bold bright_yellow] "
-                f"| [bold white]2nd ITM · S1/S3/S4 12/40/60 (raw) · ARM ≤30 any-TF · 12-LVL same-TF bounce · SL10/TP15 · cap ±{F10_DAILY_CAP_PTS:.0f}p[/bold white] "
+                f"| [bold white]2nd ITM · S1/S3/S4 12/40/60 (raw) · ARM ≤{ARM_S1:.0f} any-TF · 12-LVL same-TF bounce · SL10/TP15 · cap ±{F10_DAILY_CAP_PTS:.0f}p[/bold white] "
                 f"| [cyan]{time_str} IST[/cyan]"
             )
         else:
@@ -1108,7 +1112,7 @@ class LastHopeTradingEngine:
         if self.full10:
             header = Text.from_markup(
                 f" [bold bright_yellow]FULL10 v6[/bold bright_yellow] "
-                f"| [bold white]2nd ITM · Stoch 12/40/60 raw · ARM≤30 · 12-LVL same-TF bounce · SL10/TP15 · cap ±29p[/bold white] "
+                f"| [bold white]2nd ITM · Stoch 12/40/60 raw · ARM≤{ARM_S1:.0f} · 12-LVL same-TF bounce · SL10/TP15 · cap ±29p[/bold white] "
                 f"| [cyan]{time_str} IST[/cyan]"
             )
         else:
@@ -1165,7 +1169,7 @@ class LastHopeTradingEngine:
             )
 
         mon_table = Table(
-            title=("[bold cyan]FULL10 RADAR (ARM≤30 any-TF · 12-LVL gate)[/bold cyan]"
+            title=("[bold cyan]FULL10 RADAR (ARM≤25 any-TF · 12-LVL gate)[/bold cyan]"
                    if self.full10 else
                    "[bold cyan]STRATEGY SETUP RADAR & ARMING MATRIX (S1 12,3 · S3 40,4 · S4 50,10 · SR Suite)[/bold cyan]"),
             box=box.SIMPLE_HEAD, expand=True, padding=(0, 0))
@@ -1185,9 +1189,9 @@ class LastHopeTradingEngine:
             f0 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
 
             if self.full10:
-                # Full10 arming: any-TF S1<=30 within 1 bar of anchor
+                # Full10 arming: any-TF S1<=ARM_S1 within 1 bar of anchor
                 armed_any = any(
-                    (getattr(trackers[tfv], "last_s1", None) or 99) <= 30.0
+                    (getattr(trackers[tfv], "last_s1", None) or 99) <= ARM_S1
                     for tfv in (1, 2, 3, 5)
                 )
                 in_win = (cs.baridx - cs.anchor_bar) <= 1
@@ -1204,12 +1208,12 @@ class LastHopeTradingEngine:
                 t_s1, t_s3, t_s4 = trk.last_s1, trk.last_s3, trk.last_s4
                 if self.full10:
                     if t_s4 is not None and t_s1 is not None:
-                        if t_s4 >= 75.0 and t_s1 < 30.0:
+                        if t_s4 >= FLAG_S4 and t_s1 < FLAG_S1:
                             tf_signals.append(f"[bold green]FLAG {tf}m[/bold green]")
                         elif t_s4 >= 72.0:
                             tf_signals.append(f"[yellow]Flag {tf}m[/yellow]")
                     if t_s1 is not None and t_s3 is not None and t_s4 is not None:
-                        if t_s1 < 30.0 and t_s3 < 30.0 and t_s4 < 30.0:
+                        if t_s1 < SUP_T and t_s3 < SUP_T and t_s4 < SUP_T:
                             is_rise = t_s1 > (trk.prev_s1 or 0)
                             tf_signals.append(f"[bold green]SUPER {tf}m{'+' if is_rise else ''}[/bold green]")
                 else:

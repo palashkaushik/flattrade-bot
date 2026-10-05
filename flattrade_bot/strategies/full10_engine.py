@@ -46,7 +46,6 @@ from flattrade_bot.strategies.last_hope_winner import (
     Bar1m,
     IncrementalATR,
     IncrementalEMA,
-    IncrementalRMA,
     IncrementalStoch,
     IncrementalVWAP,
     TFTracker,
@@ -91,8 +90,10 @@ class Full10ContractState:
     cur_close: Optional[float] = None
     # indicators
     atr: IncrementalATR = field(default_factory=lambda: IncrementalATR(10))
-    ema20: IncrementalRMA = field(default_factory=lambda: IncrementalRMA(20))
-    ema200: IncrementalRMA = field(default_factory=lambda: IncrementalRMA(200))
+    # TradingView-standard EMA (alpha = 2/(N+1)) — matches chart 'EMA (20/200)'
+    # and the certified reference (live engine used Wilder RMA until 2026-10-05).
+    ema20: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(20))
+    ema200: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(200))
     vwap: IncrementalVWAP = field(default_factory=IncrementalVWAP)
     tf: Dict[int, TFTracker] = field(default_factory=lambda: {
         1: TFTracker(1), 2: TFTracker(2), 3: TFTracker(3), 5: TFTracker(5)})
@@ -128,8 +129,8 @@ class Full10ContractState:
         self.current_min = -1
         self.cur_open = self.cur_high = self.cur_low = self.cur_close = None
         self.atr = IncrementalATR(10)
-        self.ema20 = IncrementalRMA(20)
-        self.ema200 = IncrementalRMA(200)
+        self.ema20 = IncrementalEMA(20)
+        self.ema200 = IncrementalEMA(200)
         self.vwap = IncrementalVWAP()
         self.tf = {tfv: TFTracker(tfv) for tfv in (1, 2, 3, 5)}
         for tfv in (1, 2, 3, 5):
@@ -246,7 +247,7 @@ class Full10ContractState:
             if bar.low <= v <= bar.high:
                 del self.virgin[nm]
 
-        # 3. arming: S1 <= 30 on ANY TF -> anchor this baridx
+        # 3. arming: S1 <= ARM_S1 on ANY TF -> anchor this baridx
         for tfv in (1, 2, 3, 5):
             s1 = self.tf[tfv].last_s1
             if s1 is not None and s1 <= ARM_S1:
