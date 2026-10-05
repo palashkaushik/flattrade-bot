@@ -10,7 +10,7 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
     (entry allowed only on the arming bar or the next bar, baridx space)
   - Triggers (5-pt buffers, ANY TF — 1m/2m/3m/5m all use the same limits,
     tightened 2026-10-01 per user: S1/S3/S4 lower limit 30 -> 25):
-      FLAG  = S4 >= 75 and S1 < 25
+      FLAG  = S4 >= 75 and S1 < 50   (S1 gate widened 2026-10-05, was < 25)
       SUPER = S3 < 25 and S4 < 25 and S1 < 25 and S1 rising (S1 > prevS1)
   - BOUNCE is MANDATORY for BOTH trigger kinds (no trigger exits the engine
     without passing the 12-level bounce gate) — no naked entries.
@@ -59,8 +59,8 @@ S3_K, S3_D = 40, 4
 S4_K, S4_D = 60, 10
 ARM_S1 = 25.0           # arming: S1 <= 25 (tightened 2026-10-01, was 30)
 ARM_WIN = 1             # entry on arming bar or next bar only
-FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 25
-FLAG_S1 = 25.0          # tightened 2026-10-01 (was 30)
+FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 50
+FLAG_S1 = 50.0          # S1 gate widened 2026-10-05 per user (was 25)
 SUP_T = 25.0            # SUPER: all three (S1,S3,S4) < 25 & S1 rising (was 30)
 TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold

@@ -34,16 +34,16 @@ Nodes that act as bridges between communities — removing these would disconnec
 
 | RANK | NODE | BETWEENNESS |
 |:---:|:---|:---:|
-| #1 | `opt_futures_quad` | 0.0901 |
-| #2 | `patterns_candle` | 0.0704 |
-| #3 | `backtest_5y_optimized` | 0.0637 |
-| #4 | `backtest_walkforward_fees` | 0.0586 |
-| #5 | `elder_incrementalelderimpulse` | 0.0502 |
-| #6 | `undisputed_main_combinedsupremetradingengine` | 0.0496 |
-| #7 | `divergence_divergenceengine` | 0.0483 |
-| #8 | `grid_optimize_f6_atr` | 0.0424 |
-| #9 | `manager_riskmanager` | 0.0340 |
-| #10 | `pocket_money_pocketmoneyengine` | 0.0332 |
+| #1 | `opt_futures_quad` | 0.0956 |
+| #2 | `patterns_candle` | 0.0656 |
+| #3 | `backtest_walkforward_fees` | 0.0547 |
+| #4 | `undisputed_main_combinedsupremetradingengine` | 0.0546 |
+| #5 | `backtest_5y_optimized` | 0.0546 |
+| #6 | `elder_incrementalelderimpulse` | 0.0542 |
+| #7 | `grid_optimize_f6_atr` | 0.0530 |
+| #8 | `divergence_divergenceengine` | 0.0400 |
+| #9 | `pocket_money_pocketmoneyengine` | 0.0288 |
+| #10 | `manager_riskmanager` | 0.0280 |
 
 ## Community Structure (1 communities)
 
