@@ -840,20 +840,58 @@ class LastHopeTradingEngine:
         self.paper_position = None
 
     def _load_today_trades(self):
-        """Reloads this session's already-recorded trades from the JSONL."""
+        """Reloads this session's already-recorded trades from the JSONL.
+
+        User day-reset: a restart with logs/day_reset.request present clears
+        today's accumulated points — trades recorded before the reset are
+        excluded from the dashboard list AND the FULL10 cap counter, and a
+        persistent logs/day_reset_<date>.flag is written so later restarts
+        respect the reset too. (Without this, the 2026-09-10 incident guard
+        rehydrates the cap on every restart — by design.)"""
         try:
-            path = f"logs/trades_{ist_now().strftime('%Y-%m-%d')}.jsonl"
+            now_ist = ist_now()
+            path = f"logs/trades_{now_ist.strftime('%Y-%m-%d')}.jsonl"
+            flag = f"logs/day_reset_{now_ist.strftime('%Y-%m-%d')}.flag"
+            reset_ts = None
+            if os.path.exists("logs/day_reset.request"):
+                reset_ts = now_ist
+                with open(flag, "w") as f:
+                    f.write(reset_ts.isoformat())
+                try:
+                    os.remove("logs/day_reset.request")
+                except OSError:
+                    pass
+                logger.warning("🔁 DAY RESET — today's recorded points cleared, trading resumed fresh")
+            elif os.path.exists(flag):
+                try:
+                    with open(flag) as f:
+                        reset_ts = datetime.fromisoformat(f.read().strip())
+                except (ValueError, OSError):
+                    reset_ts = None
             if not os.path.exists(path):
                 return
+            skipped = 0
             with open(path) as f:
                 for line in f:
                     line = line.strip()
                     if not line:
                         continue
                     try:
-                        self.trades_today.append(json.loads(line))
+                        t = json.loads(line)
                     except ValueError:
                         continue
+                    if reset_ts is not None:
+                        try:
+                            rec = datetime.fromisoformat(str(t.get("_recorded_at", ""))).replace(tzinfo=None)
+                        except ValueError:
+                            skipped += 1
+                            continue
+                        if rec <= reset_ts.replace(tzinfo=None):
+                            skipped += 1
+                            continue
+                    self.trades_today.append(t)
+            if skipped:
+                logger.info("📂 Day reset: %d pre-reset trade(s) excluded from today's counter", skipped)
             self._wins_today = sum(1 for t in self.trades_today if float(t.get("pts", 0.0)) > 0)
             # FULL10: rehydrate the daily-cap circuit breaker from the JSONL —
             # a mid-session restart must NOT reset the ±29pt halt (2026-09-10
