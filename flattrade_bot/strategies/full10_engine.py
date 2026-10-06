@@ -14,6 +14,9 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
       SUPER = S3 < 25 and S4 < 25 and S1 < 25 and S1 rising (S1 > prevS1)
   - BOUNCE is MANDATORY for BOTH trigger kinds (no trigger exits the engine
     without passing the 12-level bounce gate) — no naked entries.
+  - FINAL EMA200 FILTER (2026-10-05 per user): entry only when the contract's
+    1m bar close is ABOVE its EMA200 — no trades below the 200-EMA, CE and PE
+    alike. (The F10 reference carried this as an optional filter, OFF in v5.)
   - NO dormancy (removed 2026-09-09 per user)
   - 12-LEVEL BOUNCE GATE (TB = 2.0, close-hold = 0.5):
       EMA20, EMA200, VWAP, PDH, PDL, CPR, BC, TC, fibR3, fibS3, camR3,
@@ -288,6 +291,17 @@ class Full10ContractState:
             if lo_ <= v + TB and cl_ >= v - CLOSE_HOLD:
                 hit = (nm, v); break
         if hit is None:
+            return None
+
+        # 7. FINAL FILTER (user 2026-10-05): price must be ABOVE the contract's
+        #    EMA200 (1m) — applies to CE and PE alike.
+        if self.ema200.value is None or bar.close <= self.ema200.value:
+            logger.info(
+                "EMA200 filter: %s %s [%dm] blocked @ %.2f (EMA200=%.2f) on %s",
+                self.side, kind, tfv, bar.close,
+                self.ema200.value if self.ema200.value is not None else 0.0,
+                self.symbol,
+            )
             return None
 
         entry = bar.close

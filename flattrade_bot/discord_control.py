@@ -240,6 +240,7 @@ def create_client():
             "• **Arming:** S1 <= 25.0 arms the setup for 1 bar\n"
             "• **S/R Bounce Gate:** Strict touch_buffer=0.0 (Low <= Level & Close >= Level - 0.5) on CPR/Camarilla/EMA/VWAP\n"
             "• **Strikes:** 2nd ITM only — CE = ATM - 100 / PE = ATM + 100\n"
+            "• **Final Filter:** entries only when price is ABOVE EMA200 (1m, per contract — CE & PE alike)\n"
             "• **Exits:** SL = Entry − 10 pts | TP = Entry + 15 pts (fixed) | daily cap ±29 pts\n"
             "• **Session:** 09:15–15:00 IST | 1 position at a time"
         )

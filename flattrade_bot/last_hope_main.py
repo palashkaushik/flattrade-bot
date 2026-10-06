@@ -8,6 +8,7 @@ Specifications from LAST_HOPE_WINNER.md:
   - 1-bar Arming window (S1 <= 25.0)
   - Triggers: Flag (S4 >= 75 & S1 < 50) / Super (S3,S4,S1 < 25 & S1 rising)
   - S/R Bounce Gate (touch_buffer = 0.0): Candle low <= S/R level and close >= level - 0.5
+  - Final Filter: entry only when price is ABOVE EMA200 (1m, per contract — CE & PE alike)
   - Risk Geometry: fixed SL = Entry - 10 pts, TP = Entry + 15 pts, daily cap ±29 pts
   - SL priority over TP; no breakeven lock
 """
