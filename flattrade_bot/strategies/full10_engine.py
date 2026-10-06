@@ -27,8 +27,9 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
       1m setup  -> trigger 1m bar:  low <= lvl+2 and close >= lvl-0.5
       2m/3m/5m  -> that TF's last COMPLETED (today's) bar satisfies the
                    touch. NO cross-TF fallback, NO 1m-bar confirmation.
-    Freshness cap (2026-10-06 per user): the entry close must be within 5 pts
-    ABOVE the claimed level — rejects late chases (not present in v6).
+    Freshness window (2026-10-06 per user): the entry close must sit within
+    [level-1, level+5] of the claimed level — rejects late chases above and
+    stale-bucket entries below a crashed price (not present in v6).
   - Virgin level walk: level dies when any 1m bar's low <= lvl <= high
   - Risk geometry (FIXED, v6): SL = entry - 10.0, TP = entry + 15.0
   - NO breakeven lock (removed 2026-09-09 per user)
@@ -72,8 +73,9 @@ FLAG_S1 = 75.0          # S1 gate widened to <75 per user 2026-10-06 (was 25 -> 
 SUP_T = 25.0            # SUPER: all three (S1,S3,S4) < 25 & S1 rising (was 30)
 TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold
-ENTRY_MAX_ABOVE = 5.0   # freshness cap: entry close must be within this many pts
-                        # of the claimed level (2026-10-06 per user — no late chases)
+ENTRY_MAX_ABOVE = 5.0   # freshness window: entry close must sit within
+ENTRY_MAX_BELOW = 1.0   # [level-1, level+5] (2026-10-06 per user — no late chases
+                        # above, no stale-bucket entries below a crashed price)
 SL_PTS = 10.0           # v6 fixed geometry
 TP_PTS = 15.0
 DAILY_CAP_PTS = 29.0    # circuit breaker: +/- 29 pts on closed day P&L
@@ -300,14 +302,17 @@ class Full10ContractState:
         if hit is None:
             return None
 
-        # Freshness cap (user 2026-10-06): the entry bar's close must be within
-        # ENTRY_MAX_ABOVE pts of the claimed level — no late chases far above a
-        # level the bar swept earlier (e.g. the +13.95 chase on C22600 @11:46).
-        if bar.close > hit[1] + ENTRY_MAX_ABOVE:
+        # Freshness window (user 2026-10-06): the entry must happen AT the
+        # claimed level — close within [level-ENTRY_MAX_BELOW, level+ENTRY_MAX_ABOVE].
+        # Blocks late chases ABOVE (C22600 11:46: +13.95) and stale-bucket
+        # entries BELOW a crashed price (C22600 12:11: -5.17 while the 3m
+        # trigger bar's close, from before the drop, still read above).
+        dx = bar.close - hit[1]
+        if dx > ENTRY_MAX_ABOVE or dx < -ENTRY_MAX_BELOW:
             logger.info(
-                "Bounce too stale: %s %s [%dm] close %.2f vs %s %.2f (+%.2f > %.1f) — skipped",
+                "Bounce too stale: %s %s [%dm] close %.2f vs %s %.2f (%+.2f outside [-%.1f, +%.1f]) — skipped",
                 self.side, kind, tfv, bar.close, hit[0], hit[1],
-                bar.close - hit[1], ENTRY_MAX_ABOVE,
+                dx, ENTRY_MAX_BELOW, ENTRY_MAX_ABOVE,
             )
             return None
 
