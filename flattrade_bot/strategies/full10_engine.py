@@ -6,13 +6,13 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
       S1 = Stoch(12, 1)   S3 = Stoch(40, 1)   S4 = Stoch(60, 1)
       (NOTE: D period = 1 — RAW %K, no smoothing — Full10 decoded spec;
        §44 used (12,3)/(40,4)/(50,10) smoothed. DO NOT "fix".)
-  - Arming: S1 <= 50 on ANY TF (5-pt buffer rule) sets anchor; ARM_WIN = 1
+  - Arming: S1 <= 75 on ANY TF (5-pt buffer rule) sets anchor; ARM_WIN = 1
     (entry allowed only on the arming bar or the next bar, baridx space)
-    — 2026-10-06 per user: widened 25 -> 50 so a FLAG (S4>=75 & S1<50)
-    auto-arms on its own condition (enters off flag+bounce; SUPER unchanged)
+    — 2026-10-06: widened to match FLAG_S1 so a FLAG (S4>=75 & S1<75)
+    self-arms (enters off flag+bounce; SUPER self-arms; was 25 -> 50 -> 75)
   - Triggers (5-pt buffers, ANY TF — 1m/2m/3m/5m all use the same limits,
     tightened 2026-10-01 per user: S1/S3/S4 lower limit 30 -> 25):
-      FLAG  = S4 >= 75 and S1 < 50   (S1 gate widened 2026-10-05, was < 25)
+      FLAG  = S4 >= 75 and S1 < 75   (S1 gate: 25 -> 50 -> 75, 2026-10-06 per user)
       SUPER = S3 < 25 and S4 < 25 and S1 < 25 and S1 rising (S1 > prevS1)
   - BOUNCE is MANDATORY for BOTH trigger kinds (no trigger exits the engine
     without passing the 12-level bounce gate) — no naked entries.
@@ -62,11 +62,11 @@ logger = logging.getLogger("flattrade_bot.full10_engine")
 S1_K, S1_D = 12, 2      # smoothed %D=2 (geoms-certified reference)
 S3_K, S3_D = 40, 4
 S4_K, S4_D = 60, 10
-ARM_S1 = 50.0           # arming: S1 <= 50 (2026-10-06 per user — flags enter off
-                        # their own S1<50 gate; was 25 with the deep-dip requirement)
+ARM_S1 = 75.0           # arming: S1 <= 75 (2026-10-06 per user — matches FLAG_S1
+                        # so flags self-arm; was 25, then 50 with S1<50)
 ARM_WIN = 1             # entry on arming bar or next bar only
-FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 50
-FLAG_S1 = 50.0          # S1 gate widened 2026-10-05 per user (was 25)
+FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 75
+FLAG_S1 = 75.0          # S1 gate widened to <75 per user 2026-10-06 (was 25 -> 50)
 SUP_T = 25.0            # SUPER: all three (S1,S3,S4) < 25 & S1 rising (was 30)
 TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold
