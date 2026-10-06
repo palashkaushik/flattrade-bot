@@ -6,8 +6,10 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
       S1 = Stoch(12, 1)   S3 = Stoch(40, 1)   S4 = Stoch(60, 1)
       (NOTE: D period = 1 — RAW %K, no smoothing — Full10 decoded spec;
        §44 used (12,3)/(40,4)/(50,10) smoothed. DO NOT "fix".)
-  - Arming: S1 <= 25 on ANY TF (5-pt buffer rule) sets anchor; ARM_WIN = 1
+  - Arming: S1 <= 50 on ANY TF (5-pt buffer rule) sets anchor; ARM_WIN = 1
     (entry allowed only on the arming bar or the next bar, baridx space)
+    — 2026-10-06 per user: widened 25 -> 50 so a FLAG (S4>=75 & S1<50)
+    auto-arms on its own condition (enters off flag+bounce; SUPER unchanged)
   - Triggers (5-pt buffers, ANY TF — 1m/2m/3m/5m all use the same limits,
     tightened 2026-10-01 per user: S1/S3/S4 lower limit 30 -> 25):
       FLAG  = S4 >= 75 and S1 < 50   (S1 gate widened 2026-10-05, was < 25)
@@ -60,7 +62,8 @@ logger = logging.getLogger("flattrade_bot.full10_engine")
 S1_K, S1_D = 12, 2      # smoothed %D=2 (geoms-certified reference)
 S3_K, S3_D = 40, 4
 S4_K, S4_D = 60, 10
-ARM_S1 = 25.0           # arming: S1 <= 25 (tightened 2026-10-01, was 30)
+ARM_S1 = 50.0           # arming: S1 <= 50 (2026-10-06 per user — flags enter off
+                        # their own S1<50 gate; was 25 with the deep-dip requirement)
 ARM_WIN = 1             # entry on arming bar or next bar only
 FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 50
 FLAG_S1 = 50.0          # S1 gate widened 2026-10-05 per user (was 25)

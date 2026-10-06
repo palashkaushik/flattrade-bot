@@ -237,7 +237,7 @@ def create_client():
             "🏆 **Last Hope GPU Winner Strategy Spec (1m bars | Backtest-Verified)**\n"
             "• **Triggers:** FLAG (S4 >= 75 & S1 < 50) | SUPER (S3, S4, S1 < 25 & S1 rising)\n"
             "• **Stochastics:** S1(12,2) S3(40,4) S4(60,10) evaluated across 1m, 2m, 3m, 5m bars\n"
-            "• **Arming:** S1 <= 25.0 arms the setup for 1 bar\n"
+            "• **Arming:** S1 <= 50.0 arms the setup for 1 bar\n"
             "• **S/R Bounce Gate:** Strict touch_buffer=0.0 (Low <= Level & Close >= Level - 0.5) on CPR/Camarilla/EMA/VWAP\n"
             "• **Strikes:** 2nd ITM only — CE = ATM - 100 / PE = ATM + 100\n"
             "• **Final Filter:** entries only when price is ABOVE EMA200 (1m, per contract — CE & PE alike)\n"
