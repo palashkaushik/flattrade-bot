@@ -6,19 +6,11 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
       S1 = Stoch(12, 1)   S3 = Stoch(40, 1)   S4 = Stoch(60, 1)
       (NOTE: D period = 1 — RAW %K, no smoothing — Full10 decoded spec;
        §44 used (12,3)/(40,4)/(50,10) smoothed. DO NOT "fix".)
-  - Arming: S1 <= 75 on ANY TF (5-pt buffer rule) sets anchor; ARM_WIN = 1
+  - Arming: S1 <= 30 on ANY TF (5-pt buffer rule) sets anchor; ARM_WIN = 1
     (entry allowed only on the arming bar or the next bar, baridx space)
-    — 2026-10-06: widened to match FLAG_S1 so a FLAG (S4>=75 & S1<75)
-    self-arms (enters off flag+bounce; SUPER self-arms; was 25 -> 50 -> 75)
-  - Triggers (5-pt buffers, ANY TF — 1m/2m/3m/5m all use the same limits,
-    tightened 2026-10-01 per user: S1/S3/S4 lower limit 30 -> 25):
-      FLAG  = S4 >= 75 and S1 < 75   (S1 gate: 25 -> 50 -> 75, 2026-10-06 per user)
-      SUPER = S3 < 25 and S4 < 25 and S1 < 25 and S1 rising (S1 > prevS1)
-  - BOUNCE is MANDATORY for BOTH trigger kinds (no trigger exits the engine
-    without passing the 12-level bounce gate) — no naked entries.
-  - FINAL EMA200 FILTER (2026-10-05 per user): entry only when the contract's
-    1m bar close is ABOVE its EMA200 — no trades below the 200-EMA, CE and PE
-    alike. (The F10 reference carried this as an optional filter, OFF in v5.)
+  - Triggers (5-pt buffers, any TF):
+      FLAG  = S4 >= 75 and S1 < 30
+      SUPER = S3 < 30 and S4 < 30 and S1 < 30 and S1 rising (S1 > prevS1)
   - NO dormancy (removed 2026-09-09 per user)
   - 12-LEVEL BOUNCE GATE (TB = 2.0, close-hold = 0.5):
       EMA20, EMA200, VWAP, PDH, PDL, CPR, BC, TC, fibR3, fibS3, camR3,
@@ -27,9 +19,6 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
       1m setup  -> trigger 1m bar:  low <= lvl+2 and close >= lvl-0.5
       2m/3m/5m  -> that TF's last COMPLETED (today's) bar satisfies the
                    touch. NO cross-TF fallback, NO 1m-bar confirmation.
-    Freshness window (2026-10-06 per user): the entry close must sit within
-    [level-1, level+5] of the claimed level — rejects late chases above and
-    stale-bucket entries below a crashed price (not present in v6).
   - Virgin level walk: level dies when any 1m bar's low <= lvl <= high
   - Risk geometry (FIXED, v6): SL = entry - 10.0, TP = entry + 15.0
   - NO breakeven lock (removed 2026-09-09 per user)
@@ -54,6 +43,7 @@ from flattrade_bot.strategies.last_hope_winner import (
     Bar1m,
     IncrementalATR,
     IncrementalEMA,
+    IncrementalRMA,
     IncrementalStoch,
     IncrementalVWAP,
     TFTracker,
@@ -65,17 +55,13 @@ logger = logging.getLogger("flattrade_bot.full10_engine")
 S1_K, S1_D = 12, 2      # smoothed %D=2 (geoms-certified reference)
 S3_K, S3_D = 40, 4
 S4_K, S4_D = 60, 10
-ARM_S1 = 75.0           # arming: S1 <= 75 (2026-10-06 per user — matches FLAG_S1
-                        # so flags self-arm; was 25, then 50 with S1<50)
+ARM_S1 = 30.0           # arming: S1 <= 30 (5-pt buffer rule)
 ARM_WIN = 1             # entry on arming bar or next bar only
-FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 75
-FLAG_S1 = 75.0          # S1 gate widened to <75 per user 2026-10-06 (was 25 -> 50)
-SUP_T = 25.0            # SUPER: all three (S1,S3,S4) < 25 & S1 rising (was 30)
+FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 30
+FLAG_S1 = 30.0
+SUP_T = 30.0            # SUPER: all three < 30 & S1 rising
 TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold
-ENTRY_MAX_ABOVE = 5.0   # freshness window: entry close must sit within
-ENTRY_MAX_BELOW = 1.0   # [level-1, level+5] (2026-10-06 per user — no late chases
-                        # above, no stale-bucket entries below a crashed price)
 SL_PTS = 10.0           # v6 fixed geometry
 TP_PTS = 15.0
 DAILY_CAP_PTS = 29.0    # circuit breaker: +/- 29 pts on closed day P&L
@@ -102,10 +88,8 @@ class Full10ContractState:
     cur_close: Optional[float] = None
     # indicators
     atr: IncrementalATR = field(default_factory=lambda: IncrementalATR(10))
-    # TradingView-standard EMA (alpha = 2/(N+1)) — matches chart 'EMA (20/200)'
-    # and the certified reference (live engine used Wilder RMA until 2026-10-05).
-    ema20: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(20))
-    ema200: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(200))
+    ema20: IncrementalRMA = field(default_factory=lambda: IncrementalRMA(20))
+    ema200: IncrementalRMA = field(default_factory=lambda: IncrementalRMA(200))
     vwap: IncrementalVWAP = field(default_factory=IncrementalVWAP)
     tf: Dict[int, TFTracker] = field(default_factory=lambda: {
         1: TFTracker(1), 2: TFTracker(2), 3: TFTracker(3), 5: TFTracker(5)})
@@ -141,8 +125,8 @@ class Full10ContractState:
         self.current_min = -1
         self.cur_open = self.cur_high = self.cur_low = self.cur_close = None
         self.atr = IncrementalATR(10)
-        self.ema20 = IncrementalEMA(20)
-        self.ema200 = IncrementalEMA(200)
+        self.ema20 = IncrementalRMA(20)
+        self.ema200 = IncrementalRMA(200)
         self.vwap = IncrementalVWAP()
         self.tf = {tfv: TFTracker(tfv) for tfv in (1, 2, 3, 5)}
         for tfv in (1, 2, 3, 5):
@@ -200,10 +184,6 @@ class Full10ContractState:
         for bar in (today_bars or []):
             self.bars.append(bar)
             self._push_bar_indicators(bar, seed=False)
-            # VWAP is day-session cumulative — today's pre-registration bars
-            # must feed it too (matches reference seed_1m_bars; otherwise a
-            # late-registered contract starts VWAP at ~0 vs chart's day VWAP).
-            self.vwap.update(bar.high, bar.low, bar.close, volume=bar.volume)
 
     def _push_bar_indicators(self, bar: Bar1m, seed: bool):
         """One completed 1m bar through every indicator + TF tracker.
@@ -259,7 +239,7 @@ class Full10ContractState:
             if bar.low <= v <= bar.high:
                 del self.virgin[nm]
 
-        # 3. arming: S1 <= ARM_S1 on ANY TF -> anchor this baridx
+        # 3. arming: S1 <= 30 on ANY TF -> anchor this baridx
         for tfv in (1, 2, 3, 5):
             s1 = self.tf[tfv].last_s1
             if s1 is not None and s1 <= ARM_S1:
@@ -300,31 +280,6 @@ class Full10ContractState:
             if lo_ <= v + TB and cl_ >= v - CLOSE_HOLD:
                 hit = (nm, v); break
         if hit is None:
-            return None
-
-        # Freshness window (user 2026-10-06): the entry must happen AT the
-        # claimed level — close within [level-ENTRY_MAX_BELOW, level+ENTRY_MAX_ABOVE].
-        # Blocks late chases ABOVE (C22600 11:46: +13.95) and stale-bucket
-        # entries BELOW a crashed price (C22600 12:11: -5.17 while the 3m
-        # trigger bar's close, from before the drop, still read above).
-        dx = bar.close - hit[1]
-        if dx > ENTRY_MAX_ABOVE or dx < -ENTRY_MAX_BELOW:
-            logger.info(
-                "Bounce too stale: %s %s [%dm] close %.2f vs %s %.2f (%+.2f outside [-%.1f, +%.1f]) — skipped",
-                self.side, kind, tfv, bar.close, hit[0], hit[1],
-                dx, ENTRY_MAX_BELOW, ENTRY_MAX_ABOVE,
-            )
-            return None
-
-        # 7. FINAL FILTER (user 2026-10-05): price must be ABOVE the contract's
-        #    EMA200 (1m) — applies to CE and PE alike.
-        if self.ema200.value is None or bar.close <= self.ema200.value:
-            logger.info(
-                "EMA200 filter: %s %s [%dm] blocked @ %.2f (EMA200=%.2f) on %s",
-                self.side, kind, tfv, bar.close,
-                self.ema200.value if self.ema200.value is not None else 0.0,
-                self.symbol,
-            )
             return None
 
         entry = bar.close

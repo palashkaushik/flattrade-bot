@@ -1,8 +1,8 @@
 # FLATTRADE BOT — Knowledge Graph Report
 
-**Generated:** 2026-10-06  
+**Generated:** 2026-10-07  
 **Source:** `C:\\Websites\\FLATTRADE BOT`  
-**Graph:** 4453 nodes · 7431 edges · 1 communities
+**Graph:** 4453 nodes · 7433 edges · 1 communities
 
 ---
 
@@ -34,16 +34,16 @@ Nodes that act as bridges between communities — removing these would disconnec
 
 | RANK | NODE | BETWEENNESS |
 |:---:|:---|:---:|
-| #1 | `opt_futures_quad` | 0.1060 |
-| #2 | `patterns_candle` | 0.0793 |
-| #3 | `elder_incrementalelderimpulse` | 0.0677 |
-| #4 | `undisputed_main_combinedsupremetradingengine` | 0.0673 |
-| #5 | `backtest_walkforward_fees` | 0.0602 |
-| #6 | `backtest_5y_optimized` | 0.0595 |
-| #7 | `divergence_divergenceengine` | 0.0545 |
-| #8 | `grid_optimize_f6_atr` | 0.0520 |
-| #9 | `execution_tradeexecutor` | 0.0470 |
-| #10 | `pocket_money_main_pocketmoneytradingengine` | 0.0398 |
+| #1 | `opt_futures_quad` | 0.1185 |
+| #2 | `undisputed_main_combinedsupremetradingengine` | 0.0944 |
+| #3 | `elder_incrementalelderimpulse` | 0.0930 |
+| #4 | `backtest_walkforward_fees` | 0.0665 |
+| #5 | `patterns_candle` | 0.0654 |
+| #6 | `grid_optimize_f6_atr` | 0.0519 |
+| #7 | `backtest_5y_optimized` | 0.0503 |
+| #8 | `manager_riskmanager` | 0.0476 |
+| #9 | `execution_tradeexecutor` | 0.0469 |
+| #10 | `divergence_divergenceengine` | 0.0466 |
 
 ## Community Structure (1 communities)
 
@@ -57,7 +57,7 @@ Nodes that act as bridges between communities — removing these would disconnec
 |:---|:---:|
 | Total Python Files | 63 |
 | Total Nodes | 4453 |
-| Total Edges | 7431 |
+| Total Edges | 7433 |
 | Communities | 1 |
 | Avg Degree | 3.34 |
 

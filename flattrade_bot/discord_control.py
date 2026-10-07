@@ -235,13 +235,12 @@ def create_client():
             return
         msg = (
             "🏆 **Last Hope GPU Winner Strategy Spec (1m bars | Backtest-Verified)**\n"
-            "• **Triggers:** FLAG (S4 >= 75 & S1 < 75) | SUPER (S3, S4, S1 < 25 & S1 rising)\n"
-            "• **Stochastics:** S1(12,2) S3(40,4) S4(60,10) evaluated across 1m, 2m, 3m, 5m bars\n"
-            "• **Arming:** S1 <= 75.0 arms the setup for 1 bar\n"
+            "• **Triggers:** FLAG (S4%D >= 79.5 & S1 < 79.5) | SUPER (S3, S4, S1 < 25 & S1 rising)\n"
+            "• **Stochastics:** S1(12,3) S3(40,4) S4(50,10) evaluated across 1m, 2m, 3m, 5m bars\n"
+            "• **Arming:** S1 <= 25.0 arms the setup for up to 15 bars\n"
             "• **S/R Bounce Gate:** Strict touch_buffer=0.0 (Low <= Level & Close >= Level - 0.5) on CPR/Camarilla/EMA/VWAP\n"
             "• **Strikes:** 2nd ITM only — CE = ATM - 100 / PE = ATM + 100\n"
-            "• **Final Filter:** entries only when price is ABOVE EMA200 (1m, per contract — CE & PE alike)\n"
-            "• **Exits:** SL = Entry − 10 pts | TP = Entry + 15 pts (fixed) | daily cap ±29 pts\n"
+            "• **Exits:** SL & TP = min(ATR(10) * 1.5, 15 pts) | Breakeven stop locked to Entry + 1.0 pt at +50% target move\n"
             "• **Session:** 09:15–15:00 IST | 1 position at a time"
         )
         await reply(interaction, msg)

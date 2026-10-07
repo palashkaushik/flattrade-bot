@@ -171,14 +171,6 @@ class FlattradeHistoryFetcher:
             if isinstance(data, list):
                 candles = []
                 for row in data:
-                    # API returns each row as a JSON *string* (docs sample
-                    # ["{\"time\":...}", ...]); parse it or every row is dropped
-                    # and the 0-candle result forces the 1m-fallback close.
-                    if isinstance(row, str):
-                        try:
-                            row = json.loads(row)
-                        except (ValueError, TypeError):
-                            continue
                     if not isinstance(row, dict):
                         continue
                     # API returns "DD-MON-YYYY" (e.g. "31-AUG-2026"); normalize to DD-MM-YYYY

@@ -4,13 +4,13 @@ Strategy: 🏆 Last Hope GPU Winner (7-Year Net ₹2,108,703 | 63.89% Win Rate |
 Specifications from LAST_HOPE_WINNER.md:
   - 1-minute option OHLC bars (09:15–15:00 IST)
   - 2nd ITM strikes (CE = ATM - 100, PE = ATM + 100)
-  - Multi-TF Option Stochastics (1m, 2m, 3m, 5m): S1(12,2), S3(40,4), S4(60,10)
-  - 1-bar Arming window (S1 <= 25.0)
-  - Triggers: Flag (S4 >= 75 & S1 < 50) / Super (S3,S4,S1 < 25 & S1 rising)
+  - Multi-TF Option Stochastics (1m, 2m, 3m, 5m): S1(12,3), S3(40,4), S4(50,10)
+  - 10-bar Arming window (S1 <= 25.0)
+  - Triggers: Flag (M6: S4 >= 79.5 & S1 < 79.5) / Super (S3,S4,S1 < 25 & S1 rising)
   - S/R Bounce Gate (touch_buffer = 0.0): Candle low <= S/R level and close >= level - 0.5
-  - Final Filter: entry only when price is ABOVE EMA200 (1m, per contract — CE & PE alike)
-  - Risk Geometry: fixed SL = Entry - 10 pts, TP = Entry + 15 pts, daily cap ±29 pts
-  - SL priority over TP; no breakeven lock
+  - Risk Geometry: dist = min(ATR(10) * 1.5, 15.0 pts), SL = Entry - dist, TP = Entry + dist
+  - Breakeven Stop (BE): At +50% of distance, SL hardens to Entry + 1.0 pt
+  - SL priority over TP
 """
 
 import asyncio
@@ -49,14 +49,10 @@ from flattrade_bot.strategies.last_hope_winner import (
     TP_PTS_CAP,
 )
 from flattrade_bot.strategies.full10_engine import (
-    ARM_S1,
     DAILY_CAP_PTS as F10_DAILY_CAP_PTS,
-    FLAG_S1,
-    FLAG_S4,
     Full10ContractState,
     Full10Engine,
     SL_PTS as F10_SL_PTS,
-    SUP_T,
     TP_PTS as F10_TP_PTS,
 )
 from flattrade_bot.utils.discord import DiscordNotifier
@@ -627,7 +623,7 @@ class LastHopeTradingEngine:
             signal=f"{sig['trigger']}_{sig['level']}{signal_suffix}",
             entry_price=entry_price,
             sl_points=dist,
-            tp_points=float(sig["tp_points"]),
+            tp_points=dist,
             current_min=cur_min,
             opened_at=now,
         )
@@ -645,7 +641,7 @@ class LastHopeTradingEngine:
                         signal=f"{sig['trigger']}_{sig['level']}{signal_suffix}",
                         entry_price=entry_price,
                         sl_points=dist,
-                        tp_points=float(sig["tp_points"]),
+                        tp_points=dist,
                         current_min=cur_min,
                         opened_at=now,
                     )
@@ -840,58 +836,20 @@ class LastHopeTradingEngine:
         self.paper_position = None
 
     def _load_today_trades(self):
-        """Reloads this session's already-recorded trades from the JSONL.
-
-        User day-reset: a restart with logs/day_reset.request present clears
-        today's accumulated points — trades recorded before the reset are
-        excluded from the dashboard list AND the FULL10 cap counter, and a
-        persistent logs/day_reset_<date>.flag is written so later restarts
-        respect the reset too. (Without this, the 2026-09-10 incident guard
-        rehydrates the cap on every restart — by design.)"""
+        """Reloads this session's already-recorded trades from the JSONL."""
         try:
-            now_ist = ist_now()
-            path = f"logs/trades_{now_ist.strftime('%Y-%m-%d')}.jsonl"
-            flag = f"logs/day_reset_{now_ist.strftime('%Y-%m-%d')}.flag"
-            reset_ts = None
-            if os.path.exists("logs/day_reset.request"):
-                reset_ts = now_ist
-                with open(flag, "w") as f:
-                    f.write(reset_ts.isoformat())
-                try:
-                    os.remove("logs/day_reset.request")
-                except OSError:
-                    pass
-                logger.warning("🔁 DAY RESET — today's recorded points cleared, trading resumed fresh")
-            elif os.path.exists(flag):
-                try:
-                    with open(flag) as f:
-                        reset_ts = datetime.fromisoformat(f.read().strip())
-                except (ValueError, OSError):
-                    reset_ts = None
+            path = f"logs/trades_{ist_now().strftime('%Y-%m-%d')}.jsonl"
             if not os.path.exists(path):
                 return
-            skipped = 0
             with open(path) as f:
                 for line in f:
                     line = line.strip()
                     if not line:
                         continue
                     try:
-                        t = json.loads(line)
+                        self.trades_today.append(json.loads(line))
                     except ValueError:
                         continue
-                    if reset_ts is not None:
-                        try:
-                            rec = datetime.fromisoformat(str(t.get("_recorded_at", ""))).replace(tzinfo=None)
-                        except ValueError:
-                            skipped += 1
-                            continue
-                        if rec <= reset_ts.replace(tzinfo=None):
-                            skipped += 1
-                            continue
-                    self.trades_today.append(t)
-            if skipped:
-                logger.info("📂 Day reset: %d pre-reset trade(s) excluded from today's counter", skipped)
             self._wins_today = sum(1 for t in self.trades_today if float(t.get("pts", 0.0)) > 0)
             # FULL10: rehydrate the daily-cap circuit breaker from the JSONL —
             # a mid-session restart must NOT reset the ±29pt halt (2026-09-10
@@ -1139,7 +1097,7 @@ class LastHopeTradingEngine:
         if self.full10:
             header = Text.from_markup(
                 f" [bold bright_yellow]FULL10 v6[/bold bright_yellow] "
-                f"| [bold white]2nd ITM · S1/S3/S4 12/40/60 (raw) · ARM ≤{ARM_S1:.0f} any-TF · 12-LVL same-TF bounce · SL10/TP15 · cap ±{F10_DAILY_CAP_PTS:.0f}p[/bold white] "
+                f"| [bold white]2nd ITM · S1/S3/S4 12/40/60 (raw) · ARM ≤30 any-TF · 12-LVL same-TF bounce · SL10/TP15 · cap ±{F10_DAILY_CAP_PTS:.0f}p[/bold white] "
                 f"| [cyan]{time_str} IST[/cyan]"
             )
         else:
@@ -1151,7 +1109,7 @@ class LastHopeTradingEngine:
         if self.full10:
             header = Text.from_markup(
                 f" [bold bright_yellow]FULL10 v6[/bold bright_yellow] "
-                f"| [bold white]2nd ITM · Stoch 12/40/60 raw · ARM≤{ARM_S1:.0f} · 12-LVL same-TF bounce · SL10/TP15 · cap ±29p[/bold white] "
+                f"| [bold white]2nd ITM · Stoch 12/40/60 raw · ARM≤30 · 12-LVL same-TF bounce · SL10/TP15 · cap ±29p[/bold white] "
                 f"| [cyan]{time_str} IST[/cyan]"
             )
         else:
@@ -1208,7 +1166,7 @@ class LastHopeTradingEngine:
             )
 
         mon_table = Table(
-            title=("[bold cyan]FULL10 RADAR (ARM≤25 any-TF · 12-LVL gate)[/bold cyan]"
+            title=("[bold cyan]FULL10 RADAR (ARM≤30 any-TF · 12-LVL gate)[/bold cyan]"
                    if self.full10 else
                    "[bold cyan]STRATEGY SETUP RADAR & ARMING MATRIX (S1 12,3 · S3 40,4 · S4 50,10 · SR Suite)[/bold cyan]"),
             box=box.SIMPLE_HEAD, expand=True, padding=(0, 0))
@@ -1228,9 +1186,9 @@ class LastHopeTradingEngine:
             f0 = lambda v: f"{v:.0f}" if isinstance(v, (int, float)) and v else "--"
 
             if self.full10:
-                # Full10 arming: any-TF S1<=ARM_S1 within 1 bar of anchor
+                # Full10 arming: any-TF S1<=30 within 1 bar of anchor
                 armed_any = any(
-                    (getattr(trackers[tfv], "last_s1", None) or 99) <= ARM_S1
+                    (getattr(trackers[tfv], "last_s1", None) or 99) <= 30.0
                     for tfv in (1, 2, 3, 5)
                 )
                 in_win = (cs.baridx - cs.anchor_bar) <= 1
@@ -1247,12 +1205,12 @@ class LastHopeTradingEngine:
                 t_s1, t_s3, t_s4 = trk.last_s1, trk.last_s3, trk.last_s4
                 if self.full10:
                     if t_s4 is not None and t_s1 is not None:
-                        if t_s4 >= FLAG_S4 and t_s1 < FLAG_S1:
+                        if t_s4 >= 75.0 and t_s1 < 30.0:
                             tf_signals.append(f"[bold green]FLAG {tf}m[/bold green]")
                         elif t_s4 >= 72.0:
                             tf_signals.append(f"[yellow]Flag {tf}m[/yellow]")
                     if t_s1 is not None and t_s3 is not None and t_s4 is not None:
-                        if t_s1 < SUP_T and t_s3 < SUP_T and t_s4 < SUP_T:
+                        if t_s1 < 30.0 and t_s3 < 30.0 and t_s4 < 30.0:
                             is_rise = t_s1 > (trk.prev_s1 or 0)
                             tf_signals.append(f"[bold green]SUPER {tf}m{'+' if is_rise else ''}[/bold green]")
                 else:
