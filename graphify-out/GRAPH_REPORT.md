@@ -2,7 +2,7 @@
 
 **Generated:** 2026-10-07  
 **Source:** `C:\\Websites\\FLATTRADE BOT`  
-**Graph:** 4453 nodes · 7433 edges · 1 communities
+**Graph:** 4454 nodes · 7436 edges · 1 communities
 
 ---
 
@@ -20,7 +20,7 @@ These are the most-connected modules — touching these affects the most other c
 | #6 | `grid_optimize_f6_atr` | 0.0177 |
 | #7 | `patterns_bullishpinbardetector` | 0.0175 |
 | #8 | `optimized_gpu_backtest` | 0.0135 |
-| #9 | `causal_live_parity_research_incrementalatr` | 0.0133 |
+| #9 | `causal_live_parity_research_incrementalatr` | 0.0132 |
 | #10 | `run_7y_v4_master` | 0.0128 |
 | #11 | `gpu_sim_last_hope` | 0.0117 |
 | #12 | `lh_sweep_cuda3` | 0.0115 |
@@ -34,30 +34,30 @@ Nodes that act as bridges between communities — removing these would disconnec
 
 | RANK | NODE | BETWEENNESS |
 |:---:|:---|:---:|
-| #1 | `opt_futures_quad` | 0.1185 |
-| #2 | `undisputed_main_combinedsupremetradingengine` | 0.0944 |
-| #3 | `elder_incrementalelderimpulse` | 0.0930 |
-| #4 | `backtest_walkforward_fees` | 0.0665 |
-| #5 | `patterns_candle` | 0.0654 |
-| #6 | `grid_optimize_f6_atr` | 0.0519 |
-| #7 | `backtest_5y_optimized` | 0.0503 |
-| #8 | `manager_riskmanager` | 0.0476 |
-| #9 | `execution_tradeexecutor` | 0.0469 |
-| #10 | `divergence_divergenceengine` | 0.0466 |
+| #1 | `opt_futures_quad` | 0.1365 |
+| #2 | `undisputed_main_combinedsupremetradingengine` | 0.0746 |
+| #3 | `elder_incrementalelderimpulse` | 0.0745 |
+| #4 | `backtest_5y_optimized` | 0.0690 |
+| #5 | `patterns_candle` | 0.0615 |
+| #6 | `divergence_divergenceengine` | 0.0601 |
+| #7 | `backtest_walkforward_fees` | 0.0570 |
+| #8 | `manager_riskmanager` | 0.0485 |
+| #9 | `grid_optimize_f6_atr` | 0.0478 |
+| #10 | `pocket_money_pocketmoneyengine` | 0.0455 |
 
 ## Community Structure (1 communities)
 
 | COMMUNITY | SIZE | KEY NODES |
 |:---:|:---:|:---|
-| 0 | 4453 | `patterns_candle`, `divergence_divergenceengine`, `backtest_5y_optimized` |
+| 0 | 4454 | `patterns_candle`, `divergence_divergenceengine`, `backtest_5y_optimized` |
 
 ## Architecture Summary
 
 | METRIC | VALUE |
 |:---|:---:|
 | Total Python Files | 63 |
-| Total Nodes | 4453 |
-| Total Edges | 7433 |
+| Total Nodes | 4454 |
+| Total Edges | 7436 |
 | Communities | 1 |
 | Avg Degree | 3.34 |
 

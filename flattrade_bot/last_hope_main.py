@@ -50,6 +50,7 @@ from flattrade_bot.strategies.last_hope_winner import (
 )
 from flattrade_bot.strategies.full10_engine import (
     DAILY_CAP_PTS as F10_DAILY_CAP_PTS,
+    day_cap_bounds,
     Full10ContractState,
     Full10Engine,
     SL_PTS as F10_SL_PTS,
@@ -1124,8 +1125,9 @@ class LastHopeTradingEngine:
         if self.full10:
             cap_state = getattr(self.engine, "_day_cum_pts", 0.0) or 0.0
             halted = getattr(self.engine, "entries_halted", lambda d: False)(f"{now:%Y-%m-%d}")
+            cap_loss, cap_profit = day_cap_bounds(f"{now:%Y-%m-%d}")
             cap_col = ("HALTED" if halted else
-                       f"{cap_state:+.0f}/{F10_DAILY_CAP_PTS:.0f}p")
+                       f"{cap_state:+.0f} (-{cap_loss:.0f}/+{cap_profit:.0f})")
             sys_cols = (("MODE", "bold white"), ("SPOT (ATM)", "bold yellow"),
                         ("2nd ITM (CE/PE)", "bold cyan"), ("EXPIRY", "bold magenta"),
                         ("SESSION", "bold green"),

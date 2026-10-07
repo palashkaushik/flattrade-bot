@@ -65,6 +65,17 @@ CLOSE_HOLD = 0.5        # bounce close-hold
 SL_PTS = 10.0           # v6 fixed geometry
 TP_PTS = 15.0
 DAILY_CAP_PTS = 29.0    # circuit breaker: +/- 29 pts on closed day P&L
+# Per-day asymmetric overrides {day_key: (loss_pts, profit_pts)} — self-expiring.
+# User 2026-10-07: keep trading after the morning -31.3p with a -60 loss bound
+# and +30 profit lock; other days fall back to the ±29 defaults automatically.
+DAILY_CAP_OVERRIDES = {
+    "2026-10-07": (60.0, 30.0),
+}
+
+
+def day_cap_bounds(day_key: str):
+    """(loss_cap, profit_cap) for a day — per-day override or symmetric default."""
+    return DAILY_CAP_OVERRIDES.get(day_key, (DAILY_CAP_PTS, DAILY_CAP_PTS))
 SESSION_START_MIN = 555
 SESSION_END_MIN = 900
 
@@ -364,12 +375,13 @@ class Full10Engine:
             self._day_cum_pts = 0.0
             self._day_halted = False
         self._day_cum_pts += pts
-        if abs(self._day_cum_pts) >= DAILY_CAP_PTS:
+        loss_cap, profit_cap = day_cap_bounds(day_key)
+        if self._day_cum_pts <= -loss_cap or self._day_cum_pts >= profit_cap:
             if not self._day_halted:
                 self._day_halted = True
                 logger.warning(
-                    "🚦 DAILY CIRCUIT BREAKER: closed P&L %.1f pts hit cap ±%.0f — no more entries today",
-                    self._day_cum_pts, DAILY_CAP_PTS,
+                    "🚦 DAILY CIRCUIT BREAKER: closed P&L %.1f pts hit cap (-%.0f/+%.0f) — no more entries today",
+                    self._day_cum_pts, loss_cap, profit_cap,
                 )
 
     def entries_halted(self, day_key: str) -> bool:
@@ -394,6 +406,7 @@ class Full10Engine:
             if not (SESSION_START_MIN <= minute <= SESSION_END_MIN):
                 return None
             if self.entries_halted(f"{dt:%Y-%m-%d}"):
-                logger.info("Signal on %s suppressed — daily cap ±%.0f pts reached", sig["symbol"], DAILY_CAP_PTS)
+                loss_cap, profit_cap = day_cap_bounds(f"{dt:%Y-%m-%d}")
+                logger.info("Signal on %s suppressed — daily cap (-%.0f/+%.0f) reached", sig["symbol"], loss_cap, profit_cap)
                 return None
         return sig
