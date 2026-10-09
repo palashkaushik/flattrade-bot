@@ -147,7 +147,9 @@ class LastHopeTradingEngine:
         self.risk = RiskManager(
             max_daily_loss_points=math.inf,
             quantity=settings.LOT_SIZE,
-            consecutive_loss_limit=4,
+            consecutive_loss_limit=10**9,   # 4-loss block REMOVED 2026-10-09 per user
+                                            # (month replay: it never fired except Oct 9,
+                                            # where the -29 cap superseded it)
             session_start_min=SESSION_START_MIN,
             session_end_min=SESSION_END_MIN,
         )
