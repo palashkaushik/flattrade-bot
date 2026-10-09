@@ -65,9 +65,8 @@ CLOSE_HOLD = 0.5        # bounce close-hold
 SL_PTS = 10.0           # v6 fixed geometry
 TP_PTS = 15.0
 DAILY_CAP_PTS = 29.0    # loss bound: halt new entries when closed day P&L <= -29
-DAILY_CAP_PROFIT = 60.0 # profit lock: halt when >= +60. Raised from 29 on 2026-10-09
-                        # (replay Sep10-Oct9: the +29 lock clipped ~Rs 27k of upside;
-                        # loss stop kept at -29 per user).
+DAILY_CAP_PROFIT = float("inf")  # profit lock REMOVED 2026-10-09 per user (the sweep
+                        # showed every finite lock was a tax; the -29 loss stop stays)
 # Per-day asymmetric overrides {day_key: (loss_pts, profit_pts)} — self-expiring.
 # User 2026-10-07: keep trading after the morning -31.3p with a -60 loss bound
 # and +30 profit lock; other days use the (-29/+60) defaults.
@@ -383,9 +382,10 @@ class Full10Engine:
         if self._day_cum_pts <= -loss_cap or self._day_cum_pts >= profit_cap:
             if not self._day_halted:
                 self._day_halted = True
+                prof_s = "no-lock" if profit_cap == float("inf") else f"+{profit_cap:.0f}"
                 logger.warning(
-                    "🚦 DAILY CIRCUIT BREAKER: closed P&L %.1f pts hit cap (-%.0f/+%.0f) — no more entries today",
-                    self._day_cum_pts, loss_cap, profit_cap,
+                    "🚦 DAILY CIRCUIT BREAKER: closed P&L %.1f pts hit cap (-%.0f/%s) — no more entries today",
+                    self._day_cum_pts, loss_cap, prof_s,
                 )
 
     def entries_halted(self, day_key: str) -> bool:
@@ -411,6 +411,7 @@ class Full10Engine:
                 return None
             if self.entries_halted(f"{dt:%Y-%m-%d}"):
                 loss_cap, profit_cap = day_cap_bounds(f"{dt:%Y-%m-%d}")
-                logger.info("Signal on %s suppressed — daily cap (-%.0f/+%.0f) reached", sig["symbol"], loss_cap, profit_cap)
+                prof_s = "no-lock" if profit_cap == float("inf") else f"+{profit_cap:.0f}"
+                logger.info("Signal on %s suppressed — daily cap (-%.0f/%s) reached", sig["symbol"], loss_cap, prof_s)
                 return None
         return sig

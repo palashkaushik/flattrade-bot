@@ -57,6 +57,8 @@ from flattrade_bot.strategies.full10_engine import (
     SL_PTS as F10_SL_PTS,
     TP_PTS as F10_TP_PTS,
 )
+
+F10_PROFIT_TXT = "none" if F10_CAP_PROFIT == float("inf") else f"+{F10_CAP_PROFIT:.0f}p"
 from flattrade_bot.utils.discord import DiscordNotifier
 
 # Rich is used OFF-SCREEN ONLY: render tables to a string (no Live thread —
@@ -231,7 +233,7 @@ class LastHopeTradingEngine:
                 "fields": [
                     {"name": "Strategy", "value": "Full10 v6 (FLAG/SUPER multi-TF, 12-level same-TF bounce)" if self.full10 else "Last Hope GPU Winner (FLAG/SUPER 1m OHLC)", "inline": True},
                     {"name": "Session", "value": "09:15 - 15:00 IST", "inline": True},
-                    {"name": "Risk Geometry", "value": f"SL {F10_SL_PTS:.0f} / TP {F10_TP_PTS:.0f} pts fixed, daily cap -{F10_DAILY_CAP_PTS:.0f}/+{F10_CAP_PROFIT:.0f} pts" if self.full10 else "ATR(10)x1.5 Breakeven at +40% move (§44 dynamic-strike champion)", "inline": True},
+                    {"name": "Risk Geometry", "value": f"SL {F10_SL_PTS:.0f} / TP {F10_TP_PTS:.0f} pts fixed, daily cap -{F10_DAILY_CAP_PTS:.0f} pts | profit lock: {F10_PROFIT_TXT}" if self.full10 else "ATR(10)x1.5 Breakeven at +40% move (§44 dynamic-strike champion)", "inline": True},
                     {"name": "Mode", "value": "LIVE ORDERS" if self.live_orders else "PAPER SIM", "inline": True},
                     {"name": "Nifty Spot", "value": f"Rs {self.spot_price:,.2f}" if self.spot_price else "--", "inline": True},
                 ],
@@ -1099,7 +1101,7 @@ class LastHopeTradingEngine:
         if self.full10:
             header = Text.from_markup(
                 f" [bold bright_yellow]FULL10 v6[/bold bright_yellow] "
-                f"| [bold white]2nd ITM · S1/S3/S4 12/40/60 (raw) · ARM ≤30 any-TF · 12-LVL same-TF bounce · SL10/TP15 · cap -{F10_DAILY_CAP_PTS:.0f}/+{F10_CAP_PROFIT:.0f}p[/bold white] "
+                f"| [bold white]2nd ITM · S1/S3/S4 12/40/60 (raw) · ARM ≤30 any-TF · 12-LVL same-TF bounce · SL10/TP15 · cap -{F10_DAILY_CAP_PTS:.0f}p/{F10_PROFIT_TXT}[/bold white] "
                 f"| [cyan]{time_str} IST[/cyan]"
             )
         else:
@@ -1111,7 +1113,7 @@ class LastHopeTradingEngine:
         if self.full10:
             header = Text.from_markup(
                 f" [bold bright_yellow]FULL10 v6[/bold bright_yellow] "
-                f"| [bold white]2nd ITM · Stoch 12/40/60 raw · ARM≤30 · 12-LVL same-TF bounce · SL10/TP15 · cap -{F10_DAILY_CAP_PTS:.0f}/+{F10_CAP_PROFIT:.0f}p[/bold white] "
+                f"| [bold white]2nd ITM · Stoch 12/40/60 raw · ARM≤30 · 12-LVL same-TF bounce · SL10/TP15 · cap -{F10_DAILY_CAP_PTS:.0f}p/{F10_PROFIT_TXT}[/bold white] "
                 f"| [cyan]{time_str} IST[/cyan]"
             )
         else:
@@ -1127,8 +1129,9 @@ class LastHopeTradingEngine:
             cap_state = getattr(self.engine, "_day_cum_pts", 0.0) or 0.0
             halted = getattr(self.engine, "entries_halted", lambda d: False)(f"{now:%Y-%m-%d}")
             cap_loss, cap_profit = day_cap_bounds(f"{now:%Y-%m-%d}")
+            prof_txt = "none" if cap_profit == float("inf") else f"+{cap_profit:.0f}"
             cap_col = ("HALTED" if halted else
-                       f"{cap_state:+.0f} (-{cap_loss:.0f}/+{cap_profit:.0f})")
+                       f"{cap_state:+.0f} (-{cap_loss:.0f}/{prof_txt})")
             sys_cols = (("MODE", "bold white"), ("SPOT (ATM)", "bold yellow"),
                         ("2nd ITM (CE/PE)", "bold cyan"), ("EXPIRY", "bold magenta"),
                         ("SESSION", "bold green"),
