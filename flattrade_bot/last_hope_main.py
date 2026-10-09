@@ -50,6 +50,7 @@ from flattrade_bot.strategies.last_hope_winner import (
 )
 from flattrade_bot.strategies.full10_engine import (
     DAILY_CAP_PTS as F10_DAILY_CAP_PTS,
+    DAILY_CAP_PROFIT as F10_CAP_PROFIT,
     day_cap_bounds,
     Full10ContractState,
     Full10Engine,
@@ -230,7 +231,7 @@ class LastHopeTradingEngine:
                 "fields": [
                     {"name": "Strategy", "value": "Full10 v6 (FLAG/SUPER multi-TF, 12-level same-TF bounce)" if self.full10 else "Last Hope GPU Winner (FLAG/SUPER 1m OHLC)", "inline": True},
                     {"name": "Session", "value": "09:15 - 15:00 IST", "inline": True},
-                    {"name": "Risk Geometry", "value": f"SL {F10_SL_PTS:.0f} / TP {F10_TP_PTS:.0f} pts fixed, daily cap ±{F10_DAILY_CAP_PTS:.0f} pts" if self.full10 else "ATR(10)x1.5 Breakeven at +40% move (§44 dynamic-strike champion)", "inline": True},
+                    {"name": "Risk Geometry", "value": f"SL {F10_SL_PTS:.0f} / TP {F10_TP_PTS:.0f} pts fixed, daily cap -{F10_DAILY_CAP_PTS:.0f}/+{F10_CAP_PROFIT:.0f} pts" if self.full10 else "ATR(10)x1.5 Breakeven at +40% move (§44 dynamic-strike champion)", "inline": True},
                     {"name": "Mode", "value": "LIVE ORDERS" if self.live_orders else "PAPER SIM", "inline": True},
                     {"name": "Nifty Spot", "value": f"Rs {self.spot_price:,.2f}" if self.spot_price else "--", "inline": True},
                 ],
@@ -1098,7 +1099,7 @@ class LastHopeTradingEngine:
         if self.full10:
             header = Text.from_markup(
                 f" [bold bright_yellow]FULL10 v6[/bold bright_yellow] "
-                f"| [bold white]2nd ITM · S1/S3/S4 12/40/60 (raw) · ARM ≤30 any-TF · 12-LVL same-TF bounce · SL10/TP15 · cap ±{F10_DAILY_CAP_PTS:.0f}p[/bold white] "
+                f"| [bold white]2nd ITM · S1/S3/S4 12/40/60 (raw) · ARM ≤30 any-TF · 12-LVL same-TF bounce · SL10/TP15 · cap -{F10_DAILY_CAP_PTS:.0f}/+{F10_CAP_PROFIT:.0f}p[/bold white] "
                 f"| [cyan]{time_str} IST[/cyan]"
             )
         else:
@@ -1110,7 +1111,7 @@ class LastHopeTradingEngine:
         if self.full10:
             header = Text.from_markup(
                 f" [bold bright_yellow]FULL10 v6[/bold bright_yellow] "
-                f"| [bold white]2nd ITM · Stoch 12/40/60 raw · ARM≤30 · 12-LVL same-TF bounce · SL10/TP15 · cap ±29p[/bold white] "
+                f"| [bold white]2nd ITM · Stoch 12/40/60 raw · ARM≤30 · 12-LVL same-TF bounce · SL10/TP15 · cap -{F10_DAILY_CAP_PTS:.0f}/+{F10_CAP_PROFIT:.0f}p[/bold white] "
                 f"| [cyan]{time_str} IST[/cyan]"
             )
         else:

@@ -64,18 +64,21 @@ TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold
 SL_PTS = 10.0           # v6 fixed geometry
 TP_PTS = 15.0
-DAILY_CAP_PTS = 29.0    # circuit breaker: +/- 29 pts on closed day P&L
+DAILY_CAP_PTS = 29.0    # loss bound: halt new entries when closed day P&L <= -29
+DAILY_CAP_PROFIT = 60.0 # profit lock: halt when >= +60. Raised from 29 on 2026-10-09
+                        # (replay Sep10-Oct9: the +29 lock clipped ~Rs 27k of upside;
+                        # loss stop kept at -29 per user).
 # Per-day asymmetric overrides {day_key: (loss_pts, profit_pts)} — self-expiring.
 # User 2026-10-07: keep trading after the morning -31.3p with a -60 loss bound
-# and +30 profit lock; other days fall back to the ±29 defaults automatically.
+# and +30 profit lock; other days use the (-29/+60) defaults.
 DAILY_CAP_OVERRIDES = {
     "2026-10-07": (60.0, 30.0),
 }
 
 
 def day_cap_bounds(day_key: str):
-    """(loss_cap, profit_cap) for a day — per-day override or symmetric default."""
-    return DAILY_CAP_OVERRIDES.get(day_key, (DAILY_CAP_PTS, DAILY_CAP_PTS))
+    """(loss_cap, profit_cap) for a day — per-day override or (-29/+60) default."""
+    return DAILY_CAP_OVERRIDES.get(day_key, (DAILY_CAP_PTS, DAILY_CAP_PROFIT))
 SESSION_START_MIN = 555
 SESSION_END_MIN = 900
 
@@ -367,7 +370,8 @@ class Full10Engine:
         self.active_trade = None
 
     def record_closed_points(self, pts: float, day_key: str):
-        """Circuit breaker: accumulate CLOSED-trade points; halt entries at ±29.
+        """Circuit breaker: accumulate CLOSED-trade points; halt entries at the
+        day's bounds (default -29/+60, per-day overrides apply).
 
         Called by the coordinator on every trade close (live or paper)."""
         if day_key != self._day_key:

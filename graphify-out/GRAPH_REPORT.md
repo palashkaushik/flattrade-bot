@@ -1,6 +1,6 @@
 # FLATTRADE BOT — Knowledge Graph Report
 
-**Generated:** 2026-10-07  
+**Generated:** 2026-10-09  
 **Source:** `C:\\Websites\\FLATTRADE BOT`  
 **Graph:** 4454 nodes · 7436 edges · 1 communities
 
@@ -34,16 +34,16 @@ Nodes that act as bridges between communities — removing these would disconnec
 
 | RANK | NODE | BETWEENNESS |
 |:---:|:---|:---:|
-| #1 | `opt_futures_quad` | 0.1365 |
-| #2 | `undisputed_main_combinedsupremetradingengine` | 0.0746 |
-| #3 | `elder_incrementalelderimpulse` | 0.0745 |
-| #4 | `backtest_5y_optimized` | 0.0690 |
-| #5 | `patterns_candle` | 0.0615 |
-| #6 | `divergence_divergenceengine` | 0.0601 |
-| #7 | `backtest_walkforward_fees` | 0.0570 |
-| #8 | `manager_riskmanager` | 0.0485 |
-| #9 | `grid_optimize_f6_atr` | 0.0478 |
-| #10 | `pocket_money_pocketmoneyengine` | 0.0455 |
+| #1 | `opt_futures_quad` | 0.0882 |
+| #2 | `backtest_5y_optimized` | 0.0757 |
+| #3 | `divergence_divergenceengine` | 0.0611 |
+| #4 | `grid_optimize_f6_atr` | 0.0609 |
+| #5 | `elder_incrementalelderimpulse` | 0.0607 |
+| #6 | `undisputed_main_combinedsupremetradingengine` | 0.0556 |
+| #7 | `patterns_candle` | 0.0544 |
+| #8 | `backtest_walkforward_fees` | 0.0482 |
+| #9 | `pocket_money_pocketmoneyengine` | 0.0423 |
+| #10 | `pocket_money_main_pocketmoneytradingengine` | 0.0316 |
 
 ## Community Structure (1 communities)
 
