@@ -22,9 +22,13 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
   - Virgin level walk: level dies when any 1m bar's low <= lvl <= high
   - Risk geometry (FIXED, v6): SL = entry - 10.0, TP = entry + 15.0
   - NO breakeven lock (removed 2026-09-09 per user)
-  - Daily circuit breaker: cumulative CLOSED day P&L in POINTS; touch
-    +29 -> profit locked, touch -29 -> loss capped; no new entries after.
-    (An open trade still manages to its own SL/TP/EOD.)
+  - DAILY CAPS: DISABLED (2026-10-14 per user — cap-free "NOCAP" config:
+    entries never halt on day P&L; an open trade still manages to SL/TP/EOD).
+  - 3m-ELDER RED GATE (2026-10-14 per user): entry only when the contract's
+    FORMING 3m Elder-Impulse candle is RED — EMA13 falling AND MACD(12,26,9)
+    histogram falling. Blue/green, and <31 completed 3m buckets (warmup),
+    block the entry. CE & PE alike; verified congruent with the certified
+    replay (Sep 10 - Oct 9 window, 3m-Elder-RED sweep).
   - EOD force-close at session end; SL priority over TP.
   - Funds fallback (unchanged plumbing): 2nd-ITM margin reject -> 1st ITM.
 
@@ -64,15 +68,31 @@ TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold
 SL_PTS = 10.0           # v6 fixed geometry
 TP_PTS = 15.0
-DAILY_CAP_PTS = 29.0    # loss bound: halt new entries when closed day P&L <= -29
+DAILY_CAP_PTS = float("inf")   # LOSS CAP REMOVED 2026-10-14 per user (NOCAP
+                        # congruence: the certified 3m-Elder-RED replay showed the
+                        # -29 stop was cutting 71.8%-win-rate continuation trades)
 DAILY_CAP_PROFIT = float("inf")  # profit lock REMOVED 2026-10-09 per user (the sweep
-                        # showed every finite lock was a tax; the -29 loss stop stays)
-# Per-day asymmetric overrides {day_key: (loss_pts, profit_pts)} — self-expiring.
-# User 2026-10-07: keep trading after the morning -31.3p with a -60 loss bound
-# and +30 profit lock; other days use the (-29/+60) defaults.
-DAILY_CAP_OVERRIDES = {
-    "2026-10-07": (60.0, 30.0),
-}
+                        # showed every finite lock was a tax)
+# Per-day overrides {day_key: (loss_pts, profit_pts)} — none active (cap-free config)
+DAILY_CAP_OVERRIDES = {}
+
+# ---- 3m-Elder Impulse RED gate (2026-10-14 per user) ----
+# Entry requires the traded contract's FORMING 3m candle to be RED: EMA13
+# falling AND MACD(12,26,9) histogram falling (Elder Impulse System).
+# Blue/green — and warmup (<31 completed 3m buckets) — block the entry.
+ELDER3M_A13 = 2.0 / 14.0    # EMA13
+ELDER3M_A12 = 2.0 / 13.0    # MACD fast EMA
+ELDER3M_A26 = 2.0 / 27.0    # MACD slow EMA
+ELDER3M_A9 = 2.0 / 10.0     # MACD signal EMA
+ELDER3M_MIN_BUCKETS = 31    # replay parity: color allowed only at bucket index >= 30
+ELDER3M_FIRST_MIN = 555     # 09:15
+ELDER3M_LAST_MIN = 929      # 15:29 (last 1m bar start; buckets are 09:15-aligned)
+
+
+def _bkt3(minute: int) -> int:
+    """3m bucket start for a 1m minute (09:15-aligned: 555, 558, 561, ...)."""
+    return ELDER3M_FIRST_MIN + 3 * ((minute - ELDER3M_FIRST_MIN) // 3)
+
 
 
 def day_cap_bounds(day_key: str):
@@ -122,6 +142,14 @@ class Full10ContractState:
     latest_ltp: Optional[float] = None
     # touchline cumulative-volume tracking (per-bar interval volume)
     _bar_start_vol: Optional[float] = None
+    # 3m Elder Impulse state (forming-candle RED gate, 2026-10-14)
+    _b3_start: int = -1
+    _b3_last_close: Optional[float] = None
+    _b3_count: int = 0
+    _e13_3m: Optional[float] = None
+    _e12_3m: Optional[float] = None
+    _e26_3m: Optional[float] = None
+    _sig9_3m: Optional[float] = None
 
     def __post_init__(self):
         # Full10 stoch periods on every TF tracker (D=1 raw %K)
@@ -154,6 +182,11 @@ class Full10ContractState:
             self.tf[tfv].last_cl = None
         self.anchor_bar = -10**9
         self.baridx = -1
+        # 3m Elder state resets with the session (re-seeded via seed_bars)
+        self._b3_start = -1
+        self._b3_last_close = None
+        self._b3_count = 0
+        self._e13_3m = self._e12_3m = self._e26_3m = self._sig9_3m = None
         logger.info("Full10 session reset for %s", self.symbol)
 
     def set_day_levels(self, prev_high: float, prev_low: float, prev_close: float,
@@ -208,6 +241,73 @@ class Full10ContractState:
         self.ema200.update(bar.close)
         for tfv in (1, 2, 3, 5):
             self.tf[tfv].push_1m_bar(bar)
+        self._feed_3m_bar(bar)
+
+    # ---- 3m Elder Impulse (forming-candle RED gate, 2026-10-14) ----
+    def _feed_3m_bar(self, bar: Bar1m):
+        """One completed 1m bar through the 3m resampler.
+
+        A bucket completes when its 3rd constituent minute closes (or by
+        rollover if minutes were missing — the last available close wins,
+        matching the certified replay's resampling)."""
+        m = bar.minute
+        if not (ELDER3M_FIRST_MIN <= m <= ELDER3M_LAST_MIN):
+            return
+        b = _bkt3(m)
+        if self._b3_start == -1:
+            self._b3_start = b
+        elif b != self._b3_start:
+            # Bucket advance — within-day rollover (b > start) OR session
+            # boundary (b < start: 09:15-aligned starts reset each day, so a
+            # decrease is ALWAYS a new day; the post-15:29 phantom start 930
+            # must not wedge the feed). Close out the pending bucket with its
+            # last available close (matches the replay's resampling).
+            if self._b3_last_close is not None:
+                self._push_3m_close(self._b3_last_close)
+            self._b3_start = b
+            self._b3_last_close = None
+        self._b3_last_close = bar.close
+        if m == self._b3_start + 2:
+            self._push_3m_close(bar.close)
+            self._b3_start += 3
+            self._b3_last_close = None
+
+    def _push_3m_close(self, c: float):
+        """EMA13 / MACD(12,26,9) update on one completed 3m close (first-value seed)."""
+        if self._e13_3m is None:
+            self._e13_3m = self._e12_3m = self._e26_3m = c
+            self._sig9_3m = 0.0   # first macd-line = e12-e26 = 0 (replay parity)
+        else:
+            self._e13_3m = ELDER3M_A13 * c + (1 - ELDER3M_A13) * self._e13_3m
+            self._e12_3m = ELDER3M_A12 * c + (1 - ELDER3M_A12) * self._e12_3m
+            self._e26_3m = ELDER3M_A26 * c + (1 - ELDER3M_A26) * self._e26_3m
+            ml = self._e12_3m - self._e26_3m
+            self._sig9_3m = ELDER3M_A9 * ml + (1 - ELDER3M_A9) * self._sig9_3m
+        self._b3_count += 1
+
+    def _elder3m_partial_color(self, px: float) -> Optional[str]:
+        """Color of the FORMING 3m candle at price px (Elder Impulse): prior
+        state = last completed bucket, one partial step with px."""
+        if self._b3_count < ELDER3M_MIN_BUCKETS or self._e13_3m is None:
+            return None
+        e13p = self._e13_3m
+        e12p = self._e12_3m
+        e26p = self._e26_3m
+        s9p = self._sig9_3m
+        hp = (e12p - e26p) - s9p
+        e13c = ELDER3M_A13 * px + (1 - ELDER3M_A13) * e13p
+        e12c = ELDER3M_A12 * px + (1 - ELDER3M_A12) * e12p
+        e26c = ELDER3M_A26 * px + (1 - ELDER3M_A26) * e26p
+        mlc = e12c - e26c
+        s9c = ELDER3M_A9 * mlc + (1 - ELDER3M_A9) * s9p
+        hc = mlc - s9c
+        up_e = e13c > e13p
+        up_h = hc > hp
+        if up_e and up_h:
+            return "G"
+        if (not up_e) and (not up_h):
+            return "R"
+        return "B"
 
     # ---- live tick path (identical rollover semantics to §44) ----
     def push_tick(self, ltp: float, dt: datetime, cum_volume: Optional[float] = None) -> Optional[Dict[str, Any]]:
@@ -293,6 +393,17 @@ class Full10ContractState:
             if lo_ <= v + TB and cl_ >= v - CLOSE_HOLD:
                 hit = (nm, v); break
         if hit is None:
+            return None
+
+        # 7. 3m-ELDER RED GATE (2026-10-14 per user): entry only when the
+        #    FORMING 3m Elder-Impulse candle on the contract's own chart is
+        #    RED (EMA13 falling & MACD-hist falling). CE and PE alike.
+        _col = self._elder3m_partial_color(bar.close)
+        if _col != "R":
+            logger.info(
+                "3m-Elder filter: %s %s [%dm] blocked @ %.2f (color=%s) on %s",
+                self.side, kind, tfv, bar.close, _col or "warmup", self.symbol,
+            )
             return None
 
         entry = bar.close
