@@ -163,6 +163,25 @@ The live VPS (65.2.50.227, Lightsail 512MB plan) has **412Mi RAM total, NO swap,
 the kernel OOM-killed the live trading bot mid-session (10s downtime, flat so
 no money at risk, auto-recovered via systemd + cap rehydration). Never repeat this.
 
+**Incident 2026-10-14 11:35–13:42 IST (wedge):** the instance WEDGED mid-session —
+Lightsail console showed **Running** while the box was unreachable on IPv4
+(TCP 22 + ping dead from a machine with working internet). Recovery: console
+**Reboot** → box came back 13:42, systemd **auto-started the bot** on boot
+(13:42:33), day state rehydrated correctly (cap re-halted, flat — last trade
+had closed 11:35). The day was already cap-halted before the wedge, so the
+outage cost zero trading value.
+
+**IPv6 fallback — try this BEFORE declaring the box dead.** The instance has a
+persistent IPv6 address that keeps working even when inbound IPv4 is dead:
+
+    ssh -i <key> ubuntu@[2406:da1a:1817:5700:d495:5f0a:ba82:1b70]
+
+After the Oct-14 wedge, inbound IPv4 stayed dead while IPv6 worked fully AND
+**egress IPv4 remained 65.2.50.227** (verify with `curl -4 ifconfig.me`) — so
+the Flattrade registered-IP login and all outbound trading traffic are
+unaffected. Optional console fix for inbound v4: Networking → re-attach the
+static IP, or a clean Stop→Start when the bot is flat / day-capped.
+
 Hard rules for ANY VPS contact:
 1. **Single lightweight reads only** — ONE ssh session at a time, sequential,
    never parallel. One command per call; wait for it to finish.
@@ -175,6 +194,11 @@ Hard rules for ANY VPS contact:
    state changes without the user's explicit go-ahead, on or off session.
 5. **Market hours (09:15–15:30 IST) = minimum contact** — if a check can wait
    until after 15:15 EOD exit, it waits.
+6. **Box looks dead?** Check the Lightsail console state first. If it shows
+   Running but IPv4 is unreachable, **try the IPv6 fallback SSH** before asking
+   for a reboot; only ask the user for a console Reboot (or Stop→Start) if
+   IPv6 also fails. After any reboot, verify: bot auto-start, day-state
+   rehydration (cap counter), and whether it died flat or with a position.
 
 ## Flattrade API — MANDATORY REFERENCE
 
