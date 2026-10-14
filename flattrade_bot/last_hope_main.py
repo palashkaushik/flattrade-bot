@@ -234,7 +234,7 @@ class LastHopeTradingEngine:
                 "title": "FLATTRADE FULL10 BOT ONLINE" if self.full10 else "FLATTRADE LAST HOPE WINNER BOT ONLINE",
                 "color": 0x2ECC71,
                 "fields": [
-                    {"name": "Strategy", "value": "Full10 v6 (FLAG/SUPER multi-TF, 12-level same-TF bounce)" if self.full10 else "Last Hope GPU Winner (FLAG/SUPER 1m OHLC)", "inline": True},
+                    {"name": "Strategy", "value": "Full10 v6 ALL-CFG (FLAG/SUPER multi-TF, 12-level same-TF bounce, 6 strikes)" if self.full10 else "Last Hope GPU Winner (FLAG/SUPER 1m OHLC)", "inline": True},
                     {"name": "Session", "value": "09:15 - 15:00 IST", "inline": True},
                     {"name": "Risk Geometry", "value": f"SL {F10_SL_PTS:.0f} / TP {F10_TP_PTS:.0f} pts fixed, loss cap: {F10_LOSS_TXT} (no halt) | 3mE-RED gate | profit lock: {F10_PROFIT_TXT}" if self.full10 else "ATR(10)x1.5 Breakeven at +40% move (§44 dynamic-strike champion)", "inline": True},
                     {"name": "Mode", "value": "LIVE ORDERS" if self.live_orders else "PAPER SIM", "inline": True},
@@ -618,9 +618,11 @@ class LastHopeTradingEngine:
         now: datetime,
         cur_min: int,
         signal_suffix: str = "",
+        tp_dist: Optional[float] = None,
     ) -> Dict[str, Any]:
         """open_trade + one session-expired re-auth retry (the 2026-09-07
         incident: dead token rejected entries forever with no re-login)."""
+        tp_pts = dist if tp_dist is None else float(tp_dist)
         res = await self.executor.open_trade(
             side=sig["side"],
             order_symbol=symbol,
@@ -630,7 +632,7 @@ class LastHopeTradingEngine:
             signal=f"{sig['trigger']}_{sig['level']}{signal_suffix}",
             entry_price=entry_price,
             sl_points=dist,
-            tp_points=dist,
+            tp_points=tp_pts,
             current_min=cur_min,
             opened_at=now,
         )
@@ -648,7 +650,7 @@ class LastHopeTradingEngine:
                         signal=f"{sig['trigger']}_{sig['level']}{signal_suffix}",
                         entry_price=entry_price,
                         sl_points=dist,
-                        tp_points=dist,
+                        tp_points=tp_pts,
                         current_min=cur_min,
                         opened_at=now,
                     )
@@ -675,17 +677,20 @@ class LastHopeTradingEngine:
         entry = sig["entry"]
         if self.full10:
             dist = float(sig["sl_points"])          # SL 10 (fixed)
-            sl = round(entry - float(sig["sl_points"]), 2)
-            tp = round(entry + float(sig["tp_points"]), 2)
+            tp_dist = float(sig["tp_points"])       # TP 15 (fixed) — certified 10/15 box
+            sl = round(entry - dist, 2)
+            tp = round(entry + tp_dist, 2)
         else:
             dist = sig["dist"]
+            tp_dist = None
             sl = sig["sl"]
             tp = sig["tp"]
 
         if self.live_orders and self.executor is not None:
             self._entering = True
             try:
-                res = await self._open_with_renew(sig, display, token, dist, entry, now, cur_min)
+                res = await self._open_with_renew(sig, display, token, dist, entry, now, cur_min,
+                                                  tp_dist=tp_dist)
 
                 # FUNDS FALLBACK (per-buy only; default stays 2nd ITM):
                 # if the 2nd ITM buy was rejected for margin/funds, retry the
@@ -699,7 +704,7 @@ class LastHopeTradingEngine:
                         )
                         res = await self._open_with_renew(
                             sig, fb["symbol"], fb["token"], dist, fb["ltp"], now, cur_min,
-                            signal_suffix="_1ITM",
+                            signal_suffix="_1ITM", tp_dist=tp_dist,
                         )
             finally:
                 self._entering = False
@@ -1104,7 +1109,7 @@ class LastHopeTradingEngine:
         if self.full10:
             header = Text.from_markup(
                 f" [bold bright_yellow]FULL10 v6[/bold bright_yellow] "
-                f"| [bold white]2nd ITM · S1/S3/S4 12/40/60 (raw) · ARM ≤30 any-TF · 12-LVL same-TF bounce · SL10/TP15 · cap {F10_LOSS_TXT}/{F10_PROFIT_TXT} · 3mE-RED[/bold white] "
+                f"| [bold white]ALL-CFG (6 strikes) · S1/S3/S4 12/40/60 (raw) · ARM ≤30 any-TF · 12-LVL same-TF bounce · SL10/TP15 · cap {F10_LOSS_TXT}/{F10_PROFIT_TXT} · 3mE-RED[/bold white] "
                 f"| [cyan]{time_str} IST[/cyan]"
             )
         else:
@@ -1116,7 +1121,7 @@ class LastHopeTradingEngine:
         if self.full10:
             header = Text.from_markup(
                 f" [bold bright_yellow]FULL10 v6[/bold bright_yellow] "
-                f"| [bold white]2nd ITM · Stoch 12/40/60 raw · ARM≤30 · 12-LVL same-TF bounce · SL10/TP15 · cap {F10_LOSS_TXT}/{F10_PROFIT_TXT} · 3mE-RED[/bold white] "
+                f"| [bold white]ALL-CFG (6 strikes) · Stoch 12/40/60 raw · ARM≤30 · 12-LVL same-TF bounce · SL10/TP15 · cap {F10_LOSS_TXT}/{F10_PROFIT_TXT} · 3mE-RED[/bold white] "
                 f"| [cyan]{time_str} IST[/cyan]"
             )
         else:
@@ -1511,10 +1516,12 @@ class LastHopeTradingEngine:
         if self.ws_feed.connected:
             self.ws_feed.subscribe("NSE", "26000")
 
-        # 1.5 — SIGNAL GATE: only the CURRENT 2nd-ITM pair (CE_SPEC/PE_SPEC)
-        # may open trades. Watch pairs (+/-50 rollover) are warm-only — the
-        # 11:20 Sep-2 incident fired 6 entries in 1 second across ALL
-        # registered strikes. Backtest semantics: trade only the active pair.
+        # 1.5 — SIGNAL GATE: full10 runs ALL-CONFIGURATION MODE (2026-10-14 per
+        # user — any of the 6 REGISTERED strikes may open trades; the Sep-2
+        # multi-entry class stays prevented by the _entering re-entrancy guard
+        # + single-position checks, not a strike filter). Legacy mode keeps the
+        # 2nd-ITM-pair-only gate (the 11:20 Sep-2 incident fired 6 entries in
+        # 1 second across ALL registered strikes).
         spec_keys: set = set()
         try:
             if self.spot_price:
@@ -1523,8 +1530,11 @@ class LastHopeTradingEngine:
         except Exception:
             spec_keys = set()
 
-        # Process WS-fresh option ticks first (zero REST cost)
-        for key in ws_fresh_keys:
+        # Process WS-fresh option ticks first (zero REST cost). Deterministic
+        # order = poll_keys (sorted) — full10 takes the FIRST non-busy signal.
+        for key in poll_keys:
+            if key not in ws_fresh_keys:
+                continue
             cs = self.engine.contracts.get(key)
             if not cs:
                 continue
@@ -1533,7 +1543,7 @@ class LastHopeTradingEngine:
                 self._last_ltp[key] = opt_ltp
                 cum_v = self.ws_feed.last_cum_volume("NFO", cs.token)
                 sig = self.engine.push_tick(key, opt_ltp, now, cum_volume=cum_v)
-                if sig and not self._has_position() and key in spec_keys:
+                if sig and not self._has_position() and (self.full10 or key in spec_keys):
                     await self._try_enter(sig)
 
         # REST fallback: ONLY stale/unsubscribed instruments (+ spot if stale)
@@ -1582,7 +1592,7 @@ class LastHopeTradingEngine:
                     self._last_ltp[label] = ltp_val
                     cum_v = float(result.get("v", 0) or 0) or None
                     sig = self.engine.push_tick(label, ltp_val, now, cum_volume=cum_v)
-                    if sig and not self._has_position() and label in spec_keys:
+                    if sig and not self._has_position() and (self.full10 or label in spec_keys):
                         await self._try_enter(sig)
 
         # 3. Check Exits (SL, TP, Breakeven, EOD)
