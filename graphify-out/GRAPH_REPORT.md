@@ -2,7 +2,7 @@
 
 **Generated:** 2026-10-15  
 **Source:** `C:\\Websites\\FLATTRADE BOT`  
-**Graph:** 4458 nodes · 7444 edges · 1 communities
+**Graph:** 4454 nodes · 7436 edges · 1 communities
 
 ---
 
@@ -23,10 +23,10 @@ These are the most-connected modules — touching these affects the most other c
 | #9 | `causal_live_parity_research_incrementalatr` | 0.0132 |
 | #10 | `run_7y_v4_master` | 0.0128 |
 | #11 | `gpu_sim_last_hope` | 0.0117 |
-| #12 | `lh_sweep_cuda3` | 0.0114 |
+| #12 | `lh_sweep_cuda3` | 0.0115 |
 | #13 | `backtest_walkforward_fees` | 0.0103 |
-| #14 | `smart_fib_optimus_gpu` | 0.0096 |
-| #15 | `smart_fib_optimus_grid_gpu` | 0.0096 |
+| #14 | `smart_fib_optimus_gpu` | 0.0097 |
+| #15 | `smart_fib_optimus_grid_gpu` | 0.0097 |
 
 ## Betweenness Centrality (Critical Bridges)
 
@@ -34,30 +34,30 @@ Nodes that act as bridges between communities — removing these would disconnec
 
 | RANK | NODE | BETWEENNESS |
 |:---:|:---|:---:|
-| #1 | `opt_futures_quad` | 0.1129 |
-| #2 | `backtest_walkforward_fees` | 0.0775 |
-| #3 | `backtest_5y_optimized` | 0.0687 |
-| #4 | `patterns_candle` | 0.0673 |
-| #5 | `divergence_divergenceengine` | 0.0588 |
-| #6 | `elder_incrementalelderimpulse` | 0.0580 |
-| #7 | `undisputed_main_combinedsupremetradingengine` | 0.0524 |
-| #8 | `grid_optimize_f6_atr` | 0.0506 |
-| #9 | `optimized_gpu_backtest` | 0.0360 |
-| #10 | `smart_fib_optimus_gpu` | 0.0359 |
+| #1 | `opt_futures_quad` | 0.0974 |
+| #2 | `patterns_candle` | 0.0617 |
+| #3 | `divergence_divergenceengine` | 0.0597 |
+| #4 | `grid_optimize_f6_atr` | 0.0595 |
+| #5 | `elder_incrementalelderimpulse` | 0.0576 |
+| #6 | `backtest_walkforward_fees` | 0.0529 |
+| #7 | `undisputed_main_combinedsupremetradingengine` | 0.0527 |
+| #8 | `backtest_5y_optimized` | 0.0481 |
+| #9 | `manager_riskmanager` | 0.0388 |
+| #10 | `pocket_money_pocketmoneyengine` | 0.0349 |
 
 ## Community Structure (1 communities)
 
 | COMMUNITY | SIZE | KEY NODES |
 |:---:|:---:|:---|
-| 0 | 4458 | `patterns_candle`, `divergence_divergenceengine`, `backtest_5y_optimized` |
+| 0 | 4454 | `patterns_candle`, `divergence_divergenceengine`, `backtest_5y_optimized` |
 
 ## Architecture Summary
 
 | METRIC | VALUE |
 |:---|:---:|
 | Total Python Files | 63 |
-| Total Nodes | 4458 |
-| Total Edges | 7444 |
+| Total Nodes | 4454 |
+| Total Edges | 7436 |
 | Communities | 1 |
 | Avg Degree | 3.34 |
 
