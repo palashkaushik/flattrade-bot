@@ -22,8 +22,11 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
   - Virgin level walk: level dies when any 1m bar's low <= lvl <= high
   - Risk geometry (FIXED, v6): SL = entry - 10.0, TP = entry + 15.0
   - NO breakeven lock (removed 2026-09-09 per user)
-  - DAILY CAPS: DISABLED (2026-10-14 per user — cap-free "NOCAP" config:
-    entries never halt on day P&L; an open trade still manages to SL/TP/EOD).
+  - DAILY LOSS CAP: -60 pts (2026-10-15 per user). Halt NEW entries when the
+    closed day P&L <= -60; an open trade still manages to its own SL/TP/EOD.
+    No profit lock (removed 2026-10-09). The certified 10/15 all-config
+    replay showed no day closed below -55, so this bound costs nothing on the
+    analyzed window while capping future tail days.
   - 3m-ELDER RED GATE (2026-10-14 per user): entry only when the contract's
     FORMING 3m Elder-Impulse candle is RED — EMA13 falling AND MACD(12,26,9)
     histogram falling. Blue/green, and <31 completed 3m buckets (warmup),
@@ -68,9 +71,10 @@ TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold
 SL_PTS = 10.0           # v6 fixed geometry
 TP_PTS = 15.0
-DAILY_CAP_PTS = float("inf")   # LOSS CAP REMOVED 2026-10-14 per user (NOCAP
-                        # congruence: the certified 3m-Elder-RED replay showed the
-                        # -29 stop was cutting 71.8%-win-rate continuation trades)
+DAILY_CAP_PTS = 60.0    # LOSS CAP = -60 (2026-10-15 per user). The certified
+                        # 10/15 all-config replay: worst day closed -55, so -60 is a
+                        # free tail bound; tighter caps (-50/-40/-30) locked in mid-day
+                        # dips and killed the +500-pt Sep-29 recovery.
 DAILY_CAP_PROFIT = float("inf")  # profit lock REMOVED 2026-10-09 per user (the sweep
                         # showed every finite lock was a tax)
 # Per-day overrides {day_key: (loss_pts, profit_pts)} — none active (cap-free config)

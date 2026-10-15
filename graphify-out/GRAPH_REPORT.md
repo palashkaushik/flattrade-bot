@@ -1,6 +1,6 @@
 # FLATTRADE BOT — Knowledge Graph Report
 
-**Generated:** 2026-10-14  
+**Generated:** 2026-10-15  
 **Source:** `C:\\Websites\\FLATTRADE BOT`  
 **Graph:** 4458 nodes · 7444 edges · 1 communities
 
@@ -34,16 +34,16 @@ Nodes that act as bridges between communities — removing these would disconnec
 
 | RANK | NODE | BETWEENNESS |
 |:---:|:---|:---:|
-| #1 | `opt_futures_quad` | 0.1081 |
-| #2 | `undisputed_main_combinedsupremetradingengine` | 0.0625 |
-| #3 | `backtest_5y_optimized` | 0.0621 |
-| #4 | `elder_incrementalelderimpulse` | 0.0619 |
-| #5 | `patterns_candle` | 0.0568 |
-| #6 | `grid_optimize_f6_atr` | 0.0486 |
-| #7 | `divergence_divergenceengine` | 0.0457 |
-| #8 | `backtest_walkforward_fees` | 0.0425 |
-| #9 | `manager_riskmanager` | 0.0355 |
-| #10 | `optimized_gpu_backtest` | 0.0339 |
+| #1 | `opt_futures_quad` | 0.1129 |
+| #2 | `backtest_walkforward_fees` | 0.0775 |
+| #3 | `backtest_5y_optimized` | 0.0687 |
+| #4 | `patterns_candle` | 0.0673 |
+| #5 | `divergence_divergenceengine` | 0.0588 |
+| #6 | `elder_incrementalelderimpulse` | 0.0580 |
+| #7 | `undisputed_main_combinedsupremetradingengine` | 0.0524 |
+| #8 | `grid_optimize_f6_atr` | 0.0506 |
+| #9 | `optimized_gpu_backtest` | 0.0360 |
+| #10 | `smart_fib_optimus_gpu` | 0.0359 |
 
 ## Community Structure (1 communities)
 
