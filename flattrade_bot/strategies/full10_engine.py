@@ -22,9 +22,9 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
   - Virgin level walk: level dies when any 1m bar's low <= lvl <= high
   - Risk geometry (FIXED, v6): SL = entry - 10.0, TP = entry + 15.0
   - NO breakeven lock (removed 2026-09-09 per user)
-  - Daily circuit breaker RESTORED (2026-10-15 per user — previous live
-    config): touch +29 -> profit locked, touch -29 -> loss capped; no new
-    entries after either bound. (An open trade still manages to SL/TP/EOD.)
+  - Daily circuit breaker (2026-10-15 per user): touch -29 -> loss capped,
+    no new entries after; NO profit lock (entries keep trading past +29).
+    (An open trade still manages to SL/TP/EOD.)
   - EOD force-close at session end; SL priority over TP.
   - Funds fallback (unchanged plumbing): 2nd-ITM margin reject -> 1st ITM.
 
@@ -64,15 +64,16 @@ TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold
 SL_PTS = 10.0           # v6 fixed geometry
 TP_PTS = 15.0
-DAILY_CAP_PTS = 29.0    # RESTORED 2026-10-15 per user (previous live config)
-DAILY_CAP_PROFIT = 29.0  # profit lock +29 RESTORED 2026-10-15 per user
+DAILY_CAP_PTS = 29.0    # loss bound: halt new entries when closed day P&L <= -29
+DAILY_CAP_PROFIT = float("inf")  # profit lock REMOVED 2026-10-15 per user — the
+                        # -29 loss bound stays; entries keep trading past +29
 # Per-day overrides {day_key: (loss_pts, profit_pts)} — none active
 DAILY_CAP_OVERRIDES = {}
 
 
 
 def day_cap_bounds(day_key: str):
-    """(loss_cap, profit_cap) for a day — per-day override or (-29/+29) default."""
+    """(loss_cap, profit_cap) for a day — per-day override or (-29/none) default."""
     return DAILY_CAP_OVERRIDES.get(day_key, (DAILY_CAP_PTS, DAILY_CAP_PROFIT))
 SESSION_START_MIN = 555
 SESSION_END_MIN = 900
