@@ -67,8 +67,8 @@ S3_K, S3_D = 40, 4
 S4_K, S4_D = 60, 10
 ARM_S1 = 50.0           # arming: S1 <= 50 (per user 2026-10-16; was 30.0)
 ARM_WIN = 1             # entry on arming bar or next bar only
-FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 30
-FLAG_S1 = 30.0
+FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 50 (S1 limit 30->50 per user 2026-10-16)
+FLAG_S1 = 50.0
 SUP_T = 30.0            # SUPER: all three < 30 & S1 rising
 TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold
