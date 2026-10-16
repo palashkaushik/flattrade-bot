@@ -17,8 +17,11 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
       camL3, PDVWAP, virgin CPR/BC/TC (alive)   [level list exact per spec]
   - SAME-TF BOUNCE (v6 rule): the setup TF's own chart supplies the bounce.
       1m setup  -> trigger 1m bar:  low <= lvl+2 and close >= lvl-0.5
-      2m/3m/5m  -> that TF's last COMPLETED (today's) bar satisfies the
-                   touch. NO cross-TF fallback, NO 1m-bar confirmation.
+      2m/3m/5m  -> the FORMING bucket supplies it (LIVE BOUNCE, 2026-10-16 per
+                   user): touch = bucket low-so-far <= lvl+TB and hold =
+                   CURRENT price >= lvl-CLOSE_HOLD — no higher-TF close
+                   required (waiting for the close loses the chase).
+                   NO cross-TF fallback.
   - Virgin level walk: level dies when any 1m bar's low <= lvl <= high
   - Risk geometry (FIXED, v6): SL = entry - 10.0, TP = entry + 15.0
   - NO breakeven lock (removed 2026-09-09 per user)
@@ -402,14 +405,24 @@ class Full10ContractState:
             return None
         tfv, kind = trig
 
-        # 6. SAME-TF bounce gate (v6): the setup TF's own chart supplies it
+        # 6. SAME-TF bounce gate (v6): the setup TF's own chart supplies it.
+        #    LIVE BOUNCE (2026-10-16 per user): for >1m setups the bounce is
+        #    checked against the FORMING bucket — the touch comes from the
+        #    bucket's low-so-far and the hold from the CURRENT price — so a
+        #    valid bounce does NOT need the higher-TF candle to close first
+        #    (closing first loses the chase). At a bucket boundary the
+        #    just-completed bar is used, exactly as before.
         if tfv == 1:
             lo_, cl_ = bar.low, bar.close
         else:
             t = self.tf[tfv]
-            if t.last_lo is None or t.last_cl is None:
+            if t.cur_bars:
+                lo_ = min(b.low for b in t.cur_bars)
+            else:
+                lo_ = t.last_lo
+            cl_ = bar.close
+            if lo_ is None:
                 return None
-            lo_, cl_ = t.last_lo, t.last_cl
         lv = self._levels_now()
         hit = None
         for nm, v in lv:
