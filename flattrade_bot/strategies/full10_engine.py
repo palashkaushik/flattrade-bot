@@ -166,6 +166,14 @@ class Full10ContractState:
     latest_ltp: Optional[float] = None
     # touchline cumulative-volume tracking (per-bar interval volume)
     _bar_start_vol: Optional[float] = None
+    # U1S union pattern watcher state (3m pin/engulfing, closed candle)
+    _pb_idx: Optional[int] = None
+    _pb_o: Optional[float] = None
+    _pb_h: Optional[float] = None
+    _pb_l: Optional[float] = None
+    _pb_c: Optional[float] = None
+    _pb_prev: Optional[Tuple[float, float, float, float]] = None
+    _prev_hit: bool = False
 
     def __post_init__(self):
         # Full10 stoch periods on every TF tracker (D=1 raw %K)
@@ -205,6 +213,10 @@ class Full10ContractState:
         self._e13_3m = self._e12_3m = self._e26_3m = self._sig9_3m = None
         self.ema20_3m = IncrementalEMA(20)
         self.ema200_3m = IncrementalEMA(200)
+        self._pb_idx = None
+        self._pb_o = self._pb_h = self._pb_l = self._pb_c = None
+        self._pb_prev = None
+        self._prev_hit = False
         logger.info("Full10 session reset for %s", self.symbol)
 
     def set_day_levels(self, prev_high: float, prev_low: float, prev_close: float,
@@ -378,6 +390,15 @@ class Full10ContractState:
             if bar.low <= v <= bar.high:
                 del self.virgin[nm]
 
+        # === UNION TRIGGER (2026-10-16, U1S live): the stoch flow (arming →
+        #     FLAG/SUPER → same-TF LIVE bounce → SR level) OR the strict
+        #     closed-candle pin/engulfing rejecting an SR level. Both run on
+        #     every bar with independent state; when both fire on the same
+        #     bar the stoch signal wins (the U1S backtest tie-break).
+        s_hit = None
+        s_tfv = None
+        s_kind = None
+
         # 3. arming: S1 <= 30 on ANY signal-TF -> anchor this baridx
         for tfv in self.signal_tfs:
             s1 = self.tf[tfv].last_s1
@@ -385,50 +406,107 @@ class Full10ContractState:
                 self.anchor_bar = self.baridx
                 break
 
-        # 4. arming window gate
-        if (self.baridx - self.anchor_bar) > ARM_WIN:
-            return None
+        # 4. arming window gate (stoch path only)
+        if (self.baridx - self.anchor_bar) <= ARM_WIN:
 
-        # 5. triggers on any signal-TF (dormancy REMOVED)
-        trig = None
-        for tfv in self.signal_tfs:
-            t = self.tf[tfv]
-            s1, s3, s4, p1 = t.last_s1, t.last_s3, t.last_s4, t.prev_s1
-            if s1 is None or s4 is None:
-                continue
-            if s4 >= FLAG_S4 and s1 < FLAG_S1:
-                trig = (tfv, "FLAG"); break
-            if s3 is not None and p1 is not None and s3 < SUP_T and s4 < SUP_T \
-                    and s1 < SUP_T and s1 > p1:
-                trig = (tfv, "SUPER"); break
-        if trig is None:
-            return None
-        tfv, kind = trig
+            # 5. triggers on any signal-TF (dormancy REMOVED)
+            trig = None
+            for tfv in self.signal_tfs:
+                t = self.tf[tfv]
+                s1, s3, s4, p1 = t.last_s1, t.last_s3, t.last_s4, t.prev_s1
+                if s1 is None or s4 is None:
+                    continue
+                if s4 >= FLAG_S4 and s1 < FLAG_S1:
+                    trig = (tfv, "FLAG"); break
+                if s3 is not None and p1 is not None and s3 < SUP_T and s4 < SUP_T \
+                        and s1 < SUP_T and s1 > p1:
+                    trig = (tfv, "SUPER"); break
 
-        # 6. SAME-TF bounce gate (v6): the setup TF's own chart supplies it.
-        #    LIVE BOUNCE (2026-10-16 per user): for >1m setups the bounce is
-        #    checked against the FORMING bucket — the touch comes from the
-        #    bucket's low-so-far and the hold from the CURRENT price — so a
-        #    valid bounce does NOT need the higher-TF candle to close first
-        #    (closing first loses the chase). At a bucket boundary the
-        #    just-completed bar is used, exactly as before.
-        if tfv == 1:
-            lo_, cl_ = bar.low, bar.close
+            if trig is not None:
+                tfv, _k = trig
+
+                # 6. SAME-TF bounce gate (v6): the setup TF's own chart
+                #    supplies it. LIVE BOUNCE (2026-10-16 per user): for >1m
+                #    setups the bounce is checked against the FORMING bucket —
+                #    the touch comes from the bucket's low-so-far and the hold
+                #    from the CURRENT price — so a valid bounce does NOT need
+                #    the higher-TF candle to close first (closing first loses
+                #    the chase). At a bucket boundary the just-completed bar
+                #    is used, exactly as before.
+                if tfv == 1:
+                    lo_, cl_ = bar.low, bar.close
+                else:
+                    t = self.tf[tfv]
+                    if t.cur_bars:
+                        lo_ = min(b.low for b in t.cur_bars)
+                    else:
+                        lo_ = t.last_lo
+                    cl_ = bar.close
+                if lo_ is not None:
+                    lv = self._levels_now()
+                    for nm, v in lv:
+                        if lo_ <= v + TB and cl_ >= v - CLOSE_HOLD:
+                            s_hit = (nm, v)
+                            s_tfv = tfv
+                            s_kind = _k
+                            break
+
+        # 7a. 3m PIN/ENG PATH (strict, closed candle — verbatim from the
+        #     backtested U1S pattern engine; independent edge state).
+        bidx = (bar.minute - 555) // 3
+        if getattr(self, "_pb_idx", None) != bidx:
+            if getattr(self, "_pb_idx", None) is not None:
+                self._pb_prev = (self._pb_o, self._pb_h, self._pb_l,
+                                 getattr(self, "_pb_c", bar.open))
+            self._pb_idx = bidx
+            self._pb_o = bar.open
+            self._pb_h = bar.high
+            self._pb_l = bar.low
         else:
-            t = self.tf[tfv]
-            if t.cur_bars:
-                lo_ = min(b.low for b in t.cur_bars)
-            else:
-                lo_ = t.last_lo
-            cl_ = bar.close
-            if lo_ is None:
-                return None
-        lv = self._levels_now()
-        hit = None
-        for nm, v in lv:
-            if lo_ <= v + TB and cl_ >= v - CLOSE_HOLD:
-                hit = (nm, v); break
-        if hit is None:
+            self._pb_h = max(self._pb_h, bar.high)
+            self._pb_l = min(self._pb_l, bar.low)
+        self._pb_c = bar.close
+        p_hit = None
+        if (bar.minute - 555) % 3 == 2:
+            c = bar.close
+            o_ = self._pb_o
+            hi_ = self._pb_h
+            lo2 = self._pb_l
+            rng = hi_ - lo2
+            if rng > 0:
+                body = abs(c - o_)
+                upw = hi_ - max(o_, c)
+                dnw = min(o_, c) - lo2
+                is_pin = (dnw >= 2.0 * body and dnw >= upw)
+                is_eng = False
+                prev = getattr(self, "_pb_prev", None)
+                if prev is not None:
+                    po, ph, pl, pc_ = prev
+                    if c > o_ and c >= max(po, pc_) and o_ <= min(po, pc_):
+                        is_eng = True
+                if is_pin or is_eng:
+                    lv2 = self._levels_now()
+                    for nm, v in lv2:
+                        if v is None:
+                            continue
+                        if lo2 <= v + TB and c >= v - CLOSE_HOLD:
+                            p_hit = (nm, v)
+                            break
+                    if p_hit is None:
+                        self._prev_hit = False
+                    elif getattr(self, "_prev_hit", False):
+                        self._prev_hit = True
+                        p_hit = None
+                    else:
+                        self._prev_hit = True
+                        self._pb_kind = "PIN" if is_pin else "ENG"
+
+        # Selection: stoch flow first (U1S replay tie-break), else pattern.
+        if s_hit is not None:
+            kind, tfv, hit = s_kind, s_tfv, s_hit
+        elif p_hit is not None:
+            kind, tfv, hit = getattr(self, "_pb_kind", "PIN"), 3, p_hit
+        else:
             return None
 
         # 7. 3m-ELDER GATE (futures signal states only): allow iff the FORMING
