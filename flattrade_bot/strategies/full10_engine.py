@@ -133,6 +133,12 @@ class Full10ContractState:
     signal_tfs: Tuple[int, ...] = (1, 2, 3, 5)
     # Elder gate (futures signal states only): allow iff forming 3m color in {G,B}
     elder_gate: bool = False
+    # 3m-chart levels (futures states): STANDARD EMA (alpha=2/(N+1) — TV ta.ema)
+    # on 3m closes, matching the chart's "EMA (20/200, close, 0)" lines; the
+    # DISPLAYED level steps the forming bucket with the latest price.
+    use_3m_levels: bool = False
+    ema20_3m: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(20))
+    ema200_3m: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(200))
     # 3m Elder Impulse state (partial-candle gate)
     _b3_start: int = -1
     _b3_last_close: Optional[float] = None
@@ -194,6 +200,8 @@ class Full10ContractState:
         self._b3_last_close = None
         self._b3_count = 0
         self._e13_3m = self._e12_3m = self._e26_3m = self._sig9_3m = None
+        self.ema20_3m = IncrementalEMA(20)
+        self.ema200_3m = IncrementalEMA(200)
         logger.info("Full10 session reset for %s", self.symbol)
 
     def set_day_levels(self, prev_high: float, prev_low: float, prev_close: float,
@@ -237,6 +245,9 @@ class Full10ContractState:
         for bar in (today_bars or []):
             self.bars.append(bar)
             self._push_bar_indicators(bar, seed=False)
+            # VWAP must reflect the WHOLE session even on a mid-day restart
+            # (previously seeded today-bars skipped VWAP -> wrong session VWAP)
+            self.vwap.update(bar.high, bar.low, bar.close, volume=bar.volume)
 
     def _push_bar_indicators(self, bar: Bar1m, seed: bool):
         """One completed 1m bar through every indicator + TF tracker.
@@ -276,7 +287,10 @@ class Full10ContractState:
             self._b3_last_close = None
 
     def _push_3m_close(self, c: float):
-        """EMA13 / MACD(12,26,9) update on one completed 3m close (first-value seed)."""
+        """EMA13 / MACD(12,26,9) + chart RMA20/200 update on one completed 3m
+        close (first-value seed)."""
+        self.ema20_3m.update(c)
+        self.ema200_3m.update(c)
         if self._e13_3m is None:
             self._e13_3m = self._e12_3m = self._e26_3m = c
             self._sig9_3m = 0.0   # first macd-line = e12-e26 = 0 (replay parity)
@@ -437,8 +451,23 @@ class Full10ContractState:
         }
 
     def _levels_now(self) -> List[Tuple[str, float]]:
+        if self.use_3m_levels and self.ema20_3m.value is not None and self.ema200_3m.value is not None:
+            # Chart-live semantics: the forming 3m bucket's close-so-far steps
+            # the EMA (exactly what TV displays); px = latest price.
+            px = self.latest_ltp
+            if px is None and self.bars:
+                px = self.bars[-1].close
+            if px is not None:
+                a20 = self.ema20_3m.alpha
+                a200 = self.ema200_3m.alpha
+                e20 = a20 * px + (1 - a20) * self.ema20_3m.value
+                e200 = a200 * px + (1 - a200) * self.ema200_3m.value
+            else:
+                e20, e200 = self.ema20_3m.value, self.ema200_3m.value
+        else:
+            e20, e200 = self.ema20.value, self.ema200.value
         lv: List[Tuple[str, float]] = [
-            ("EMA20", self.ema20.value), ("EMA200", self.ema200.value),
+            ("EMA20", e20), ("EMA200", e200),
             ("VWAP", self.vwap.value),
         ]
         for nm, v in self.levels_day.items():

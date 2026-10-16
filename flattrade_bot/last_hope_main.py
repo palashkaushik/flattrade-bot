@@ -493,7 +493,7 @@ class LastHopeTradingEngine:
             now = ist_now()
             today_str = now.strftime("%d-%m-%Y")
             rows = await self.history.fetch_historical_candles(
-                token=tok, exchange="NFO", interval="1", days_back=5
+                token=tok, exchange="NFO", interval="1", days_back=30
             )
             if not rows:
                 logger.warning("FUTURES signal source: no historical rows — retrying next loop")
@@ -542,7 +542,7 @@ class LastHopeTradingEngine:
                 bars.sort(key=lambda b: (b.timestamp, b.minute))
                 return bars
 
-            prior_bars = build_bars(valid_prev_days[-3:])[-1200:]
+            prior_bars = build_bars(valid_prev_days)[-10000:]
             cur_m = now.hour * 60 + now.minute
             today_bars = [b for b in build_bars([today_str]) if b.minute < cur_m]
             if not prior_bars:
@@ -554,16 +554,34 @@ class LastHopeTradingEngine:
             ph = max(b.high for b in last_day_bars)
             pl = min(b.low for b in last_day_bars)
             pc = last_day_bars[-1].close
+            try:
+                # Prefer the OFFICIAL daily candle (same source the chart uses)
+                daily_rows = await self.history.fetch_daily_candles(
+                    tradingsymbol=tsym, exchange="NFO", days_back=10
+                )
+                for r in reversed(daily_rows):
+                    if str(r.get("time", "")) == valid_prev_days[-1]:
+                        dh = float(r.get("high", 0.0))
+                        dl = float(r.get("low", 0.0))
+                        dc = float(r.get("close", 0.0))
+                        if dh >= dl > 0 and dc > 0:
+                            ph, pl, pc = dh, dl, dc
+                            logger.info("FUTURES prior-day EOD candle: H=%.2f L=%.2f C=%.2f", ph, pl, pc)
+                        break
+            except Exception as e:
+                logger.debug(f"FUTURES daily candle fetch failed (1m fallback used): {e}")
 
             cn = self.engine.register_contract("FUT:CN", tsym, tok, "CE", 0)
             cn.signal_tfs = (3,)                       # 3m chart only
             cn.elder_gate = True                       # allow G/B, block RED
+            cn.use_3m_levels = True                    # chart-matching 3m EMA20/200
             cn.set_day_levels(ph, pl, pc)
             cn.seed_bars(prior_bars, today_bars, session_date=today_str)
 
             mr = self.engine.register_contract("FUT:MR", tsym + "~M", tok, "PE", 0)
             mr.signal_tfs = (3,)
             mr.elder_gate = True                       # mirror: G/B == real R/B
+            mr.use_3m_levels = True
             # Mirror = negate prices AND negate every level (formulas like
             # fibR3=cpr+rng are not odd, so levels are computed real then flipped)
             mr.levels_day = {k: -v for k, v in cn.levels_day.items()}
