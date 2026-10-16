@@ -79,6 +79,9 @@ STRATEGY_LABEL = "Full10 Strategy (v6)"
 # Full10 v6 mode (2026-09-09): swap the signal engine; ALL plumbing
 # (broker, executor, funds-fallback, exits, park/restore, Discord) unchanged.
 STRATEGY_MODE = os.getenv("STRATEGY_MODE", "full10").strip().lower()
+# No entries before 09:25 IST (2026-10-16 per user) — also avoids the
+# session-boundary window where the futures Elder state can differ.
+F10_ENTRY_START_MIN = 9 * 60 + 25
 IST = timezone(timedelta(hours=5, minutes=30))
 
 log_dir = ROOT / "logs"
@@ -844,6 +847,9 @@ class LastHopeTradingEngine:
 
         now = ist_now()
         cur_min = minute_of(now)
+        if cur_min < F10_ENTRY_START_MIN:
+            logger.info("Entry skipped: before the 09:25 entry start (now %02d:%02d)", cur_min // 60, cur_min % 60)
+            return
         can, reason = self.risk.can_open_trade(cur_min, 0)
         if not can:
             logger.info("Entry blocked by risk: %s", reason)

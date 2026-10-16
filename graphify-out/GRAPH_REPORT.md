@@ -34,16 +34,16 @@ Nodes that act as bridges between communities — removing these would disconnec
 
 | RANK | NODE | BETWEENNESS |
 |:---:|:---|:---:|
-| #1 | `opt_futures_quad` | 0.1156 |
-| #2 | `patterns_candle` | 0.0814 |
-| #3 | `undisputed_main_combinedsupremetradingengine` | 0.0729 |
-| #4 | `elder_incrementalelderimpulse` | 0.0725 |
-| #5 | `backtest_5y_optimized` | 0.0635 |
-| #6 | `backtest_walkforward_fees` | 0.0612 |
-| #7 | `grid_optimize_f6_atr` | 0.0572 |
-| #8 | `divergence_divergenceengine` | 0.0454 |
-| #9 | `optimized_gpu_backtest` | 0.0358 |
-| #10 | `causal_live_parity_research_incrementalatr` | 0.0341 |
+| #1 | `opt_futures_quad` | 0.1068 |
+| #2 | `elder_incrementalelderimpulse` | 0.0741 |
+| #3 | `backtest_5y_optimized` | 0.0716 |
+| #4 | `undisputed_main_combinedsupremetradingengine` | 0.0705 |
+| #5 | `patterns_candle` | 0.0576 |
+| #6 | `backtest_walkforward_fees` | 0.0475 |
+| #7 | `grid_optimize_f6_atr` | 0.0441 |
+| #8 | `divergence_divergenceengine` | 0.0421 |
+| #9 | `manager_riskmanager` | 0.0360 |
+| #10 | `marni_elder_impulse_7y` | 0.0287 |
 
 ## Community Structure (1 communities)
 
