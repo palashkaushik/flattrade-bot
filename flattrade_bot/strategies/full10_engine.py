@@ -65,7 +65,7 @@ logger = logging.getLogger("flattrade_bot.full10_engine")
 S1_K, S1_D = 12, 2      # smoothed %D=2 (geoms-certified reference)
 S3_K, S3_D = 40, 4
 S4_K, S4_D = 60, 10
-ARM_S1 = 30.0           # arming: S1 <= 30 (5-pt buffer rule)
+ARM_S1 = 50.0           # arming: S1 <= 50 (per user 2026-10-16; was 30.0)
 ARM_WIN = 1             # entry on arming bar or next bar only
 FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 30
 FLAG_S1 = 30.0
