@@ -183,6 +183,9 @@ class LastHopeTradingEngine:
         self._current_day: Optional[date] = None
         self._contract_task: Optional[asyncio.Task] = None
         self._exit_task: Optional[asyncio.Task] = None
+        # FUTURES-CANDLE SL state (2026-10-16): real-space futures level + side
+        self._fut_sl_level: Optional[float] = None
+        self._fut_sl_side: Optional[str] = None
         self._entering: bool = False
         self._dash_lines_drawn: int = 0
         self._alt_screen_on: bool = False
@@ -778,6 +781,17 @@ class LastHopeTradingEngine:
         entry = float(cs.latest_ltp)
         logger.info("FUTURES %s [%s] %s @ %.2f on futures -> %s @ %.2f (live LTP)",
                     side, sig.get("trigger"), sig.get("level"), sig.get("entry", 0.0), cs.symbol, entry)
+        # FUTURES-CANDLE SL (2026-10-16 per user): long -> 2 pts below the
+        # entry 3m candle low; short -> 2 pts above the candle high. The
+        # engine emits it in chart space (mirrored for the PE twin) — convert
+        # to a real futures level for the exit watchdog.
+        sl_fut = sig.get("sl_fut")
+        try:
+            sl_fut = float(sl_fut) if sl_fut is not None else None
+            if sl_fut is not None and side == "PE":
+                sl_fut = -sl_fut
+        except (TypeError, ValueError):
+            sl_fut = None
         return {
             **sig,
             "symbol": cs.symbol,
@@ -788,6 +802,8 @@ class LastHopeTradingEngine:
             "tp": round(entry + F10_SL_PTS, 2),
             "sl_points": F10_SL_PTS,
             "tp_points": F10_SL_PTS,
+            "sl_fut": sl_fut,
+            "fut_source": True,
         }
 
     async def _open_with_renew(
@@ -858,6 +874,7 @@ class LastHopeTradingEngine:
         display = sig["symbol"]
         token = sig["token"]
         entry = sig["entry"]
+        sl_fut = sig.get("sl_fut") if sig.get("fut_source") else None
         if self.full10:
             dist = float(sig["sl_points"])          # SL 10 (fixed)
             sl = round(entry - float(sig["sl_points"]), 2)
@@ -913,6 +930,13 @@ class LastHopeTradingEngine:
                 "tp": tp,
                 **({} if self.full10 else {"be_done": False}),
             })
+            # FUTURES-CANDLE SL governs fut-sourced trades: disable the option
+            # -10 SL; _manage_exit watches the futures level on every tick.
+            if sl_fut is not None:
+                self._fut_sl_level = float(sl_fut)
+                self._fut_sl_side = sig["side"]
+                if self.executor.position:
+                    self.executor.position["sl"] = -1e12
         else:
             self.paper_position = {
                 "side": sig["side"],
@@ -924,6 +948,7 @@ class LastHopeTradingEngine:
                 "sl": sl,
                 "target": tp,
                 "dist": dist,
+                "sl_fut": sl_fut,
                 "opened_at": now,
                 "signal": f"{sig['trigger']}_{sig['level']}",
                 **({} if self.full10 else {
@@ -947,7 +972,12 @@ class LastHopeTradingEngine:
         held_strike = self._strike_from_symbol(held_symbol, sig["strike"], sig["side"])
         self.active_position_key = f"{sig['side']}:{held_strike}"
         if self.full10:
-            logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} (fixed 10/15, no BE)")
+            if sl_fut is not None:
+                logger.info(
+                    f"ENTRY {display} @ {fill:.2f} SL=futures {float(sl_fut):.2f} "
+                    f"({'low' if sig['side'] == 'CE' else 'high'} of entry candle ±2) TP={tp:.2f} (option +10)")
+            else:
+                logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} (fixed 10/15, no BE)")
         else:
             logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} BE_trig={sig['be_trigger_px']:.2f}")
 
@@ -1026,6 +1056,8 @@ class LastHopeTradingEngine:
         self.engine.on_trade_closed()
         self.active_position_key = None
         self.paper_position = None
+        self._fut_sl_level = None
+        self._fut_sl_side = None
 
     def _load_today_trades(self):
         """Reloads this session's already-recorded trades from the JSONL."""
@@ -1110,6 +1142,25 @@ class LastHopeTradingEngine:
             # SL/TP/EOD detection (pure CPU — fast). Exit EXECUTION (broker order +
             # up to 12x0.3s order-book polls) runs as a guarded background task so
             # the tick loop NEVER blocks on fill confirmation (the 10s freeze bug).
+            # FUTURES-CANDLE SL (2026-10-16 per user): CE exits at market when
+            # the 3m futures touches the entry candle's low - 2; PE when it
+            # touches the candle's high + 2 (mirror). The option -10 SL is
+            # disabled for fut-sourced trades; TP stays the option +10.
+            if self._fut_sl_level is not None:
+                _fltp = float(self._last_ltp.get("FUT:CN") or 0.0)
+                if _fltp > 0:
+                    _hit = (_fltp <= self._fut_sl_level) if self._fut_sl_side == "CE" \
+                        else (_fltp >= self._fut_sl_level)
+                    if _hit:
+                        if self._exit_task is None or self._exit_task.done():
+                            logger.info(
+                                "EXIT triggered (FUT_SL %s fut=%.2f level=%.2f) — dispatching broker close in background",
+                                self._fut_sl_side, _fltp, self._fut_sl_level)
+                            self._exit_task = asyncio.create_task(
+                                self._execute_close(ltp, now, "FUT_SL")
+                            )
+                        return
+
             res = await self.executor.check_exit(ltp, now, dry_run=True)
             if res.get("exit_reason"):
                 reason = res["exit_reason"]
@@ -1147,7 +1198,13 @@ class LastHopeTradingEngine:
             )
 
         reason = None
-        if ltp <= pos["sl"]:       # SL priority over TP (backtest rule)
+        _sfut = pos.get("sl_fut")
+        _fltp = float(self._last_ltp.get("FUT:CN") or 0.0)
+        if _sfut is not None and _fltp > 0 and (
+                (pos["side"] == "CE" and _fltp <= float(_sfut)) or
+                (pos["side"] == "PE" and _fltp >= float(_sfut))):
+            reason = "FUT_SL"
+        elif _sfut is None and ltp <= pos["sl"]:   # legacy option SL (stoch-era)
             reason = "STOP_LOSS"
         elif ltp >= pos["target"]:
             reason = "TARGET"

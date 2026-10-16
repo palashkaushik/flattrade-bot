@@ -521,6 +521,20 @@ class Full10ContractState:
                 )
                 return None
 
+        # FUTURES-CANDLE SL (2026-10-16 per user): long -> 2 pts below the
+        # entry 3m candle's low; the mirrored short twin evaluates the same
+        # rule in mirror space = 2 pts above the real candle's high.
+        # Snapshot at signal time (the forming bucket, or the close-handled
+        # bucket at a boundary).
+        _t3 = self.tf[3]
+        if _t3.cur_bars:
+            _lo3 = min(b.low for b in _t3.cur_bars)
+        else:
+            _lo3 = _t3.last_lo
+        if _lo3 is None:
+            _lo3 = bar.low
+        sl_fut = _r2(_lo3 - 2.0)
+
         entry = bar.close
         sl = _r2(entry - SL_PTS)
         tp = _r2(entry + TP_PTS)
@@ -540,6 +554,7 @@ class Full10ContractState:
             "dist": SL_PTS,          # executor wants sl_points/tp_points — pass through
             "sl": sl,
             "tp": tp,
+            "sl_fut": sl_fut,
             "sl_points": SL_PTS,
             "tp_points": TP_PTS,
             "bar": bar,
