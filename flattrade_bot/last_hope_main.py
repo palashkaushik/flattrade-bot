@@ -168,6 +168,13 @@ class LastHopeTradingEngine:
         self._broker_status = "INITIALIZING..."
         self._last_ltp: Dict[str, float] = {}
         self._last_contract_check = 0.0
+        # FUTURES SIGNAL SOURCE (2026-10-16 per user): signals come from the
+        # NIFTY futures 3m chart — CE via the standard rules, PE via MIRRORED
+        # rules (achieved by feeding a negated-price twin state through the
+        # same engine; stoch = 100-S and prices/levels negate exactly).
+        self._futures_ready = False
+        self._futures_loading = False
+        self._futures_task = None
         self._last_token_renew = 0.0
         self._eod_done = False
         self._current_day: Optional[date] = None
@@ -460,6 +467,126 @@ class LastHopeTradingEngine:
         except Exception as e:
             logger.warning(f"Async warmup failed for {symbol}: {e}")
 
+    async def ensure_futures(self):
+        """Resolves + warms the FUTURES signal source once (NIFTY front-month).
+
+        Registers two engine states on the same futures token:
+          FUT:CN  — positive prices; standard rules        -> CE signals
+          FUT:MR  — negated prices + negated levels        -> PE signals (mirror)
+        """
+        if not self.history.auth_token or self.spot_price is None:
+            return
+        if self._futures_ready or self._futures_loading:
+            return
+        self._futures_loading = True
+        self._futures_task = asyncio.create_task(self._warmup_futures())
+
+    async def _warmup_futures(self):
+        try:
+            fut = await self.history.search_futures_token("NIFTY")
+            if not fut or not fut.get("token"):
+                logger.warning("FUTURES signal source: token resolution failed — retrying next loop")
+                self._futures_loading = False
+                return
+            tok = fut["token"]
+            tsym = fut.get("tsym", "NIFTY-FUT")
+            now = ist_now()
+            today_str = now.strftime("%d-%m-%Y")
+            rows = await self.history.fetch_historical_candles(
+                token=tok, exchange="NFO", interval="1", days_back=5
+            )
+            if not rows:
+                logger.warning("FUTURES signal source: no historical rows — retrying next loop")
+                self._futures_loading = False
+                return
+            by_day: Dict[str, List[Dict[str, Any]]] = {}
+            for r in rows:
+                t_str = str(r.get("time", ""))
+                d_part = t_str.split(" ")[0] if " " in t_str else t_str
+                by_day.setdefault(d_part, []).append(r)
+
+            def parse_d(d_str: str) -> datetime:
+                try:
+                    return datetime.strptime(d_str, "%d-%m-%Y")
+                except Exception:
+                    return datetime.min
+
+            valid_prev_days = sorted(
+                [d for d in by_day.keys() if d != today_str and len(by_day[d]) >= 50],
+                key=parse_d,
+            )
+            if not valid_prev_days:
+                logger.warning("FUTURES signal source: no valid prior sessions — retrying next loop")
+                self._futures_loading = False
+                return
+
+            def build_bars(day_list: List[str]) -> List[Bar1m]:
+                bars: List[Bar1m] = []
+                for day in day_list:
+                    for r in by_day.get(day, []):
+                        try:
+                            dt = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
+                        except (TypeError, ValueError):
+                            continue
+                        m = dt.hour * 60 + dt.minute
+                        if not (555 <= m <= 930):
+                            continue
+                        o = float(r.get("open", r.get("into", 0.0)) or 0.0)
+                        h = float(r.get("high", r.get("inth", 0.0)) or 0.0)
+                        l = float(r.get("low", r.get("intl", 0.0)) or 0.0)
+                        c = float(r.get("close", r.get("intc", 0.0)) or 0.0)
+                        v = float(r.get("volume", r.get("intv", r.get("v", 100.0))) or 100.0)
+                        if h >= l > 0:
+                            bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c,
+                                              timestamp=dt, volume=v))
+                bars.sort(key=lambda b: (b.timestamp, b.minute))
+                return bars
+
+            prior_bars = build_bars(valid_prev_days[-3:])[-1200:]
+            cur_m = now.hour * 60 + now.minute
+            today_bars = [b for b in build_bars([today_str]) if b.minute < cur_m]
+            if not prior_bars:
+                logger.warning("FUTURES signal source: no prior bars — retrying next loop")
+                self._futures_loading = False
+                return
+
+            last_day_bars = build_bars([valid_prev_days[-1]])
+            ph = max(b.high for b in last_day_bars)
+            pl = min(b.low for b in last_day_bars)
+            pc = last_day_bars[-1].close
+
+            cn = self.engine.register_contract("FUT:CN", tsym, tok, "CE", 0)
+            cn.signal_tfs = (3,)                       # 3m chart only
+            cn.elder_gate = True                       # allow G/B, block RED
+            cn.set_day_levels(ph, pl, pc)
+            cn.seed_bars(prior_bars, today_bars, session_date=today_str)
+
+            mr = self.engine.register_contract("FUT:MR", tsym + "~M", tok, "PE", 0)
+            mr.signal_tfs = (3,)
+            mr.elder_gate = True                       # mirror: G/B == real R/B
+            # Mirror = negate prices AND negate every level (formulas like
+            # fibR3=cpr+rng are not odd, so levels are computed real then flipped)
+            mr.levels_day = {k: -v for k, v in cn.levels_day.items()}
+            mr.pdvwap = None
+            mr.virgin = {}
+
+            def neg(b: Bar1m) -> Bar1m:
+                return Bar1m(minute=b.minute, open=-b.open, high=-b.low, low=-b.high,
+                             close=-b.close, timestamp=b.timestamp, volume=b.volume)
+
+            mr.seed_bars([neg(b) for b in prior_bars], [neg(b) for b in today_bars],
+                         session_date=today_str)
+
+            self._futures_ready = True
+            logger.info(
+                "FUTURES SIGNAL SOURCE READY: %s (tok %s) | 3m TF | priors=%d today=%d bars | "
+                "CE = standard rules -> CE_SPEC | PE = MIRRORED rules -> PE_SPEC",
+                tsym, tok, len(prior_bars), len(today_bars),
+            )
+        except Exception as e:
+            logger.warning(f"FUTURES warmup failed: {e}")
+            self._futures_loading = False
+
     async def ensure_contracts(self, force: bool = False):
         """Resolves 2nd ITM contracts + rollover watch pairs; HTTP work runs in background.
 
@@ -495,7 +622,7 @@ class LastHopeTradingEngine:
         if not hasattr(self, "_parked_contracts"):
             self._parked_contracts: Dict[str, Any] = {}
         for k in list(self.engine.contracts.keys()):
-            if k not in desired_keys and k != self.active_position_key:
+            if k not in desired_keys and k != self.active_position_key and not str(k).startswith("FUT:"):
                 cs = self.engine.contracts[k]
                 if cs is not None:
                     if cs.token:
@@ -607,6 +734,40 @@ class LastHopeTradingEngine:
         except Exception as e:
             logger.warning("1st-ITM fallback resolution failed: %s", e)
             return None
+
+    def _futures_exec_sig(self, sig: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Map a 3m futures-chart signal to the executable 2nd-ITM option.
+
+        side CE -> CE_SPEC (ATM-100); side PE -> PE_SPEC (ATM+100) from live
+        spot (the same spec-pair discipline as before). Entry price = the
+        option's live LTP at signal time; SL/TP = the fixed +/-10 box."""
+        side = sig.get("side")
+        if side not in ("CE", "PE") or not self.spot_price:
+            return None
+        try:
+            d = self.engine.desired_strikes(self.spot_price)
+        except Exception:
+            return None
+        strike = d["CE_SPEC"] if side == "CE" else d["PE_SPEC"]
+        key = f"{side}:{strike}"
+        cs = self.engine.contracts.get(key)
+        if cs is None or cs.latest_ltp is None or cs.latest_ltp <= 0:
+            logger.warning("FUTURES %s signal dropped — spec contract %s has no live LTP", side, key)
+            return None
+        entry = float(cs.latest_ltp)
+        logger.info("FUTURES %s [%s] %s @ %.2f on futures -> %s @ %.2f (live LTP)",
+                    side, sig.get("trigger"), sig.get("level"), sig.get("entry", 0.0), cs.symbol, entry)
+        return {
+            **sig,
+            "symbol": cs.symbol,
+            "token": cs.token,
+            "strike": strike,
+            "entry": entry,
+            "sl": round(entry - F10_SL_PTS, 2),
+            "tp": round(entry + F10_SL_PTS, 2),
+            "sl_points": F10_SL_PTS,
+            "tp_points": F10_SL_PTS,
+        }
 
     async def _open_with_renew(
         self,
@@ -1423,12 +1584,16 @@ class LastHopeTradingEngine:
         # Drop ALL contracts so ensure_contracts() re-resolves + re-warms with fresh S/R
         # (active position contract is preserved via active_position_key)
         for k in list(self.engine.contracts.keys()):
-            if k != self.active_position_key:
+            if k != self.active_position_key and not str(k).startswith("FUT:"):
                 del self.engine.contracts[k]
                 self._last_ltp.pop(k, None)
         # Per-day cold start on any surviving contract (backtest parity)
         for cs in self.engine.contracts.values():
             cs.reset_session()
+
+        # Futures signal source re-resolves on the new day (front-month rollover)
+        self._futures_ready = False
+        self._futures_loading = False
 
         # Reset token-renew cooldown so a stale overnight token refreshes immediately
         self._last_token_renew = 0.0
@@ -1467,6 +1632,8 @@ class LastHopeTradingEngine:
 
         # 1. Dynamic Contract Rollover Watch (runs async warmup in background)
         await self.ensure_contracts()
+        # 1.1 Futures signal source (NIFTY front-month, 3m chart; CE + mirrored PE)
+        await self.ensure_futures()
 
         # 2. TICK ACQUISITION — WebSocket-first with surgical REST fallback.
         # The WS feed pushes every tick (no polling, no rate limit). Any
@@ -1536,9 +1703,17 @@ class LastHopeTradingEngine:
             if opt_ltp and opt_ltp > 0:
                 self._last_ltp[key] = opt_ltp
                 cum_v = self.ws_feed.last_cum_volume("NFO", cs.token)
-                sig = self.engine.push_tick(key, opt_ltp, now, cum_volume=cum_v)
-                if sig and not self._has_position() and key in spec_keys:
-                    await self._try_enter(sig)
+                # FUT:MR is the MIRRORED twin — it always sees negated prices
+                ltp_for_engine = -opt_ltp if key == "FUT:MR" else opt_ltp
+                sig = self.engine.push_tick(key, ltp_for_engine, now, cum_volume=cum_v)
+                if sig and not self._has_position():
+                    if key.startswith("FUT:"):
+                        esig = self._futures_exec_sig(sig)
+                        if esig is not None:
+                            await self._try_enter(esig)
+                    elif not self._futures_ready and key in spec_keys:
+                        # Fallback ONLY while the futures source is warming up
+                        await self._try_enter(sig)
 
         # REST fallback: ONLY stale/unsubscribed instruments (+ spot if stale)
         need_spot = not (self.ws_feed.connected and spot_ltp is not None
@@ -1585,9 +1760,15 @@ class LastHopeTradingEngine:
                 else:
                     self._last_ltp[label] = ltp_val
                     cum_v = float(result.get("v", 0) or 0) or None
-                    sig = self.engine.push_tick(label, ltp_val, now, cum_volume=cum_v)
-                    if sig and not self._has_position() and label in spec_keys:
-                        await self._try_enter(sig)
+                    ltp_for_engine = -ltp_val if label == "FUT:MR" else ltp_val
+                    sig = self.engine.push_tick(label, ltp_for_engine, now, cum_volume=cum_v)
+                    if sig and not self._has_position():
+                        if label.startswith("FUT:"):
+                            esig = self._futures_exec_sig(sig)
+                            if esig is not None:
+                                await self._try_enter(esig)
+                        elif not self._futures_ready and label in spec_keys:
+                            await self._try_enter(sig)
 
         # 3. Check Exits (SL, TP, Breakeven, EOD)
         await self._manage_exit()

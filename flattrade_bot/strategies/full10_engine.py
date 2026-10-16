@@ -25,6 +25,13 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
   - Daily circuit breaker (2026-10-15 per user): touch -29 -> loss capped,
     no new entries after; NO profit lock (entries keep trading past +29).
     (An open trade still manages to SL/TP/EOD.)
+  - FUTURES SIGNAL SOURCE (2026-10-16 per user): signals are generated from
+    the NIFTY front-month FUTURES 3m chart — FUT:CN (standard rules -> CE)
+    and FUT:MR (a negated-price mirror twin -> PE; negation turns dips into
+    tops, so the same code yields the mirrored rules). Both states gate on
+    the FORMING 3m ELDER candle: allow GREEN/BLUE, block RED (on the mirror
+    twin, G/B == the real chart's R/B). Option-chart signals no longer enter
+    (fallback only while the futures source is warming).
   - EOD force-close at session end; SL priority over TP.
   - Funds fallback (unchanged plumbing): 2nd-ITM margin reject -> 1st ITM.
 
@@ -67,8 +74,27 @@ TP_PTS = 15.0
 DAILY_CAP_PTS = 29.0    # loss bound: halt new entries when closed day P&L <= -29
 DAILY_CAP_PROFIT = float("inf")  # profit lock REMOVED 2026-10-15 per user — the
                         # -29 loss bound stays; entries keep trading past +29
-# Per-day overrides {day_key: (loss_pts, profit_pts)} — none active
-DAILY_CAP_OVERRIDES = {}
+# Per-day overrides {day_key: (loss_pts, profit_pts)} — 2026-10-16 CAP-FREE
+# per user (trade the whole session; the -29 bound resumes on the next day).
+DAILY_CAP_OVERRIDES = {
+    "2026-10-16": (float("inf"), float("inf")),
+}
+
+# ---- 3m-Elder gate (futures states only; partial-candle evaluation) ----
+# allow iff the FORMING 3m candle color is GREEN or BLUE; RED blocks.
+# On the mirrored PE twin this single rule = "real RED or BLUE allows PE".
+ELDER3M_A13 = 2.0 / 14.0    # EMA13
+ELDER3M_A12 = 2.0 / 13.0    # MACD fast EMA
+ELDER3M_A26 = 2.0 / 27.0    # MACD slow EMA
+ELDER3M_A9 = 2.0 / 10.0     # MACD signal EMA
+ELDER3M_MIN_BUCKETS = 31    # warmup: color allowed only at bucket index >= 30
+ELDER3M_FIRST_MIN = 555     # 09:15
+ELDER3M_LAST_MIN = 929      # 15:29 (last 1m bar start; buckets are 09:15-aligned)
+
+
+def _bkt3(minute: int) -> int:
+    """3m bucket start for a 1m minute (09:15-aligned: 555, 558, 561, ...)."""
+    return ELDER3M_FIRST_MIN + 3 * ((minute - ELDER3M_FIRST_MIN) // 3)
 
 
 
@@ -103,6 +129,18 @@ class Full10ContractState:
     vwap: IncrementalVWAP = field(default_factory=IncrementalVWAP)
     tf: Dict[int, TFTracker] = field(default_factory=lambda: {
         1: TFTracker(1), 2: TFTracker(2), 3: TFTracker(3), 5: TFTracker(5)})
+    # TFs whose triggers/arming may emit signals (futures states: (3,) — 3m only)
+    signal_tfs: Tuple[int, ...] = (1, 2, 3, 5)
+    # Elder gate (futures signal states only): allow iff forming 3m color in {G,B}
+    elder_gate: bool = False
+    # 3m Elder Impulse state (partial-candle gate)
+    _b3_start: int = -1
+    _b3_last_close: Optional[float] = None
+    _b3_count: int = 0
+    _e13_3m: Optional[float] = None
+    _e12_3m: Optional[float] = None
+    _e26_3m: Optional[float] = None
+    _sig9_3m: Optional[float] = None
     # per-TF trackers use FULL10 stoch periods — installed at __post_init__
     # arming (baridx space, any-TF S1<=30)
     anchor_bar: int = -10**9
@@ -151,6 +189,11 @@ class Full10ContractState:
             self.tf[tfv].last_cl = None
         self.anchor_bar = -10**9
         self.baridx = -1
+        # 3m Elder state resets with the session (re-seeded via seed_bars)
+        self._b3_start = -1
+        self._b3_last_close = None
+        self._b3_count = 0
+        self._e13_3m = self._e12_3m = self._e26_3m = self._sig9_3m = None
         logger.info("Full10 session reset for %s", self.symbol)
 
     def set_day_levels(self, prev_high: float, prev_low: float, prev_close: float,
@@ -205,6 +248,70 @@ class Full10ContractState:
         self.ema200.update(bar.close)
         for tfv in (1, 2, 3, 5):
             self.tf[tfv].push_1m_bar(bar)
+        self._feed_3m_bar(bar)
+
+    # ---- 3m Elder Impulse (partial-candle gate; futures states) ----
+    def _feed_3m_bar(self, bar: Bar1m):
+        """One completed 1m bar through the 3m resampler (day-boundary safe)."""
+        m = bar.minute
+        if not (ELDER3M_FIRST_MIN <= m <= ELDER3M_LAST_MIN):
+            return
+        b = _bkt3(m)
+        if self._b3_start == -1:
+            self._b3_start = b
+        elif b != self._b3_start:
+            # Bucket advance — within-day rollover (b > start) OR session
+            # boundary (b < start: 09:15-aligned starts reset each day, so a
+            # decrease is ALWAYS a new day; the post-15:29 phantom start 930
+            # must not wedge the feed). Close out the pending bucket with its
+            # last available close (matches the certified replay).
+            if self._b3_last_close is not None:
+                self._push_3m_close(self._b3_last_close)
+            self._b3_start = b
+            self._b3_last_close = None
+        self._b3_last_close = bar.close
+        if m == self._b3_start + 2:
+            self._push_3m_close(bar.close)
+            self._b3_start += 3
+            self._b3_last_close = None
+
+    def _push_3m_close(self, c: float):
+        """EMA13 / MACD(12,26,9) update on one completed 3m close (first-value seed)."""
+        if self._e13_3m is None:
+            self._e13_3m = self._e12_3m = self._e26_3m = c
+            self._sig9_3m = 0.0   # first macd-line = e12-e26 = 0 (replay parity)
+        else:
+            self._e13_3m = ELDER3M_A13 * c + (1 - ELDER3M_A13) * self._e13_3m
+            self._e12_3m = ELDER3M_A12 * c + (1 - ELDER3M_A12) * self._e12_3m
+            self._e26_3m = ELDER3M_A26 * c + (1 - ELDER3M_A26) * self._e26_3m
+            ml = self._e12_3m - self._e26_3m
+            self._sig9_3m = ELDER3M_A9 * ml + (1 - ELDER3M_A9) * self._sig9_3m
+        self._b3_count += 1
+
+    def _elder3m_partial_color(self, px: float) -> Optional[str]:
+        """Color of the FORMING 3m candle at price px — EXACT conformance with
+        the Pine reference (Elder Impulse System, CC0): GREEN = ema[0]>ema[1]
+        AND hist[0]>hist[1]; RED = ema[0]<ema[1] AND hist[0]<hist[1]; else
+        BLUE. Prior state = last completed bucket; one partial step with px.
+        On a negated (mirror) series the color comes out flipped (G<->R, B stays B)."""
+        if self._b3_count < ELDER3M_MIN_BUCKETS or self._e13_3m is None:
+            return None
+        e13p = self._e13_3m
+        e12p = self._e12_3m
+        e26p = self._e26_3m
+        s9p = self._sig9_3m
+        hp = (e12p - e26p) - s9p
+        e13c = ELDER3M_A13 * px + (1 - ELDER3M_A13) * e13p
+        e12c = ELDER3M_A12 * px + (1 - ELDER3M_A12) * e12p
+        e26c = ELDER3M_A26 * px + (1 - ELDER3M_A26) * e26p
+        mlc = e12c - e26c
+        s9c = ELDER3M_A9 * mlc + (1 - ELDER3M_A9) * s9p
+        hc = mlc - s9c
+        if (e13c > e13p) and (hc > hp):
+            return "G"
+        if (e13c < e13p) and (hc < hp):
+            return "R"
+        return "B"
 
     # ---- live tick path (identical rollover semantics to §44) ----
     def push_tick(self, ltp: float, dt: datetime, cum_volume: Optional[float] = None) -> Optional[Dict[str, Any]]:
@@ -249,8 +356,8 @@ class Full10ContractState:
             if bar.low <= v <= bar.high:
                 del self.virgin[nm]
 
-        # 3. arming: S1 <= 30 on ANY TF -> anchor this baridx
-        for tfv in (1, 2, 3, 5):
+        # 3. arming: S1 <= 30 on ANY signal-TF -> anchor this baridx
+        for tfv in self.signal_tfs:
             s1 = self.tf[tfv].last_s1
             if s1 is not None and s1 <= ARM_S1:
                 self.anchor_bar = self.baridx
@@ -260,9 +367,9 @@ class Full10ContractState:
         if (self.baridx - self.anchor_bar) > ARM_WIN:
             return None
 
-        # 5. triggers on any TF (dormancy REMOVED)
+        # 5. triggers on any signal-TF (dormancy REMOVED)
         trig = None
-        for tfv in (1, 2, 3, 5):
+        for tfv in self.signal_tfs:
             t = self.tf[tfv]
             s1, s3, s4, p1 = t.last_s1, t.last_s3, t.last_s4, t.prev_s1
             if s1 is None or s4 is None:
@@ -291,6 +398,18 @@ class Full10ContractState:
                 hit = (nm, v); break
         if hit is None:
             return None
+
+        # 7. 3m-ELDER GATE (futures signal states only): allow iff the FORMING
+        #    3m Elder candle is GREEN or BLUE; RED (and warmup) block.
+        #    On the mirrored PE twin this exact rule = "real RED or BLUE".
+        if self.elder_gate:
+            _col = self._elder3m_partial_color(bar.close)
+            if _col not in ("G", "B"):
+                logger.info(
+                    "3m-Elder filter: %s %s [%dm] blocked @ %.2f (color=%s) on %s",
+                    self.side, kind, tfv, bar.close, _col or "warmup", self.symbol,
+                )
+                return None
 
         entry = bar.close
         sl = _r2(entry - SL_PTS)
