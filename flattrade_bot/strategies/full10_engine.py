@@ -263,11 +263,16 @@ class Full10ContractState:
 
     # ---- 3m Elder Impulse (partial-candle gate; futures states) ----
     def _feed_3m_bar(self, bar: Bar1m):
-        """One completed 1m bar through the 3m resampler (day-boundary safe)."""
+        """One completed 1m bar through the 3m resampler (day-boundary safe).
+
+        The 15:30:00 exchange auction print (minute 930) belongs to the LAST
+        3m candle of the day ([15:27]) — chart convention (verified against
+        the futures chart: the day's final candle close = the official close).
+        """
         m = bar.minute
-        if not (ELDER3M_FIRST_MIN <= m <= ELDER3M_LAST_MIN):
+        if not (ELDER3M_FIRST_MIN <= m <= ELDER3M_LAST_MIN + 1):
             return
-        b = _bkt3(m)
+        b = _bkt3(m if m <= ELDER3M_LAST_MIN else ELDER3M_LAST_MIN)
         if self._b3_start == -1:
             self._b3_start = b
         elif b != self._b3_start:
