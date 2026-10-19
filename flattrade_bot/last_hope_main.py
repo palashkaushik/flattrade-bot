@@ -1171,6 +1171,25 @@ class LastHopeTradingEngine:
                     )
                 else:
                     logger.warning("EXIT signal (%s) while close already in flight — skipped", reason)
+                return
+
+            # TIME STOP (2026-10-19 per user): exit at market once the trade
+            # has been open 10 minutes. Runs AFTER SL/TP detection so a stop
+            # or target touched on the same tick still takes priority.
+            _opened = pos.get("opened_at")
+            if _opened is not None:
+                try:
+                    _open_s = (now - _opened).total_seconds()
+                    if _open_s >= 10 * 60:
+                        if self._exit_task is None or self._exit_task.done():
+                            logger.info(
+                                "EXIT triggered (TIME_STOP %.1f min open) — dispatching broker close in background",
+                                _open_s / 60.0)
+                            self._exit_task = asyncio.create_task(
+                                self._execute_close(ltp, now, "TIME_STOP")
+                            )
+                except TypeError:
+                    pass
             return
 
         # Paper Position Exit
@@ -1210,6 +1229,8 @@ class LastHopeTradingEngine:
             reason = "TARGET"
         elif minute_of(now) >= SESSION_END_MIN:
             reason = "EOD"
+        elif (now - pos["opened_at"]).total_seconds() >= 10 * 60:
+            reason = "TIME_STOP"      # 10-minute time stop (2026-10-19 per user)
 
         if not reason:
             return
