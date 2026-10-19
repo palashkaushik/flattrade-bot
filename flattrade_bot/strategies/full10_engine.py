@@ -69,6 +69,8 @@ ARM_S1 = 50.0           # arming: S1 <= 50 (per user 2026-10-16; was 30.0)
 ARM_WIN = 1             # entry on arming bar or next bar only
 FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 50 (S1 limit 30->50 per user 2026-10-16)
 FLAG_S1 = 50.0
+ST_ATR = 10.0          # SuperTrend ATR period (3m)
+ST_MULT = 3.0          # SuperTrend multiplier
 SUP_T = 30.0            # SUPER: all three < 30 & S1 rising
 TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold
@@ -146,6 +148,14 @@ class Full10ContractState:
     _b3_start: int = -1
     _b3_last_close: Optional[float] = None
     _b3_count: int = 0
+    # 3m SuperTrend state (direction filter)
+    _st_atr: Optional[float] = None
+    _st_up: Optional[float] = None
+    _st_dn: Optional[float] = None
+    _st_trend: Optional[int] = None
+    _st_prev_close: Optional[float] = None
+    _b3_hi: Optional[float] = None
+    _b3_lo: Optional[float] = None
     _e13_3m: Optional[float] = None
     _e12_3m: Optional[float] = None
     _e26_3m: Optional[float] = None
@@ -210,6 +220,13 @@ class Full10ContractState:
         self._b3_start = -1
         self._b3_last_close = None
         self._b3_count = 0
+        self._st_atr = None
+        self._st_up = None
+        self._st_dn = None
+        self._st_trend = None
+        self._st_prev_close = None
+        self._b3_hi = None
+        self._b3_lo = None
         self._e13_3m = self._e12_3m = self._e26_3m = self._sig9_3m = None
         self.ema20_3m = IncrementalEMA(20)
         self.ema200_3m = IncrementalEMA(200)
@@ -290,6 +307,8 @@ class Full10ContractState:
         b = _bkt3(m if m <= ELDER3M_LAST_MIN else ELDER3M_LAST_MIN)
         if self._b3_start == -1:
             self._b3_start = b
+            self._b3_hi = bar.high
+            self._b3_lo = bar.low
         elif b != self._b3_start:
             # Bucket advance — within-day rollover (b > start) OR session
             # boundary (b < start: 09:15-aligned starts reset each day, so a
@@ -298,13 +317,56 @@ class Full10ContractState:
             # last available close (matches the certified replay).
             if self._b3_last_close is not None:
                 self._push_3m_close(self._b3_last_close)
+                self._st_push(self._b3_hi, self._b3_lo, self._b3_last_close)
             self._b3_start = b
             self._b3_last_close = None
+            self._b3_hi = bar.high
+            self._b3_lo = bar.low
+        if self._b3_hi is None or bar.high > self._b3_hi:
+            self._b3_hi = bar.high
+        if self._b3_lo is None or bar.low < self._b3_lo:
+            self._b3_lo = bar.low
         self._b3_last_close = bar.close
         if m == self._b3_start + 2:
             self._push_3m_close(bar.close)
+            self._st_push(self._b3_hi, self._b3_lo, bar.close)
             self._b3_start += 3
             self._b3_last_close = None
+            self._b3_hi = None
+            self._b3_lo = None
+
+    def _st_push(self, h: Optional[float], l: Optional[float], c: float):
+        """One completed 3m bucket through the SuperTrend (Pine ta.supertrend,
+        ATR(10) Wilder, mult 3.0). trend +1 = price above ST, -1 = below."""
+        if h is None or l is None:
+            return
+        hl2 = (h + l) / 2.0
+        if self._st_atr is None:
+            self._st_atr = h - l
+            self._st_up = hl2 - ST_MULT * self._st_atr
+            self._st_dn = hl2 + ST_MULT * self._st_atr
+            self._st_trend = 1 if c > hl2 else -1
+            self._st_prev_close = c
+            return
+        tr = max(h - l, abs(h - self._st_prev_close), abs(l - self._st_prev_close))
+        a = 1.0 / ST_ATR
+        self._st_atr = a * tr + (1 - a) * self._st_atr
+        up = hl2 - ST_MULT * self._st_atr
+        dn = hl2 + ST_MULT * self._st_atr
+        prev_up, prev_dn = self._st_up, self._st_dn
+        if self._st_prev_close > prev_up:
+            up = max(up, prev_up)
+        if self._st_prev_close < prev_dn:
+            dn = min(dn, prev_dn)
+        prev_trend = self._st_trend
+        if prev_trend == -1 and c > prev_dn:
+            trend = 1
+        elif prev_trend == 1 and c < prev_up:
+            trend = -1
+        else:
+            trend = prev_trend
+        self._st_up, self._st_dn, self._st_trend = up, dn, trend
+        self._st_prev_close = c
 
     def _push_3m_close(self, c: float):
         """EMA13 / MACD(12,26,9) + chart RMA20/200 update on one completed 3m
@@ -520,6 +582,21 @@ class Full10ContractState:
                     self.side, kind, tfv, bar.close, _col or "warmup", self.symbol,
                 )
                 return None
+
+        # SUPERTREND DIRECTION FILTER (2026-10-19 per user): CE entries only
+        # while price is ABOVE the 3m SuperTrend (trend == +1); PE entries only
+        # while BELOW. The mirrored PE twin negates the series, so its
+        # SuperTrend flips too and the same test yields "real price below ST".
+        if self._st_trend is None:
+            logger.info(
+                "SuperTrend filter: %s %s [%dm] blocked @ %.2f (warmup) on %s",
+                self.side, kind, tfv, bar.close, self.symbol)
+            return None
+        if self._st_trend != 1:
+            logger.info(
+                "SuperTrend filter: %s %s [%dm] blocked @ %.2f (below ST) on %s",
+                self.side, kind, tfv, bar.close, self.symbol)
+            return None
 
         # FUTURES-CANDLE SL (2026-10-16 per user): long -> 2 pts below the
         # entry 3m candle's low; the mirrored short twin evaluates the same
