@@ -598,9 +598,9 @@ class Full10ContractState:
                 self.side, kind, tfv, bar.close, self.symbol)
             return None
 
-        # FUTURES-CANDLE SL (2026-10-16 per user): long -> 2 pts below the
+        # FUTURES-CANDLE SL (2026-10-26 per user): long -> 0.5 pts below the
         # entry 3m candle's low; the mirrored short twin evaluates the same
-        # rule in mirror space = 2 pts above the real candle's high.
+        # rule in mirror space = 0.5 pts above the real candle's high.
         # Snapshot at signal time (the forming bucket, or the close-handled
         # bucket at a boundary).
         _t3 = self.tf[3]
@@ -610,7 +610,7 @@ class Full10ContractState:
             _lo3 = _t3.last_lo
         if _lo3 is None:
             _lo3 = bar.low
-        sl_fut = _r2(_lo3 - 2.0)
+        sl_fut = _r2(_lo3 - 0.5)
 
         entry = bar.close
         sl = _r2(entry - SL_PTS)
