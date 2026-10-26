@@ -539,7 +539,10 @@ class Full10ContractState:
                 body = abs(c - o_)
                 upw = hi_ - max(o_, c)
                 dnw = min(o_, c) - lo2
-                is_pin = (dnw >= 2.0 * body and dnw >= upw)
+                # LENIENT PIN (2026-10-26 per user): wick >= 0.5x body (was 2.0x);
+                # still requires the wick to be >= the opposite wick and to
+                # reject an SR level.
+                is_pin = (dnw >= 0.5 * body and dnw >= upw)
                 is_eng = False
                 prev = getattr(self, "_pb_prev", None)
                 if prev is not None:
