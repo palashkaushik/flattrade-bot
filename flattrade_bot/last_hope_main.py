@@ -930,13 +930,12 @@ class LastHopeTradingEngine:
                 "tp": tp,
                 **({} if self.full10 else {"be_done": False}),
             })
-            # FUTURES-CANDLE SL governs fut-sourced trades: disable the option
-            # -10 SL; _manage_exit watches the futures level on every tick.
+            # BOTH STOPS ACTIVE (2026-10-26 per user): the futures-candle SL
+            # and the option -10 pt SL run in parallel — whichever is hit
+            # first exits the trade. The executor keeps sl = fill-10.
             if sl_fut is not None:
                 self._fut_sl_level = float(sl_fut)
                 self._fut_sl_side = sig["side"]
-                if self.executor.position:
-                    self.executor.position["sl"] = -1e12
         else:
             self.paper_position = {
                 "side": sig["side"],
@@ -1143,9 +1142,10 @@ class LastHopeTradingEngine:
             # up to 12x0.3s order-book polls) runs as a guarded background task so
             # the tick loop NEVER blocks on fill confirmation (the 10s freeze bug).
             # FUTURES-CANDLE SL (2026-10-16 per user): CE exits at market when
-            # the 3m futures touches the entry candle's low - 2; PE when it
-            # touches the candle's high + 2 (mirror). The option -10 SL is
-            # disabled for fut-sourced trades; TP stays the option +10.
+            # the 3m futures touches the entry candle's low - 0.5; PE when it
+            # touches the candle's high + 0.5 (mirror). BOTH STOPS RUN
+            # (2026-10-26 per user): this futures SL and the executor's option
+            # -10 pt SL — whichever trips first exits. TP stays option +10.
             if self._fut_sl_level is not None:
                 _fltp = float(self._last_ltp.get("FUT:CN") or 0.0)
                 if _fltp > 0:
@@ -1223,7 +1223,7 @@ class LastHopeTradingEngine:
                 (pos["side"] == "CE" and _fltp <= float(_sfut)) or
                 (pos["side"] == "PE" and _fltp >= float(_sfut))):
             reason = "FUT_SL"
-        elif _sfut is None and ltp <= pos["sl"]:   # legacy option SL (stoch-era)
+        elif ltp <= pos["sl"]:      # option -10 SL (whichever hits first)
             reason = "STOP_LOSS"
         elif ltp >= pos["target"]:
             reason = "TARGET"
