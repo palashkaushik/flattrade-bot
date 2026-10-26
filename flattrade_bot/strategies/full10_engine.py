@@ -74,7 +74,7 @@ ST_MULT = 3.0          # SuperTrend multiplier
 SUP_T = 30.0            # SUPER: all three < 30 & S1 rising
 TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold
-TOUCH_CAP = 2.0         # pin/eng: wick must stay within +/-2 pts of the level
+TOUCH_CAP = 3.0         # pin/eng: wick must stay within +/-3 pts of the level
 SL_PTS = 10.0           # v6 fixed geometry
 TP_PTS = 15.0
 DAILY_CAP_PTS = 29.0    # loss bound: halt new entries when closed day P&L <= -29
@@ -813,7 +813,7 @@ class Full10ContractState:
         for nm, v in self._levels_now():
             if v is None:
                 continue
-            if (v - TOUCH_CAP) <= lo_ <= (v + TB) and c >= v - CLOSE_HOLD:
+            if (v - TOUCH_CAP) <= lo_ <= (v + TOUCH_CAP) and c >= v - CLOSE_HOLD:
                 return (nm, v)
         return None
 
