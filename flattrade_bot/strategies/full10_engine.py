@@ -151,6 +151,8 @@ class Full10ContractState:
     ema200_5m: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(200))
     _b5_start: int = -1
     _b5_last_close: Optional[float] = None
+    # second-level pin evaluation throttle (epoch seconds)
+    _last_pin_eval: Optional[float] = None
     # 3m Elder Impulse state (partial-candle gate)
     _b3_start: int = -1
     _b3_last_close: Optional[float] = None
@@ -241,6 +243,7 @@ class Full10ContractState:
         self.ema200_5m = IncrementalEMA(200)
         self._b5_start = -1
         self._b5_last_close = None
+        self._last_pin_eval = None
         self._pb_idx = None
         self._pb_o = self._pb_h = self._pb_l = self._pb_c = None
         self._pb_prev = None
@@ -485,7 +488,9 @@ class Full10ContractState:
             self.cur_high = max(self.cur_high, ltp)
             self.cur_low = min(self.cur_low, ltp)
             self.cur_close = ltp
-            return None
+            # SECOND-LEVEL pin evaluation on the forming 3m candle (per user):
+            # fires mid-minute the moment the wick rejects an SR level.
+            return self._on_partial_tick(ltp, dt)
         # interval volume = cumulative-day-volume delta across this bar (docs
         # touchline "v"); None -> constant 100 fallback (matches §44 semantics)
         if cum_volume is not None and self._bar_start_vol is not None:
@@ -598,41 +603,17 @@ class Full10ContractState:
         o_ = self._pb_o
         hi_ = self._pb_h
         lo2 = self._pb_l
-        rng = hi_ - lo2
-        if rng > 0:
-            body = abs(c - o_)
-            upw = hi_ - max(o_, c)
-            dnw = min(o_, c) - lo2
-            # LENIENT PIN (2026-10-26 per user): wick >= 0.5x body (was 2.0x);
-            # still requires the wick to be >= the opposite wick and to
-            # reject an SR level.
-            is_pin = (dnw >= 0.5 * body and dnw >= upw)
-            is_eng = False
-            prev = getattr(self, "_pb_prev", None)
-            if prev is not None:
-                po, ph, pl, pc_ = prev
-                if c > o_ and c >= max(po, pc_) and o_ <= min(po, pc_):
-                    is_eng = True
-            if is_pin or is_eng:
-                lv2 = self._levels_now()
-                for nm, v in lv2:
-                    if v is None:
-                        continue
-                    # PRECISE TOUCH (2026-10-26 per user): the wick must sit
-                    # within +/-2 pts of the level — it must reach it, but may
-                    # not pierce more than 2 pts beyond (this blocks the 12:15
-                    # case where the PE wick ran 28 pts through the EMA20).
-                    if (v - TOUCH_CAP) <= lo2 <= (v + TB) and c >= v - CLOSE_HOLD:
-                        p_hit = (nm, v)
-                        break
-                if p_hit is None:
-                    self._prev_hit = False
-                elif getattr(self, "_prev_hit", False):
-                    self._prev_hit = True
-                    p_hit = None
-                else:
-                    self._prev_hit = True
-                    self._pb_kind = "PIN" if is_pin else "ENG"
+        is_pin, is_eng = self._pin_shape(o_, hi_, lo2, c)
+        if is_pin or is_eng:
+            p_hit = self._pin_level(lo2, c)
+            if p_hit is None:
+                self._prev_hit = False
+            elif getattr(self, "_prev_hit", False):
+                self._prev_hit = True
+                p_hit = None
+            else:
+                self._prev_hit = True
+                self._pb_kind = "PIN" if is_pin else "ENG"
 
         # Selection: stoch flow first (U1S replay tie-break), else pattern.
         if s_hit is not None:
@@ -714,6 +695,127 @@ class Full10ContractState:
             "bar": bar,
             "timestamp": bar.timestamp,
         }
+
+    def _on_partial_tick(self, ltp: float, dt: datetime) -> Optional[Dict[str, Any]]:
+        """SECOND-LEVEL pin evaluation (2026-10-26 per user): track the forming
+        3m candle in seconds and fire the moment a pin/engulfing rejects an SR
+        level — without waiting for the 1m bar or the 3m bucket to close.
+
+        Only the pattern path runs here (the stoch flow is bar-based).
+        Throttled to ~2 evaluations/second.
+        """
+        now_s = dt.timestamp()
+        if self._last_pin_eval is not None and (now_s - self._last_pin_eval) < 0.5:
+            return None
+        self._last_pin_eval = now_s
+
+        t3 = self.tf[3]
+        bars = t3.cur_bars
+        o_ = bars[0].open if bars else self.cur_open
+        hi_ = self.cur_high if self.cur_high is not None else ltp
+        lo_ = self.cur_low if self.cur_low is not None else ltp
+        for b in bars:
+            if b.high > hi_:
+                hi_ = b.high
+            if b.low < lo_:
+                lo_ = b.low
+        c = ltp
+        if o_ is None or hi_ is None or lo_ is None:
+            return None
+
+        is_pin, is_eng = self._pin_shape(o_, hi_, lo_, c)
+        if not (is_pin or is_eng):
+            return None
+        hit = self._pin_level(lo_, c)
+        if hit is None:
+            self._prev_hit = False
+            return None
+        if getattr(self, "_prev_hit", False):
+            self._prev_hit = True
+            return None
+        self._prev_hit = True
+        kind = "PIN" if is_pin else "ENG"
+
+        # Elder gate (forming candle)
+        if self.elder_gate:
+            _col = self._elder3m_partial_color(c)
+            if _col not in ("G", "B"):
+                logger.info(
+                    "3m-Elder filter (tick): %s %s [3m] blocked @ %.2f (color=%s) on %s",
+                    self.side, kind, c, _col or "warmup", self.symbol)
+                return None
+
+        # SuperTrend gate (partial, forming bucket)
+        _st_trend_p, _st_line = self._st_partial(c, hi_, lo_)
+        if _st_trend_p is None or _st_trend_p != 1:
+            logger.info(
+                "SuperTrend filter (tick): %s %s [3m] blocked @ %.2f (below ST %.2f) on %s",
+                self.side, kind, c, _st_line or 0.0, self.symbol)
+            return None
+
+        sl_fut = _r2(lo_ - 0.5)
+        entry = c
+        sl = _r2(entry - SL_PTS)
+        tp = _r2(entry + TP_PTS)
+        bar = Bar1m(minute=self.current_min, open=self.cur_open or c,
+                    high=self.cur_high or c, low=self.cur_low or c,
+                    close=c, timestamp=dt, volume=100.0)
+        logger.info(
+            "🔥 %s %s [3m/TICK] TRIGGERED @ %.2f on %s | SR=%s | SL=%.2f TP=%.2f (Full10 v6)",
+            self.side, kind, entry, self.symbol, hit[0], sl, tp,
+        )
+        return {
+            "side": self.side,
+            "symbol": self.symbol,
+            "token": self.token,
+            "strike": self.strike,
+            "trigger": kind,
+            "tf": "3m",
+            "level": hit[0],
+            "entry": entry,
+            "dist": SL_PTS,
+            "sl": sl,
+            "tp": tp,
+            "sl_fut": sl_fut,
+            "sl_points": SL_PTS,
+            "tp_points": TP_PTS,
+            "bar": bar,
+            "timestamp": dt,
+        }
+
+    def _pin_shape(self, o_: Optional[float], hi_: Optional[float],
+                   lo_: Optional[float], c: float):
+        """(is_pin, is_eng) for the given candle OHLC.
+
+        PIN (lenient, 2026-10-26 per user): lower wick >= 0.5x body AND >=
+        upper wick. ENG: bullish body engulfs the previous body.
+        """
+        if o_ is None or hi_ is None or lo_ is None:
+            return False, False
+        rng = hi_ - lo_
+        if rng <= 0:
+            return False, False
+        body = abs(c - o_)
+        upw = hi_ - max(o_, c)
+        dnw = min(o_, c) - lo_
+        is_pin = (dnw >= 0.5 * body and dnw >= upw)
+        is_eng = False
+        prev = getattr(self, "_pb_prev", None)
+        if prev is not None:
+            po, ph, pl, pc_ = prev
+            if c > o_ and c >= max(po, pc_) and o_ <= min(po, pc_):
+                is_eng = True
+        return is_pin, is_eng
+
+    def _pin_level(self, lo_: float, c: float):
+        """First SR level whose wick touch passes the PRECISE-TOUCH band
+        (+/-2 pts) with the close holding the level."""
+        for nm, v in self._levels_now():
+            if v is None:
+                continue
+            if (v - TOUCH_CAP) <= lo_ <= (v + TB) and c >= v - CLOSE_HOLD:
+                return (nm, v)
+        return None
 
     def _levels_now(self) -> List[Tuple[str, float]]:
         # 2026-10-26 per user: EMA20/EMA200 SR levels are the FIVE-minute
