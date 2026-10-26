@@ -368,6 +368,32 @@ class Full10ContractState:
         self._st_up, self._st_dn, self._st_trend = up, dn, trend
         self._st_prev_close = c
 
+    def _st_partial(self, px: float, h: float, l: float):
+        """SuperTrend evaluated on the FORMING 3m bucket (2026-10-26 per user).
+
+        Uses the last COMPLETED bucket's state and steps it with the forming
+        candle's high/low-so-far and the current price — exactly what the chart
+        shows intrabar. Does not mutate state (the bucket close commits it).
+        Returns (trend, line); (None, None) during warmup.
+        """
+        if self._st_atr is None or self._st_up is None or self._st_dn is None:
+            return None, None
+        hl2 = (h + l) / 2.0
+        tr = max(h - l, abs(h - self._st_prev_close), abs(l - self._st_prev_close))
+        a = 1.0 / ST_ATR
+        atr = a * tr + (1 - a) * self._st_atr
+        up_new = hl2 - ST_MULT * atr
+        dn_new = hl2 + ST_MULT * atr
+        prev_up, prev_dn = self._st_up, self._st_dn
+        up = max(up_new, prev_up) if self._st_prev_close > prev_up else up_new
+        dn = min(dn_new, prev_dn) if self._st_prev_close < prev_dn else dn_new
+        trend = self._st_trend
+        if trend == -1 and px > prev_dn:
+            trend = 1
+        elif trend == 1 and px < prev_up:
+            trend = -1
+        return trend, (up if trend == 1 else dn)
+
     def _push_3m_close(self, c: float):
         """EMA13 / MACD(12,26,9) + chart RMA20/200 update on one completed 3m
         close (first-value seed)."""
@@ -528,43 +554,45 @@ class Full10ContractState:
             self._pb_h = max(self._pb_h, bar.high)
             self._pb_l = min(self._pb_l, bar.low)
         self._pb_c = bar.close
+        # PARTIAL-CANDLE PIN (2026-10-26 per user): pin/engulfing is evaluated
+        # on the FORMING 3m candle at every 1m close — no waiting for the
+        # bucket close. The shape must still reject an SR level.
         p_hit = None
-        if (bar.minute - 555) % 3 == 2:
-            c = bar.close
-            o_ = self._pb_o
-            hi_ = self._pb_h
-            lo2 = self._pb_l
-            rng = hi_ - lo2
-            if rng > 0:
-                body = abs(c - o_)
-                upw = hi_ - max(o_, c)
-                dnw = min(o_, c) - lo2
-                # LENIENT PIN (2026-10-26 per user): wick >= 0.5x body (was 2.0x);
-                # still requires the wick to be >= the opposite wick and to
-                # reject an SR level.
-                is_pin = (dnw >= 0.5 * body and dnw >= upw)
-                is_eng = False
-                prev = getattr(self, "_pb_prev", None)
-                if prev is not None:
-                    po, ph, pl, pc_ = prev
-                    if c > o_ and c >= max(po, pc_) and o_ <= min(po, pc_):
-                        is_eng = True
-                if is_pin or is_eng:
-                    lv2 = self._levels_now()
-                    for nm, v in lv2:
-                        if v is None:
-                            continue
-                        if lo2 <= v + TB and c >= v - CLOSE_HOLD:
-                            p_hit = (nm, v)
-                            break
-                    if p_hit is None:
-                        self._prev_hit = False
-                    elif getattr(self, "_prev_hit", False):
-                        self._prev_hit = True
-                        p_hit = None
-                    else:
-                        self._prev_hit = True
-                        self._pb_kind = "PIN" if is_pin else "ENG"
+        c = bar.close
+        o_ = self._pb_o
+        hi_ = self._pb_h
+        lo2 = self._pb_l
+        rng = hi_ - lo2
+        if rng > 0:
+            body = abs(c - o_)
+            upw = hi_ - max(o_, c)
+            dnw = min(o_, c) - lo2
+            # LENIENT PIN (2026-10-26 per user): wick >= 0.5x body (was 2.0x);
+            # still requires the wick to be >= the opposite wick and to
+            # reject an SR level.
+            is_pin = (dnw >= 0.5 * body and dnw >= upw)
+            is_eng = False
+            prev = getattr(self, "_pb_prev", None)
+            if prev is not None:
+                po, ph, pl, pc_ = prev
+                if c > o_ and c >= max(po, pc_) and o_ <= min(po, pc_):
+                    is_eng = True
+            if is_pin or is_eng:
+                lv2 = self._levels_now()
+                for nm, v in lv2:
+                    if v is None:
+                        continue
+                    if lo2 <= v + TB and c >= v - CLOSE_HOLD:
+                        p_hit = (nm, v)
+                        break
+                if p_hit is None:
+                    self._prev_hit = False
+                elif getattr(self, "_prev_hit", False):
+                    self._prev_hit = True
+                    p_hit = None
+                else:
+                    self._prev_hit = True
+                    self._pb_kind = "PIN" if is_pin else "ENG"
 
         # Selection: stoch flow first (U1S replay tie-break), else pattern.
         if s_hit is not None:
@@ -586,19 +614,25 @@ class Full10ContractState:
                 )
                 return None
 
-        # SUPERTREND DIRECTION FILTER (2026-10-19 per user): CE entries only
-        # while price is ABOVE the 3m SuperTrend (trend == +1); PE entries only
-        # while BELOW. The mirrored PE twin negates the series, so its
-        # SuperTrend flips too and the same test yields "real price below ST".
-        if self._st_trend is None:
+        # SUPERTREND DIRECTION FILTER (2026-10-26 per user: PARTIAL candle):
+        # CE entries only while price is ABOVE the 3m SuperTrend (trend == +1);
+        # PE only while BELOW. Evaluated on the FORMING 3m bucket (last closed
+        # state stepped with the bucket's high/low-so-far + current price), so
+        # intrabar flips are seen immediately. The mirrored PE twin negates the
+        # series, so its SuperTrend flips too and the same test yields
+        # "real price below ST".
+        _st_h = self._pb_h if self._pb_h is not None else bar.high
+        _st_l = self._pb_l if self._pb_l is not None else bar.low
+        _st_trend_p, _st_line = self._st_partial(bar.close, _st_h, _st_l)
+        if _st_trend_p is None:
             logger.info(
                 "SuperTrend filter: %s %s [%dm] blocked @ %.2f (warmup) on %s",
                 self.side, kind, tfv, bar.close, self.symbol)
             return None
-        if self._st_trend != 1:
+        if _st_trend_p != 1:
             logger.info(
-                "SuperTrend filter: %s %s [%dm] blocked @ %.2f (below ST) on %s",
-                self.side, kind, tfv, bar.close, self.symbol)
+                "SuperTrend filter: %s %s [%dm] blocked @ %.2f (below ST %.2f) on %s",
+                self.side, kind, tfv, bar.close, _st_line or 0.0, self.symbol)
             return None
 
         # FUTURES-CANDLE SL (2026-10-26 per user): long -> 0.5 pts below the
