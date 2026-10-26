@@ -74,6 +74,7 @@ ST_MULT = 3.0          # SuperTrend multiplier
 SUP_T = 30.0            # SUPER: all three < 30 & S1 rising
 TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold
+TOUCH_CAP = 2.0         # pin/eng: wick must stay within +/-2 pts of the level
 SL_PTS = 10.0           # v6 fixed geometry
 TP_PTS = 15.0
 DAILY_CAP_PTS = 29.0    # loss bound: halt new entries when closed day P&L <= -29
@@ -144,6 +145,12 @@ class Full10ContractState:
     use_3m_levels: bool = False
     ema20_3m: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(20))
     ema200_3m: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(200))
+    # 5m-chart EMA levels (2026-10-26 per user): the SR levels EMA20/EMA200 are
+    # the FIVE-minute chart's EMAs; signals stay on the 3m timeframe.
+    ema20_5m: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(20))
+    ema200_5m: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(200))
+    _b5_start: int = -1
+    _b5_last_close: Optional[float] = None
     # 3m Elder Impulse state (partial-candle gate)
     _b3_start: int = -1
     _b3_last_close: Optional[float] = None
@@ -230,6 +237,10 @@ class Full10ContractState:
         self._e13_3m = self._e12_3m = self._e26_3m = self._sig9_3m = None
         self.ema20_3m = IncrementalEMA(20)
         self.ema200_3m = IncrementalEMA(200)
+        self.ema20_5m = IncrementalEMA(20)
+        self.ema200_5m = IncrementalEMA(200)
+        self._b5_start = -1
+        self._b5_last_close = None
         self._pb_idx = None
         self._pb_o = self._pb_h = self._pb_l = self._pb_c = None
         self._pb_prev = None
@@ -292,6 +303,7 @@ class Full10ContractState:
         for tfv in (1, 2, 3, 5):
             self.tf[tfv].push_1m_bar(bar)
         self._feed_3m_bar(bar)
+        self._feed_5m_bar(bar)
 
     # ---- 3m Elder Impulse (partial-candle gate; futures states) ----
     def _feed_3m_bar(self, bar: Bar1m):
@@ -334,6 +346,30 @@ class Full10ContractState:
             self._b3_last_close = None
             self._b3_hi = None
             self._b3_lo = None
+
+    def _feed_5m_bar(self, bar: Bar1m):
+        """One completed 1m bar through the 5m resampler (for the 5m EMA levels).
+
+        Signals remain 3m; only the EMA20/EMA200 SR levels use this series.
+        """
+        m = bar.minute
+        if not (ELDER3M_FIRST_MIN <= m <= ELDER3M_LAST_MIN + 1):
+            return
+        b = 555 + 5 * ((m - 555) // 5)
+        if self._b5_start == -1:
+            self._b5_start = b
+        elif b != self._b5_start:
+            if self._b5_last_close is not None:
+                self.ema20_5m.update(self._b5_last_close)
+                self.ema200_5m.update(self._b5_last_close)
+            self._b5_start = b
+            self._b5_last_close = None
+        self._b5_last_close = bar.close
+        if m == self._b5_start + 4:
+            self.ema20_5m.update(bar.close)
+            self.ema200_5m.update(bar.close)
+            self._b5_start += 5
+            self._b5_last_close = None
 
     def _st_push(self, h: Optional[float], l: Optional[float], c: float):
         """One completed 3m bucket through the SuperTrend (Pine ta.supertrend,
@@ -582,7 +618,11 @@ class Full10ContractState:
                 for nm, v in lv2:
                     if v is None:
                         continue
-                    if lo2 <= v + TB and c >= v - CLOSE_HOLD:
+                    # PRECISE TOUCH (2026-10-26 per user): the wick must sit
+                    # within +/-2 pts of the level — it must reach it, but may
+                    # not pierce more than 2 pts beyond (this blocks the 12:15
+                    # case where the PE wick ran 28 pts through the EMA20).
+                    if (v - TOUCH_CAP) <= lo2 <= (v + TB) and c >= v - CLOSE_HOLD:
                         p_hit = (nm, v)
                         break
                 if p_hit is None:
@@ -676,19 +716,20 @@ class Full10ContractState:
         }
 
     def _levels_now(self) -> List[Tuple[str, float]]:
-        if self.use_3m_levels and self.ema20_3m.value is not None and self.ema200_3m.value is not None:
-            # Chart-live semantics: the forming 3m bucket's close-so-far steps
-            # the EMA (exactly what TV displays); px = latest price.
+        # 2026-10-26 per user: EMA20/EMA200 SR levels are the FIVE-minute
+        # chart's EMAs (signals stay 3m). Chart-live semantics: the forming 5m
+        # candle's close-so-far steps the EMA (exactly what the chart displays).
+        if self.use_3m_levels and self.ema20_5m.value is not None and self.ema200_5m.value is not None:
             px = self.latest_ltp
             if px is None and self.bars:
                 px = self.bars[-1].close
             if px is not None:
-                a20 = self.ema20_3m.alpha
-                a200 = self.ema200_3m.alpha
-                e20 = a20 * px + (1 - a20) * self.ema20_3m.value
-                e200 = a200 * px + (1 - a200) * self.ema200_3m.value
+                a20 = self.ema20_5m.alpha
+                a200 = self.ema200_5m.alpha
+                e20 = a20 * px + (1 - a20) * self.ema20_5m.value
+                e200 = a200 * px + (1 - a200) * self.ema200_5m.value
             else:
-                e20, e200 = self.ema20_3m.value, self.ema200_3m.value
+                e20, e200 = self.ema20_5m.value, self.ema200_5m.value
         else:
             e20, e200 = self.ema20.value, self.ema200.value
         lv: List[Tuple[str, float]] = [
