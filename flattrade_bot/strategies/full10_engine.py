@@ -17,24 +17,14 @@ LIVE SPEC (user-confirmed 2026-09-09, supersedes §44 for the VPS bot):
       camL3, PDVWAP, virgin CPR/BC/TC (alive)   [level list exact per spec]
   - SAME-TF BOUNCE (v6 rule): the setup TF's own chart supplies the bounce.
       1m setup  -> trigger 1m bar:  low <= lvl+2 and close >= lvl-0.5
-      2m/3m/5m  -> the FORMING bucket supplies it (LIVE BOUNCE, 2026-10-16 per
-                   user): touch = bucket low-so-far <= lvl+TB and hold =
-                   CURRENT price >= lvl-CLOSE_HOLD — no higher-TF close
-                   required (waiting for the close loses the chase).
-                   NO cross-TF fallback.
+      2m/3m/5m  -> that TF's last COMPLETED (today's) bar satisfies the
+                   touch. NO cross-TF fallback, NO 1m-bar confirmation.
   - Virgin level walk: level dies when any 1m bar's low <= lvl <= high
   - Risk geometry (FIXED, v6): SL = entry - 10.0, TP = entry + 15.0
   - NO breakeven lock (removed 2026-09-09 per user)
   - Daily circuit breaker (2026-10-15 per user): touch -29 -> loss capped,
     no new entries after; NO profit lock (entries keep trading past +29).
     (An open trade still manages to SL/TP/EOD.)
-  - FUTURES SIGNAL SOURCE (2026-10-16 per user): signals are generated from
-    the NIFTY front-month FUTURES 3m chart — FUT:CN (standard rules -> CE)
-    and FUT:MR (a negated-price mirror twin -> PE; negation turns dips into
-    tops, so the same code yields the mirrored rules). Both states gate on
-    the FORMING 3m ELDER candle: allow GREEN/BLUE, block RED (on the mirror
-    twin, G/B == the real chart's R/B). Option-chart signals no longer enter
-    (fallback only while the futures source is warming).
   - EOD force-close at session end; SL priority over TP.
   - Funds fallback (unchanged plumbing): 2nd-ITM margin reject -> 1st ITM.
 
@@ -65,42 +55,24 @@ logger = logging.getLogger("flattrade_bot.full10_engine")
 S1_K, S1_D = 12, 2      # smoothed %D=2 (geoms-certified reference)
 S3_K, S3_D = 40, 4
 S4_K, S4_D = 60, 10
-ARM_S1 = 50.0           # arming: S1 <= 50 (per user 2026-10-16; was 30.0)
+ARM_S1 = 30.0           # arming: S1 <= 30 (5-pt buffer rule)
 ARM_WIN = 1             # entry on arming bar or next bar only
-FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 50 (S1 limit 30->50 per user 2026-10-16)
-FLAG_S1 = 50.0
-ST_ATR = 10.0          # SuperTrend ATR period (3m)
-ST_MULT = 3.0          # SuperTrend multiplier
+FLAG_S4 = 75.0          # FLAG: S4 >= 75 & S1 < 30
+FLAG_S1 = 30.0
 SUP_T = 30.0            # SUPER: all three < 30 & S1 rising
 TB = 2.0                # bounce touch buffer
 CLOSE_HOLD = 0.5        # bounce close-hold
-TOUCH_CAP = 3.0         # pin/eng: wick must stay within +/-3 pts of the level
 SL_PTS = 10.0           # v6 fixed geometry
 TP_PTS = 15.0
 DAILY_CAP_PTS = 29.0    # loss bound: halt new entries when closed day P&L <= -29
 DAILY_CAP_PROFIT = float("inf")  # profit lock REMOVED 2026-10-15 per user — the
                         # -29 loss bound stays; entries keep trading past +29
-# Per-day overrides {day_key: (loss_pts, profit_pts)} — 2026-10-16 CAP-FREE
-# per user (trade the whole session; the -29 bound resumes on the next day).
+# Per-day overrides {day_key: (loss_pts, profit_pts)} — none active
+# Per-day overrides {day_key: (loss_pts, profit_pts)} — 2026-10-27 CAP-FREE
+# (per user: "remove the cap for today only, let the bot trade for today").
 DAILY_CAP_OVERRIDES = {
-    "2026-10-16": (float("inf"), float("inf")),
+    "2026-10-27": (float("inf"), float("inf")),
 }
-
-# ---- 3m-Elder gate (futures states only; partial-candle evaluation) ----
-# allow iff the FORMING 3m candle color is GREEN or BLUE; RED blocks.
-# On the mirrored PE twin this single rule = "real RED or BLUE allows PE".
-ELDER3M_A13 = 2.0 / 14.0    # EMA13
-ELDER3M_A12 = 2.0 / 13.0    # MACD fast EMA
-ELDER3M_A26 = 2.0 / 27.0    # MACD slow EMA
-ELDER3M_A9 = 2.0 / 10.0     # MACD signal EMA
-ELDER3M_MIN_BUCKETS = 31    # warmup: color allowed only at bucket index >= 30
-ELDER3M_FIRST_MIN = 555     # 09:15
-ELDER3M_LAST_MIN = 929      # 15:29 (last 1m bar start; buckets are 09:15-aligned)
-
-
-def _bkt3(minute: int) -> int:
-    """3m bucket start for a 1m minute (09:15-aligned: 555, 558, 561, ...)."""
-    return ELDER3M_FIRST_MIN + 3 * ((minute - ELDER3M_FIRST_MIN) // 3)
 
 
 
@@ -135,40 +107,6 @@ class Full10ContractState:
     vwap: IncrementalVWAP = field(default_factory=IncrementalVWAP)
     tf: Dict[int, TFTracker] = field(default_factory=lambda: {
         1: TFTracker(1), 2: TFTracker(2), 3: TFTracker(3), 5: TFTracker(5)})
-    # TFs whose triggers/arming may emit signals (futures states: (3,) — 3m only)
-    signal_tfs: Tuple[int, ...] = (1, 2, 3, 5)
-    # Elder gate (futures signal states only): allow iff forming 3m color in {G,B}
-    elder_gate: bool = False
-    # 3m-chart levels (futures states): STANDARD EMA (alpha=2/(N+1) — TV ta.ema)
-    # on 3m closes, matching the chart's "EMA (20/200, close, 0)" lines; the
-    # DISPLAYED level steps the forming bucket with the latest price.
-    use_3m_levels: bool = False
-    ema20_3m: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(20))
-    ema200_3m: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(200))
-    # 5m-chart EMA levels (2026-10-26 per user): the SR levels EMA20/EMA200 are
-    # the FIVE-minute chart's EMAs; signals stay on the 3m timeframe.
-    ema20_5m: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(20))
-    ema200_5m: IncrementalEMA = field(default_factory=lambda: IncrementalEMA(200))
-    _b5_start: int = -1
-    _b5_last_close: Optional[float] = None
-    # second-level pin evaluation throttle (epoch seconds)
-    _last_pin_eval: Optional[float] = None
-    # 3m Elder Impulse state (partial-candle gate)
-    _b3_start: int = -1
-    _b3_last_close: Optional[float] = None
-    _b3_count: int = 0
-    # 3m SuperTrend state (direction filter)
-    _st_atr: Optional[float] = None
-    _st_up: Optional[float] = None
-    _st_dn: Optional[float] = None
-    _st_trend: Optional[int] = None
-    _st_prev_close: Optional[float] = None
-    _b3_hi: Optional[float] = None
-    _b3_lo: Optional[float] = None
-    _e13_3m: Optional[float] = None
-    _e12_3m: Optional[float] = None
-    _e26_3m: Optional[float] = None
-    _sig9_3m: Optional[float] = None
     # per-TF trackers use FULL10 stoch periods — installed at __post_init__
     # arming (baridx space, any-TF S1<=30)
     anchor_bar: int = -10**9
@@ -185,14 +123,6 @@ class Full10ContractState:
     latest_ltp: Optional[float] = None
     # touchline cumulative-volume tracking (per-bar interval volume)
     _bar_start_vol: Optional[float] = None
-    # U1S union pattern watcher state (3m pin/engulfing, closed candle)
-    _pb_idx: Optional[int] = None
-    _pb_o: Optional[float] = None
-    _pb_h: Optional[float] = None
-    _pb_l: Optional[float] = None
-    _pb_c: Optional[float] = None
-    _pb_prev: Optional[Tuple[float, float, float, float]] = None
-    _prev_hit: bool = False
 
     def __post_init__(self):
         # Full10 stoch periods on every TF tracker (D=1 raw %K)
@@ -225,29 +155,6 @@ class Full10ContractState:
             self.tf[tfv].last_cl = None
         self.anchor_bar = -10**9
         self.baridx = -1
-        # 3m Elder state resets with the session (re-seeded via seed_bars)
-        self._b3_start = -1
-        self._b3_last_close = None
-        self._b3_count = 0
-        self._st_atr = None
-        self._st_up = None
-        self._st_dn = None
-        self._st_trend = None
-        self._st_prev_close = None
-        self._b3_hi = None
-        self._b3_lo = None
-        self._e13_3m = self._e12_3m = self._e26_3m = self._sig9_3m = None
-        self.ema20_3m = IncrementalEMA(20)
-        self.ema200_3m = IncrementalEMA(200)
-        self.ema20_5m = IncrementalEMA(20)
-        self.ema200_5m = IncrementalEMA(200)
-        self._b5_start = -1
-        self._b5_last_close = None
-        self._last_pin_eval = None
-        self._pb_idx = None
-        self._pb_o = self._pb_h = self._pb_l = self._pb_c = None
-        self._pb_prev = None
-        self._prev_hit = False
         logger.info("Full10 session reset for %s", self.symbol)
 
     def set_day_levels(self, prev_high: float, prev_low: float, prev_close: float,
@@ -291,9 +198,6 @@ class Full10ContractState:
         for bar in (today_bars or []):
             self.bars.append(bar)
             self._push_bar_indicators(bar, seed=False)
-            # VWAP must reflect the WHOLE session even on a mid-day restart
-            # (previously seeded today-bars skipped VWAP -> wrong session VWAP)
-            self.vwap.update(bar.high, bar.low, bar.close, volume=bar.volume)
 
     def _push_bar_indicators(self, bar: Bar1m, seed: bool):
         """One completed 1m bar through every indicator + TF tracker.
@@ -305,174 +209,6 @@ class Full10ContractState:
         self.ema200.update(bar.close)
         for tfv in (1, 2, 3, 5):
             self.tf[tfv].push_1m_bar(bar)
-        self._feed_3m_bar(bar)
-        self._feed_5m_bar(bar)
-
-    # ---- 3m Elder Impulse (partial-candle gate; futures states) ----
-    def _feed_3m_bar(self, bar: Bar1m):
-        """One completed 1m bar through the 3m resampler (day-boundary safe).
-
-        The 15:30:00 exchange auction print (minute 930) belongs to the LAST
-        3m candle of the day ([15:27]) — chart convention (verified against
-        the futures chart: the day's final candle close = the official close).
-        """
-        m = bar.minute
-        if not (ELDER3M_FIRST_MIN <= m <= ELDER3M_LAST_MIN + 1):
-            return
-        b = _bkt3(m if m <= ELDER3M_LAST_MIN else ELDER3M_LAST_MIN)
-        if self._b3_start == -1:
-            self._b3_start = b
-            self._b3_hi = bar.high
-            self._b3_lo = bar.low
-        elif b != self._b3_start:
-            # Bucket advance — within-day rollover (b > start) OR session
-            # boundary (b < start: 09:15-aligned starts reset each day, so a
-            # decrease is ALWAYS a new day; the post-15:29 phantom start 930
-            # must not wedge the feed). Close out the pending bucket with its
-            # last available close (matches the certified replay).
-            if self._b3_last_close is not None:
-                self._push_3m_close(self._b3_last_close)
-                self._st_push(self._b3_hi, self._b3_lo, self._b3_last_close)
-            self._b3_start = b
-            self._b3_last_close = None
-            self._b3_hi = bar.high
-            self._b3_lo = bar.low
-        if self._b3_hi is None or bar.high > self._b3_hi:
-            self._b3_hi = bar.high
-        if self._b3_lo is None or bar.low < self._b3_lo:
-            self._b3_lo = bar.low
-        self._b3_last_close = bar.close
-        if m == self._b3_start + 2:
-            self._push_3m_close(bar.close)
-            self._st_push(self._b3_hi, self._b3_lo, bar.close)
-            self._b3_start += 3
-            self._b3_last_close = None
-            self._b3_hi = None
-            self._b3_lo = None
-
-    def _feed_5m_bar(self, bar: Bar1m):
-        """One completed 1m bar through the 5m resampler (for the 5m EMA levels).
-
-        Signals remain 3m; only the EMA20/EMA200 SR levels use this series.
-        """
-        m = bar.minute
-        if not (ELDER3M_FIRST_MIN <= m <= ELDER3M_LAST_MIN + 1):
-            return
-        b = 555 + 5 * ((m - 555) // 5)
-        if self._b5_start == -1:
-            self._b5_start = b
-        elif b != self._b5_start:
-            if self._b5_last_close is not None:
-                self.ema20_5m.update(self._b5_last_close)
-                self.ema200_5m.update(self._b5_last_close)
-            self._b5_start = b
-            self._b5_last_close = None
-        self._b5_last_close = bar.close
-        if m == self._b5_start + 4:
-            self.ema20_5m.update(bar.close)
-            self.ema200_5m.update(bar.close)
-            self._b5_start += 5
-            self._b5_last_close = None
-
-    def _st_push(self, h: Optional[float], l: Optional[float], c: float):
-        """One completed 3m bucket through the SuperTrend (Pine ta.supertrend,
-        ATR(10) Wilder, mult 3.0). trend +1 = price above ST, -1 = below."""
-        if h is None or l is None:
-            return
-        hl2 = (h + l) / 2.0
-        if self._st_atr is None:
-            self._st_atr = h - l
-            self._st_up = hl2 - ST_MULT * self._st_atr
-            self._st_dn = hl2 + ST_MULT * self._st_atr
-            self._st_trend = 1 if c > hl2 else -1
-            self._st_prev_close = c
-            return
-        tr = max(h - l, abs(h - self._st_prev_close), abs(l - self._st_prev_close))
-        a = 1.0 / ST_ATR
-        self._st_atr = a * tr + (1 - a) * self._st_atr
-        up = hl2 - ST_MULT * self._st_atr
-        dn = hl2 + ST_MULT * self._st_atr
-        prev_up, prev_dn = self._st_up, self._st_dn
-        if self._st_prev_close > prev_up:
-            up = max(up, prev_up)
-        if self._st_prev_close < prev_dn:
-            dn = min(dn, prev_dn)
-        prev_trend = self._st_trend
-        if prev_trend == -1 and c > prev_dn:
-            trend = 1
-        elif prev_trend == 1 and c < prev_up:
-            trend = -1
-        else:
-            trend = prev_trend
-        self._st_up, self._st_dn, self._st_trend = up, dn, trend
-        self._st_prev_close = c
-
-    def _st_partial(self, px: float, h: float, l: float):
-        """SuperTrend evaluated on the FORMING 3m bucket (2026-10-26 per user).
-
-        Uses the last COMPLETED bucket's state and steps it with the forming
-        candle's high/low-so-far and the current price — exactly what the chart
-        shows intrabar. Does not mutate state (the bucket close commits it).
-        Returns (trend, line); (None, None) during warmup.
-        """
-        if self._st_atr is None or self._st_up is None or self._st_dn is None:
-            return None, None
-        hl2 = (h + l) / 2.0
-        tr = max(h - l, abs(h - self._st_prev_close), abs(l - self._st_prev_close))
-        a = 1.0 / ST_ATR
-        atr = a * tr + (1 - a) * self._st_atr
-        up_new = hl2 - ST_MULT * atr
-        dn_new = hl2 + ST_MULT * atr
-        prev_up, prev_dn = self._st_up, self._st_dn
-        up = max(up_new, prev_up) if self._st_prev_close > prev_up else up_new
-        dn = min(dn_new, prev_dn) if self._st_prev_close < prev_dn else dn_new
-        trend = self._st_trend
-        if trend == -1 and px > prev_dn:
-            trend = 1
-        elif trend == 1 and px < prev_up:
-            trend = -1
-        return trend, (up if trend == 1 else dn)
-
-    def _push_3m_close(self, c: float):
-        """EMA13 / MACD(12,26,9) + chart RMA20/200 update on one completed 3m
-        close (first-value seed)."""
-        self.ema20_3m.update(c)
-        self.ema200_3m.update(c)
-        if self._e13_3m is None:
-            self._e13_3m = self._e12_3m = self._e26_3m = c
-            self._sig9_3m = 0.0   # first macd-line = e12-e26 = 0 (replay parity)
-        else:
-            self._e13_3m = ELDER3M_A13 * c + (1 - ELDER3M_A13) * self._e13_3m
-            self._e12_3m = ELDER3M_A12 * c + (1 - ELDER3M_A12) * self._e12_3m
-            self._e26_3m = ELDER3M_A26 * c + (1 - ELDER3M_A26) * self._e26_3m
-            ml = self._e12_3m - self._e26_3m
-            self._sig9_3m = ELDER3M_A9 * ml + (1 - ELDER3M_A9) * self._sig9_3m
-        self._b3_count += 1
-
-    def _elder3m_partial_color(self, px: float) -> Optional[str]:
-        """Color of the FORMING 3m candle at price px — EXACT conformance with
-        the Pine reference (Elder Impulse System, CC0): GREEN = ema[0]>ema[1]
-        AND hist[0]>hist[1]; RED = ema[0]<ema[1] AND hist[0]<hist[1]; else
-        BLUE. Prior state = last completed bucket; one partial step with px.
-        On a negated (mirror) series the color comes out flipped (G<->R, B stays B)."""
-        if self._b3_count < ELDER3M_MIN_BUCKETS or self._e13_3m is None:
-            return None
-        e13p = self._e13_3m
-        e12p = self._e12_3m
-        e26p = self._e26_3m
-        s9p = self._sig9_3m
-        hp = (e12p - e26p) - s9p
-        e13c = ELDER3M_A13 * px + (1 - ELDER3M_A13) * e13p
-        e12c = ELDER3M_A12 * px + (1 - ELDER3M_A12) * e12p
-        e26c = ELDER3M_A26 * px + (1 - ELDER3M_A26) * e26p
-        mlc = e12c - e26c
-        s9c = ELDER3M_A9 * mlc + (1 - ELDER3M_A9) * s9p
-        hc = mlc - s9c
-        if (e13c > e13p) and (hc > hp):
-            return "G"
-        if (e13c < e13p) and (hc < hp):
-            return "R"
-        return "B"
 
     # ---- live tick path (identical rollover semantics to §44) ----
     def push_tick(self, ltp: float, dt: datetime, cum_volume: Optional[float] = None) -> Optional[Dict[str, Any]]:
@@ -488,9 +224,7 @@ class Full10ContractState:
             self.cur_high = max(self.cur_high, ltp)
             self.cur_low = min(self.cur_low, ltp)
             self.cur_close = ltp
-            # SECOND-LEVEL pin evaluation on the forming 3m candle (per user):
-            # fires mid-minute the moment the wick rejects an SR level.
-            return self._on_partial_tick(ltp, dt)
+            return None
         # interval volume = cumulative-day-volume delta across this bar (docs
         # touchline "v"); None -> constant 100 fallback (matches §44 semantics)
         if cum_volume is not None and self._bar_start_vol is not None:
@@ -519,156 +253,48 @@ class Full10ContractState:
             if bar.low <= v <= bar.high:
                 del self.virgin[nm]
 
-        # === UNION TRIGGER (2026-10-16, U1S live): the stoch flow (arming →
-        #     FLAG/SUPER → same-TF LIVE bounce → SR level) OR the strict
-        #     closed-candle pin/engulfing rejecting an SR level. Both run on
-        #     every bar with independent state; when both fire on the same
-        #     bar the stoch signal wins (the U1S backtest tie-break).
-        s_hit = None
-        s_tfv = None
-        s_kind = None
-
-        # 3. arming: S1 <= 30 on ANY signal-TF -> anchor this baridx
-        for tfv in self.signal_tfs:
+        # 3. arming: S1 <= 30 on ANY TF -> anchor this baridx
+        for tfv in (1, 2, 3, 5):
             s1 = self.tf[tfv].last_s1
             if s1 is not None and s1 <= ARM_S1:
                 self.anchor_bar = self.baridx
                 break
 
-        # 4. arming window gate (stoch path only)
-        if (self.baridx - self.anchor_bar) <= ARM_WIN:
-
-            # 5. triggers on any signal-TF (dormancy REMOVED)
-            trig = None
-            for tfv in self.signal_tfs:
-                t = self.tf[tfv]
-                s1, s3, s4, p1 = t.last_s1, t.last_s3, t.last_s4, t.prev_s1
-                if s1 is None or s4 is None:
-                    continue
-                if s4 >= FLAG_S4 and s1 < FLAG_S1:
-                    trig = (tfv, "FLAG"); break
-                if s3 is not None and p1 is not None and s3 < SUP_T and s4 < SUP_T \
-                        and s1 < SUP_T and s1 > p1:
-                    trig = (tfv, "SUPER"); break
-
-            if trig is not None:
-                tfv, _k = trig
-
-                # 6. SAME-TF bounce gate (v6): the setup TF's own chart
-                #    supplies it. LIVE BOUNCE (2026-10-16 per user): for >1m
-                #    setups the bounce is checked against the FORMING bucket —
-                #    the touch comes from the bucket's low-so-far and the hold
-                #    from the CURRENT price — so a valid bounce does NOT need
-                #    the higher-TF candle to close first (closing first loses
-                #    the chase). At a bucket boundary the just-completed bar
-                #    is used, exactly as before.
-                if tfv == 1:
-                    lo_, cl_ = bar.low, bar.close
-                else:
-                    t = self.tf[tfv]
-                    if t.cur_bars:
-                        lo_ = min(b.low for b in t.cur_bars)
-                    else:
-                        lo_ = t.last_lo
-                    cl_ = bar.close
-                if lo_ is not None:
-                    lv = self._levels_now()
-                    for nm, v in lv:
-                        if lo_ <= v + TB and cl_ >= v - CLOSE_HOLD:
-                            s_hit = (nm, v)
-                            s_tfv = tfv
-                            s_kind = _k
-                            break
-
-        # 7a. 3m PIN/ENG PATH (strict, closed candle — verbatim from the
-        #     backtested U1S pattern engine; independent edge state).
-        bidx = (bar.minute - 555) // 3
-        if getattr(self, "_pb_idx", None) != bidx:
-            if getattr(self, "_pb_idx", None) is not None:
-                self._pb_prev = (self._pb_o, self._pb_h, self._pb_l,
-                                 getattr(self, "_pb_c", bar.open))
-            self._pb_idx = bidx
-            self._pb_o = bar.open
-            self._pb_h = bar.high
-            self._pb_l = bar.low
-        else:
-            self._pb_h = max(self._pb_h, bar.high)
-            self._pb_l = min(self._pb_l, bar.low)
-        self._pb_c = bar.close
-        # PARTIAL-CANDLE PIN (2026-10-26 per user): pin/engulfing is evaluated
-        # on the FORMING 3m candle at every 1m close — no waiting for the
-        # bucket close. The shape must still reject an SR level.
-        p_hit = None
-        c = bar.close
-        o_ = self._pb_o
-        hi_ = self._pb_h
-        lo2 = self._pb_l
-        is_pin, is_eng = self._pin_shape(o_, hi_, lo2, c)
-        if is_pin or is_eng:
-            p_hit = self._pin_level(lo2, c)
-            if p_hit is None:
-                self._prev_hit = False
-            elif getattr(self, "_prev_hit", False):
-                self._prev_hit = True
-                p_hit = None
-            else:
-                self._prev_hit = True
-                self._pb_kind = "PIN" if is_pin else "ENG"
-
-        # Selection: stoch flow first (U1S replay tie-break), else pattern.
-        if s_hit is not None:
-            kind, tfv, hit = s_kind, s_tfv, s_hit
-        elif p_hit is not None:
-            kind, tfv, hit = getattr(self, "_pb_kind", "PIN"), 3, p_hit
-        else:
+        # 4. arming window gate
+        if (self.baridx - self.anchor_bar) > ARM_WIN:
             return None
 
-        # 7. 3m-ELDER GATE (futures signal states only): allow iff the FORMING
-        #    3m Elder candle is GREEN or BLUE; RED (and warmup) block.
-        #    On the mirrored PE twin this exact rule = "real RED or BLUE".
-        if self.elder_gate:
-            _col = self._elder3m_partial_color(bar.close)
-            if _col not in ("G", "B"):
-                logger.info(
-                    "3m-Elder filter: %s %s [%dm] blocked @ %.2f (color=%s) on %s",
-                    self.side, kind, tfv, bar.close, _col or "warmup", self.symbol,
-                )
+        # 5. triggers on any TF (dormancy REMOVED)
+        trig = None
+        for tfv in (1, 2, 3, 5):
+            t = self.tf[tfv]
+            s1, s3, s4, p1 = t.last_s1, t.last_s3, t.last_s4, t.prev_s1
+            if s1 is None or s4 is None:
+                continue
+            if s4 >= FLAG_S4 and s1 < FLAG_S1:
+                trig = (tfv, "FLAG"); break
+            if s3 is not None and p1 is not None and s3 < SUP_T and s4 < SUP_T \
+                    and s1 < SUP_T and s1 > p1:
+                trig = (tfv, "SUPER"); break
+        if trig is None:
+            return None
+        tfv, kind = trig
+
+        # 6. SAME-TF bounce gate (v6): the setup TF's own chart supplies it
+        if tfv == 1:
+            lo_, cl_ = bar.low, bar.close
+        else:
+            t = self.tf[tfv]
+            if t.last_lo is None or t.last_cl is None:
                 return None
-
-        # SUPERTREND DIRECTION FILTER (2026-10-26 per user: PARTIAL candle):
-        # CE entries only while price is ABOVE the 3m SuperTrend (trend == +1);
-        # PE only while BELOW. Evaluated on the FORMING 3m bucket (last closed
-        # state stepped with the bucket's high/low-so-far + current price), so
-        # intrabar flips are seen immediately. The mirrored PE twin negates the
-        # series, so its SuperTrend flips too and the same test yields
-        # "real price below ST".
-        _st_h = self._pb_h if self._pb_h is not None else bar.high
-        _st_l = self._pb_l if self._pb_l is not None else bar.low
-        _st_trend_p, _st_line = self._st_partial(bar.close, _st_h, _st_l)
-        if _st_trend_p is None:
-            logger.info(
-                "SuperTrend filter: %s %s [%dm] blocked @ %.2f (warmup) on %s",
-                self.side, kind, tfv, bar.close, self.symbol)
+            lo_, cl_ = t.last_lo, t.last_cl
+        lv = self._levels_now()
+        hit = None
+        for nm, v in lv:
+            if lo_ <= v + TB and cl_ >= v - CLOSE_HOLD:
+                hit = (nm, v); break
+        if hit is None:
             return None
-        if _st_trend_p != 1:
-            logger.info(
-                "SuperTrend filter: %s %s [%dm] blocked @ %.2f (below ST %.2f) on %s",
-                self.side, kind, tfv, bar.close, _st_line or 0.0, self.symbol)
-            return None
-
-        # FUTURES-CANDLE SL (2026-10-26 per user): long -> 0.5 pts below the
-        # entry 3m candle's low; the mirrored short twin evaluates the same
-        # rule in mirror space = 0.5 pts above the real candle's high.
-        # Snapshot at signal time (the forming bucket, or the close-handled
-        # bucket at a boundary).
-        _t3 = self.tf[3]
-        if _t3.cur_bars:
-            _lo3 = min(b.low for b in _t3.cur_bars)
-        else:
-            _lo3 = _t3.last_lo
-        if _lo3 is None:
-            _lo3 = bar.low
-        sl_fut = _r2(_lo3 - 0.5)
 
         entry = bar.close
         sl = _r2(entry - SL_PTS)
@@ -689,153 +315,15 @@ class Full10ContractState:
             "dist": SL_PTS,          # executor wants sl_points/tp_points — pass through
             "sl": sl,
             "tp": tp,
-            "sl_fut": sl_fut,
             "sl_points": SL_PTS,
             "tp_points": TP_PTS,
             "bar": bar,
             "timestamp": bar.timestamp,
         }
 
-    def _on_partial_tick(self, ltp: float, dt: datetime) -> Optional[Dict[str, Any]]:
-        """SECOND-LEVEL pin evaluation (2026-10-26 per user): track the forming
-        3m candle in seconds and fire the moment a pin/engulfing rejects an SR
-        level — without waiting for the 1m bar or the 3m bucket to close.
-
-        Only the pattern path runs here (the stoch flow is bar-based).
-        Throttled to ~2 evaluations/second.
-        """
-        now_s = dt.timestamp()
-        if self._last_pin_eval is not None and (now_s - self._last_pin_eval) < 0.5:
-            return None
-        self._last_pin_eval = now_s
-
-        t3 = self.tf[3]
-        bars = t3.cur_bars
-        o_ = bars[0].open if bars else self.cur_open
-        hi_ = self.cur_high if self.cur_high is not None else ltp
-        lo_ = self.cur_low if self.cur_low is not None else ltp
-        for b in bars:
-            if b.high > hi_:
-                hi_ = b.high
-            if b.low < lo_:
-                lo_ = b.low
-        c = ltp
-        if o_ is None or hi_ is None or lo_ is None:
-            return None
-
-        is_pin, is_eng = self._pin_shape(o_, hi_, lo_, c)
-        if not (is_pin or is_eng):
-            return None
-        hit = self._pin_level(lo_, c)
-        if hit is None:
-            self._prev_hit = False
-            return None
-        if getattr(self, "_prev_hit", False):
-            self._prev_hit = True
-            return None
-        self._prev_hit = True
-        kind = "PIN" if is_pin else "ENG"
-
-        # Elder gate (forming candle)
-        if self.elder_gate:
-            _col = self._elder3m_partial_color(c)
-            if _col not in ("G", "B"):
-                logger.info(
-                    "3m-Elder filter (tick): %s %s [3m] blocked @ %.2f (color=%s) on %s",
-                    self.side, kind, c, _col or "warmup", self.symbol)
-                return None
-
-        # SuperTrend gate (partial, forming bucket)
-        _st_trend_p, _st_line = self._st_partial(c, hi_, lo_)
-        if _st_trend_p is None or _st_trend_p != 1:
-            logger.info(
-                "SuperTrend filter (tick): %s %s [3m] blocked @ %.2f (below ST %.2f) on %s",
-                self.side, kind, c, _st_line or 0.0, self.symbol)
-            return None
-
-        sl_fut = _r2(lo_ - 0.5)
-        entry = c
-        sl = _r2(entry - SL_PTS)
-        tp = _r2(entry + TP_PTS)
-        bar = Bar1m(minute=self.current_min, open=self.cur_open or c,
-                    high=self.cur_high or c, low=self.cur_low or c,
-                    close=c, timestamp=dt, volume=100.0)
-        logger.info(
-            "🔥 %s %s [3m/TICK] TRIGGERED @ %.2f on %s | SR=%s | SL=%.2f TP=%.2f (Full10 v6)",
-            self.side, kind, entry, self.symbol, hit[0], sl, tp,
-        )
-        return {
-            "side": self.side,
-            "symbol": self.symbol,
-            "token": self.token,
-            "strike": self.strike,
-            "trigger": kind,
-            "tf": "3m",
-            "level": hit[0],
-            "entry": entry,
-            "dist": SL_PTS,
-            "sl": sl,
-            "tp": tp,
-            "sl_fut": sl_fut,
-            "sl_points": SL_PTS,
-            "tp_points": TP_PTS,
-            "bar": bar,
-            "timestamp": dt,
-        }
-
-    def _pin_shape(self, o_: Optional[float], hi_: Optional[float],
-                   lo_: Optional[float], c: float):
-        """(is_pin, is_eng) for the given candle OHLC.
-
-        PIN (lenient, 2026-10-26 per user): lower wick >= 0.5x body AND >=
-        upper wick. ENG: bullish body engulfs the previous body.
-        """
-        if o_ is None or hi_ is None or lo_ is None:
-            return False, False
-        rng = hi_ - lo_
-        if rng <= 0:
-            return False, False
-        body = abs(c - o_)
-        upw = hi_ - max(o_, c)
-        dnw = min(o_, c) - lo_
-        is_pin = (dnw >= 0.5 * body and dnw >= upw)
-        is_eng = False
-        prev = getattr(self, "_pb_prev", None)
-        if prev is not None:
-            po, ph, pl, pc_ = prev
-            if c > o_ and c >= max(po, pc_) and o_ <= min(po, pc_):
-                is_eng = True
-        return is_pin, is_eng
-
-    def _pin_level(self, lo_: float, c: float):
-        """First SR level whose wick touch passes the PRECISE-TOUCH band
-        (+/-2 pts) with the close holding the level."""
-        for nm, v in self._levels_now():
-            if v is None:
-                continue
-            if (v - TOUCH_CAP) <= lo_ <= (v + TOUCH_CAP) and c >= v - CLOSE_HOLD:
-                return (nm, v)
-        return None
-
     def _levels_now(self) -> List[Tuple[str, float]]:
-        # 2026-10-26 per user: EMA20/EMA200 SR levels are the FIVE-minute
-        # chart's EMAs (signals stay 3m). Chart-live semantics: the forming 5m
-        # candle's close-so-far steps the EMA (exactly what the chart displays).
-        if self.use_3m_levels and self.ema20_5m.value is not None and self.ema200_5m.value is not None:
-            px = self.latest_ltp
-            if px is None and self.bars:
-                px = self.bars[-1].close
-            if px is not None:
-                a20 = self.ema20_5m.alpha
-                a200 = self.ema200_5m.alpha
-                e20 = a20 * px + (1 - a20) * self.ema20_5m.value
-                e200 = a200 * px + (1 - a200) * self.ema200_5m.value
-            else:
-                e20, e200 = self.ema20_5m.value, self.ema200_5m.value
-        else:
-            e20, e200 = self.ema20.value, self.ema200.value
         lv: List[Tuple[str, float]] = [
-            ("EMA20", e20), ("EMA200", e200),
+            ("EMA20", self.ema20.value), ("EMA200", self.ema200.value),
             ("VWAP", self.vwap.value),
         ]
         for nm, v in self.levels_day.items():
