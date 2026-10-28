@@ -27,7 +27,7 @@ pattern. Inside the c-window, when an **engulfing or harami candle** touches a
 | 28 Oct 2026 (live data) | full spec, ATR 1.5 | 3 | 66.7% | +22.89 | +₹1,353 |
 | **8 sessions** | **full spec** | **21** | **63.6%** | **+262.79** | **+₹16,136** |
 | Apr 2026 (CSV data, 20 sess.) | ATR 2.0 | 42 | 54.8% | +85.13 | +₹3,643 (Calmar 12.8) |
-| **2020-01 → 2026-04 (1,572 sess.)** | **best of 7 stops (f5)** | **801** | **33.1%** | **+256.67** | **−₹19,361** |
+| **2020-01 → 2026-04 (1,572 sess.)** | **best of 7 stops (f5)** | **2,663** | **34.4%** | **+1,891.44** | **+₹3,109 (Calmar 1.285)** |
 
 > **The 16K figure is an 8-session result.** On 6.3 years the same logic earns
 > +0.32 points per trade gross and pays ~0.69 points per trade in costs.
@@ -203,16 +203,19 @@ lot = 65       fee = ₹45 per trade
 
 ## 9. Honest limitations (read before deploying)
 
-1. **Costs kill it on the long run.**
+1. **Costs still consume almost all of it.**
    ```
-   gross edge  = +256.67 pts / 801 trades = 0.32 pts/trade ≈ ₹20.8
-   round trip  = ₹45 ≈ 0.69 pts/trade
+   f5 gross edge = +1,891.44 pts / 2,663 trades = 0.710 pts/trade ≈ ₹46.2
+   round trip    = ₹45 ≈ 0.692 pts/trade
+   net           = +₹1.17/trade → +₹3,109 over 6.24 years (Calmar 1.285)
    ```
-   Break-even fee is ₹20.8/trade. Realistic NIFTY option round-trip costs are
-   ₹25–35, so the six-year result is negative for every stop tested.
+   Only f5 clears fees. The ATR × 1.5 stop used in this build loses ₹26,711 over
+   the full period, and the break-even fee is ₹46.2/trade — any extra slippage
+   erases the f5 edge.
 
 2. **The stop ranking is regime-dependent.** October favoured ATR × 1.5; April
-   favoured ATR × 2.0 and a tight fixed 5; six years favoured f5 (still −₹19,361).
+   favoured ATR × 2.0 and a tight fixed 5; six years favoured f5 (the only stop
+   that clears fees, +₹3,109 net).
 
 3. **The 16K window is 21 trades.** Two candles (+50.59, +89.60) carry 53% of the
    points. Remove them and the build is flat-to-negative.

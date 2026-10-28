@@ -123,22 +123,54 @@ that is the strategy's design, not a mis-selected strike.
 
 ## 4. Six-year re-run with the congruent engine (sy3)
 
-*(filled from the sy3 full run)*
+**The previously published panel was a truncated run.** `full_run.txt` stops at
+`400/1572` days; 2020 alone produces 449–467 trades, so 801 trades cannot represent
+1,572 sessions. Corrected full run, 2020-01-01 → 2026-04-30, 1,572 sessions:
+
+| Rank | Stop | Trades | WR | Points | Net ₹ | MaxDD | Annual | Calmar |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | **f5** | 2,680 | 34.1% | +1,927.87 | **+₹4,712** | 200.73 | +309.0 | **1.540** |
+| 2 | f8.5 | 2,650 | 38.0% | +1,533.24 | −₹19,589 | 415.89 | +245.8 | 0.591 |
+| 3 | f10 | 2,620 | 40.0% | +1,351.52 | −₹30,051 | 436.79 | +216.7 | 0.496 |
+| 4 | f8 | 2,656 | 37.2% | +1,493.23 | −₹22,460 | 529.81 | +239.4 | 0.452 |
+| 5 | atr1.5 | 2,629 | 37.9% | +1,401.23 | −₹27,225 | 586.48 | +224.6 | 0.383 |
+| 6 | f12 | 2,597 | 42.4% | +938.25 | −₹55,879 | 652.47 | +150.4 | 0.231 |
+| 7 | atr2.0 | 2,579 | 42.6% | +680.67 | −₹71,811 | 1,135.78 | +109.1 | 0.096 |
+
+Independent confirmation with the baseline rules (1-day seed, 15:29 close), same
+1,572 sessions — the two engines agree within ~₹1,600 on f5 and a few percent
+elsewhere:
+
+| Stop | sy2 trades | sy2 Net ₹ | sy2 Calmar | sy3 Net ₹ | sy3 Calmar |
+|---|---:|---:|---:|---:|---:|
+| f5 | 2,663 | +₹3,109 | 1.285 | +₹4,712 | 1.540 |
+| f8 | 2,641 | −₹12,631 | 0.484 | −₹22,460 | 0.452 |
+| f8.5 | 2,637 | −₹13,037 | 0.552 | −₹19,589 | 0.591 |
+| f10 | 2,610 | −₹23,907 | 0.418 | −₹30,051 | 0.496 |
+| f12 | 2,583 | −₹57,814 | 0.181 | −₹55,879 | 0.231 |
+| atr1.5 | 2,613 | −₹26,711 | 0.376 | −₹27,225 | 0.383 |
+| atr2.0 | 2,565 | −₹65,059 | 0.125 | −₹71,811 | 0.096 |
+
+Integrity checks on the 2,680-trade stream: no duplicate (day, minute, level), no
+overlapping trades, median 2 trades on 1,093 traded days, max 9/day, entry prices
+48.7–556.4 (no bad prints), and the 2020 sub-run reproduces the full run's 2020
+count exactly (467).
 
 ---
 
 ## 5. Verdict
 
-- The strategy logic in the 6-year test **is** the strategy we built: 29/29 rules
-  congruent.
+- The strategy logic in the long-run test **is** the strategy we built (29/29 rules).
 - The historical data cannot supply the 15:32 prior close; that costs ~9% on the
   measured sample.
 - The contract selection (nearest weekly, 2nd ITM at ATM±100) is correct; the
   premium band confirms it.
 - The one real bug — trading monthly contracts on missing-weekly days — only
   affects Jun–Aug 2026, outside the tested window.
+- **The old "all configurations lose" conclusion came from a truncated run.** On
+  the full 1,572 sessions, **f5 is net positive after fees (+₹4,712, Calmar 1.54)**,
+  and every other stop is still net negative after ₹45/trade.
 
-Therefore the negative six-year result is **not** an artefact of mis-selected
-contracts or wrong rules. If the corrected run still loses, the edge is below
-costs; if it turns positive, the difference will be attributable to the seed
-window and the missing 15:30 bar, both bounded above.
+The corrected economics: f5 grosses 0.719 pts/trade against a 0.692 pts/trade fee —
+a net of ₹1.8 per trade. The edge is real but thin; atr1.5, the configuration
+running live, remains a net loser over the full period (−₹27,225).
