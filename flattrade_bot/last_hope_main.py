@@ -57,6 +57,10 @@ from flattrade_bot.strategies.full10_engine import (
     SL_PTS as F10_SL_PTS,
     TP_PTS as F10_TP_PTS,
 )
+from flattrade_bot.strategies.atr16k_engine import (
+    ATR16KEngine,
+    ENTRY_END_MIN as ATR16K_ENTRY_END_MIN,
+)
 
 F10_PROFIT_TXT = "none" if F10_CAP_PROFIT == float("inf") else f"+{F10_CAP_PROFIT:.0f}p"
 F10_LOSS_TXT = "NONE" if F10_DAILY_CAP_PTS == float("inf") else f"-{F10_DAILY_CAP_PTS:.0f}p"
@@ -75,10 +79,9 @@ from rich.text import Text
 # only the event loop calls live.update() with a freshly built renderable.
 _live_console = Console()
 
-STRATEGY_LABEL = "Full10 Strategy (v6)"
-# Full10 v6 mode (2026-09-09): swap the signal engine; ALL plumbing
-# (broker, executor, funds-fallback, exits, park/restore, Discord) unchanged.
 STRATEGY_MODE = os.getenv("STRATEGY_MODE", "full10").strip().lower()
+STRATEGY_LABEL = ("ATR16K Strategy (SR engulf/harami + ATR stop)"
+                  if STRATEGY_MODE == "atr16k" else "Full10 Strategy (v6)")
 IST = timezone(timedelta(hours=5, minutes=30))
 
 log_dir = ROOT / "logs"
@@ -137,9 +140,18 @@ class LastHopeTradingEngine:
 
     def __init__(self, live_orders: bool = False):
         self.live_orders = live_orders
-        # STRATEGY SWITCH: full10 (default) | legacy44
+        # STRATEGY SWITCH: full10 (default) | atr16k | legacy44
         self.full10 = STRATEGY_MODE == "full10"
-        self.engine = Full10Engine() if self.full10 else LastHopeWinnerEngine()
+        self.atr16k = STRATEGY_MODE == "atr16k"
+        # engines that emit entry-relative sl_points / tp_points
+        self.points_mode = self.full10 or self.atr16k
+        if self.atr16k:
+            self.engine = ATR16KEngine()
+        elif self.full10:
+            self.engine = Full10Engine()
+        else:
+            self.engine = LastHopeWinnerEngine()
+        self.session_end_min = (ATR16K_ENTRY_END_MIN + 1) if self.atr16k else SESSION_END_MIN
         self.discord = DiscordNotifier(strategy=STRATEGY_LABEL)
         self.client = FlattradeClient()
         self.history = FlattradeHistoryFetcher()
@@ -152,7 +164,7 @@ class LastHopeTradingEngine:
                                             # (month replay: it never fired except Oct 9,
                                             # where the -29 cap superseded it)
             session_start_min=SESSION_START_MIN,
-            session_end_min=SESSION_END_MIN,
+            session_end_min=self.session_end_min,
         )
         self.executor = (
             TradeExecutor(self.client, self.risk, self.discord, quantity=settings.LOT_SIZE, live_orders=True)
@@ -231,17 +243,21 @@ class LastHopeTradingEngine:
 
         asyncio.create_task(
             self.discord._post_embed({
-                "title": "FLATTRADE FULL10 BOT ONLINE" if self.full10 else "FLATTRADE LAST HOPE WINNER BOT ONLINE",
+                "title": ("FLATTRADE ATR16K BOT ONLINE" if self.atr16k else
+                          ("FLATTRADE FULL10 BOT ONLINE" if self.full10 else "FLATTRADE LAST HOPE WINNER BOT ONLINE")),
                 "color": 0x2ECC71,
                 "fields": [
-                    {"name": "Strategy", "value": "Full10 v6 (FLAG/SUPER multi-TF, 12-level same-TF bounce)" if self.full10 else "Last Hope GPU Winner (FLAG/SUPER 1m OHLC)", "inline": True},
-                    {"name": "Session", "value": "09:15 - 15:00 IST", "inline": True},
-                    {"name": "Risk Geometry", "value": f"SL {F10_SL_PTS:.0f} / TP {F10_TP_PTS:.0f} pts fixed, daily cap -{F10_DAILY_CAP_PTS:.0f} pts | profit lock: {F10_PROFIT_TXT}" if self.full10 else "ATR(10)x1.5 Breakeven at +40% move (§44 dynamic-strike champion)", "inline": True},
+                    {"name": "Strategy", "value": ("ATR16K (5-wave a-b-c + SR engulf/harami, 2nd ITM at wave start)" if self.atr16k else
+                                                   ("Full10 v6 (FLAG/SUPER multi-TF, 12-level same-TF bounce)" if self.full10 else "Last Hope GPU Winner (FLAG/SUPER 1m OHLC)")), "inline": True},
+                    {"name": "Session", "value": ("09:15 - 15:15 IST" if self.atr16k else "09:15 - 15:00 IST"), "inline": True},
+                    {"name": "Risk Geometry", "value": (f"SL level-1.5xATR(14,1m) | TP level+3x range | no BE | cap {('none' if F10_DAILY_CAP_PTS == float('inf') else 'on')}" if self.atr16k else
+                                                       (f"SL {F10_SL_PTS:.0f} / TP {F10_TP_PTS:.0f} pts fixed, daily cap -{F10_DAILY_CAP_PTS:.0f} pts | profit lock: {F10_PROFIT_TXT}" if self.full10 else "ATR(10)x1.5 Breakeven at +40% move (§44 dynamic-strike champion)")), "inline": True},
                     {"name": "Mode", "value": "LIVE ORDERS" if self.live_orders else "PAPER SIM", "inline": True},
                     {"name": "Nifty Spot", "value": f"Rs {self.spot_price:,.2f}" if self.spot_price else "--", "inline": True},
                 ],
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "footer": {"text": "Flattrade Full10 Bot" if self.full10 else "Flattrade Last Hope Bot"},
+                "footer": {"text": ("Flattrade ATR16K Bot" if self.atr16k else
+                                    ("Flattrade Full10 Bot" if self.full10 else "Flattrade Last Hope Bot"))},
             })
         )
 
@@ -249,7 +265,8 @@ class LastHopeTradingEngine:
         """Asynchronously warms up historical candles and S/R levels without blocking quote polling."""
         try:
             seed_rows = await self.history.fetch_historical_candles(
-                token=token, exchange="NFO", interval="1", days_back=5
+                token=token, exchange="NFO", interval="1",
+                days_back=(10 if self.atr16k else 5),
             )
             if not seed_rows:
                 return
@@ -320,8 +337,30 @@ class LastHopeTradingEngine:
                         logger.info(f"EODChartData miss — 1m fallback for {symbol}")
 
                 if yh is not None:
-                    if self.full10:
-                        # FULL10: official EOD OHLC gates CPR/fib/cam family;
+                    if self.atr16k:
+                        # ATR16K reference rule: prior-day PH/PL over the full
+                        # 1m session (09:15-15:45 prints), PC = 15:32 settlement
+                        # bar when present (else the last bar).
+                        _rows = []
+                        for r in by_day.get(last_trading_day, []):
+                            try:
+                                _dt = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
+                            except Exception:
+                                continue
+                            _m = _dt.hour * 60 + _dt.minute
+                            if 555 <= _m <= 945:
+                                _rows.append((_m, r))
+                        if _rows:
+                            _rows.sort(key=lambda x: x[0])
+                            yh = max(float(x[1].get("high", x[1].get("inth", 0.0))) for x in _rows)
+                            yl = min(float(x[1].get("low", x[1].get("intl", 0.0)))
+                                     for x in _rows
+                                     if float(x[1].get("low", x[1].get("intl", 0.0))) > 0)
+                            _bym = {m: x for m, x in _rows}
+                            _last = _bym.get(932) or _rows[-1][1]
+                            yc = float(_last.get("close", _last.get("intc", 0.0)))
+                    if self.points_mode:
+                        # FULL10/ATR16K: official EOD OHLC gates CPR/fib/cam family;
                         # PDVWAP from the prior-day 1m bars (VOLUME-weighted,
                         # geoms parity); virgin levels come from the weekly-
                         # family first day (Upstox map when present).
@@ -413,7 +452,9 @@ class LastHopeTradingEngine:
             # seed_bars between prior and today seeding.
             prior_bars: List[Bar1m] = []
             if valid_prev_days:
-                seed_days = valid_prev_days[-3:] if self.full10 else [valid_prev_days[-1]]
+                seed_days = (valid_prev_days[-5:] if self.atr16k
+                             else (valid_prev_days[-3:] if self.full10
+                                   else [valid_prev_days[-1]]))
                 for seed_day in seed_days:
                     for r in by_day.get(seed_day, []):
                         try:
@@ -421,7 +462,7 @@ class LastHopeTradingEngine:
                         except (TypeError, ValueError):
                             continue
                         m = dt.hour * 60 + dt.minute
-                        if 555 <= m <= 930:
+                        if 555 <= m <= (945 if self.atr16k else 930):
                             o = float(r.get("open", r.get("into", 0.0)))
                             h = float(r.get("high", r.get("inth", 0.0)))
                             l = float(r.get("low", r.get("intl", 0.0)))
@@ -430,7 +471,13 @@ class LastHopeTradingEngine:
                             if h >= l > 0:
                                 prior_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt, volume=v))
                 # Keep only the LAST 300 session bars (§44) / 1200 (Full10 tail)
-                prior_bars = prior_bars[-300:] if not self.full10 else prior_bars[-1200:]
+                # / 2000 (ATR16K — reference seeds up to 2,000 prior bars)
+                if self.atr16k:
+                    prior_bars = prior_bars[-2000:]
+                elif not self.full10:
+                    prior_bars = prior_bars[-300:]
+                else:
+                    prior_bars = prior_bars[-1200:]
 
             # Today's completed candles (backtest-identical state reconstruction)
             today_bars: List[Bar1m] = []
@@ -452,7 +499,7 @@ class LastHopeTradingEngine:
                             today_bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c, timestamp=dt, volume=v))
 
             if prior_bars or today_bars:
-                if self.full10 and hasattr(contract_state, "seed_bars"):
+                if self.points_mode and hasattr(contract_state, "seed_bars"):
                     contract_state.seed_bars(prior_bars, today_bars, session_date=today_str)
                 else:
                     contract_state.seed_1m_bars(prior_bars, today_bars, session_date=today_str)
@@ -472,15 +519,19 @@ class LastHopeTradingEngine:
             return
         self._last_contract_check = time.time()
 
-        desired = self.engine.desired_strikes(self.spot_price)
-        pairs = [
-            ("CE", desired["CE_SPEC"]),
-            ("PE", desired["PE_SPEC"]),
-            ("CE", desired["CE_WATCH_PLUS50"]),
-            ("PE", desired["PE_WATCH_PLUS50"]),
-            ("CE", desired["CE_WATCH_MINUS50"]),
-            ("PE", desired["PE_WATCH_MINUS50"]),
-        ]
+        if hasattr(self.engine, "desired_pairs"):
+            # ATR16K: current 2nd ITM + watches + every live wave's 2nd ITM
+            pairs = list(self.engine.desired_pairs(self.spot_price))
+        else:
+            desired = self.engine.desired_strikes(self.spot_price)
+            pairs = [
+                ("CE", desired["CE_SPEC"]),
+                ("PE", desired["PE_SPEC"]),
+                ("CE", desired["CE_WATCH_PLUS50"]),
+                ("PE", desired["PE_WATCH_PLUS50"]),
+                ("CE", desired["CE_WATCH_MINUS50"]),
+                ("PE", desired["PE_WATCH_MINUS50"]),
+            ]
         desired_keys = {f"{side}:{strike}" for side, strike in pairs}
 
         now = ist_now()
@@ -673,8 +724,8 @@ class LastHopeTradingEngine:
         display = sig["symbol"]
         token = sig["token"]
         entry = sig["entry"]
-        if self.full10:
-            dist = float(sig["sl_points"])          # SL 10 (fixed)
+        if self.points_mode:
+            dist = float(sig["sl_points"])          # entry-relative stop
             sl = round(entry - float(sig["sl_points"]), 2)
             tp = round(entry + float(sig["tp_points"]), 2)
         else:
@@ -716,6 +767,9 @@ class LastHopeTradingEngine:
             # trigger instantly, hardened SL above the held P24000's price
             # -> instant bogus stop-out (-3.25 in 1 second).
             held_pos = res["position"]
+            if self.atr16k:
+                # strategy EOD is the 15:16 bar close, not the 15:00 default
+                held_pos["eod_min"] = ATR16K_ENTRY_END_MIN + 1
             held_symbol = str(held_pos.get("order_symbol") or held_pos.get("symbol") or sig["symbol"])
             held_token = str(held_pos.get("token") or sig["token"])
             self.engine.on_trade_opened({
@@ -726,7 +780,7 @@ class LastHopeTradingEngine:
                 "entry": fill,
                 "sl": sl,
                 "tp": tp,
-                **({} if self.full10 else {"be_done": False}),
+                **({} if self.points_mode else {"be_done": False}),
             })
         else:
             self.paper_position = {
@@ -741,7 +795,7 @@ class LastHopeTradingEngine:
                 "dist": dist,
                 "opened_at": now,
                 "signal": f"{sig['trigger']}_{sig['level']}",
-                **({} if self.full10 else {
+                **({} if self.points_mode else {
                     "be_trigger_px": sig["be_trigger_px"],
                     "be_hardened_sl": sig["be_hardened_sl"],
                     "be_done": False,
@@ -761,8 +815,9 @@ class LastHopeTradingEngine:
         held_symbol = str(res.get("position", {}).get("order_symbol") or res.get("position", {}).get("symbol") or display) if (self.live_orders and self.executor is not None) else display
         held_strike = self._strike_from_symbol(held_symbol, sig["strike"], sig["side"])
         self.active_position_key = f"{sig['side']}:{held_strike}"
-        if self.full10:
-            logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} (fixed 10/15, no BE)")
+        if self.points_mode:
+            logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} "
+                        f"({sig['trigger']} @ {sig['level']}, entry-relative SL/TP, no BE)")
         else:
             logger.info(f"ENTRY {display} @ {fill:.2f} SL={sl:.2f} TP={tp:.2f} BE_trig={sig['be_trigger_px']:.2f}")
 
@@ -775,7 +830,7 @@ class LastHopeTradingEngine:
                 entry_price=fill,
                 sl_price=sl,
                 tp_price=tp,
-                notes=f"{sig['trigger']} trigger | SR={sig['level']} | SL {dist:.0f} / TP {float(sig['tp_points']):.0f} pts" if self.full10 else f"{sig['trigger']} trigger | SR={sig['level']} | dist={dist:.2f} | BE at {sig['be_trigger_px']:.2f}",
+                notes=f"{sig['trigger']} trigger | SR={sig['level']} | SL {dist:.0f} / TP {float(sig['tp_points']):.0f} pts" if self.points_mode else f"{sig['trigger']} trigger | SR={sig['level']} | dist={dist:.2f} | BE at {sig['be_trigger_px']:.2f}",
                 lot_size=settings.LOT_SIZE,
                 mode="LIVE" if self.live_orders else "PAPER",
             )
@@ -836,7 +891,7 @@ class LastHopeTradingEngine:
         if float(trade.get("pts", 0.0)) > 0:
             self._wins_today += 1
         # FULL10 circuit breaker: accumulate closed points for the day
-        if self.full10 and hasattr(self.engine, "record_closed_points"):
+        if self.points_mode and hasattr(self.engine, "record_closed_points"):
             self.engine.record_closed_points(float(trade.get("pts", 0.0)), f"{ist_now():%Y-%m-%d}")
         self.engine.on_trade_closed()
         self.active_position_key = None
@@ -862,7 +917,7 @@ class LastHopeTradingEngine:
             # a mid-session restart must NOT reset the ±29pt halt (2026-09-10
             # incident: 09:32 restart wiped the counter at +33.2 pts and the
             # bot re-entered at 09:35/09:41).
-            if self.full10 and hasattr(self.engine, "record_closed_points"):
+            if self.points_mode and hasattr(self.engine, "record_closed_points"):
                 day_key = ist_now().strftime("%Y-%m-%d")
                 closed = [t for t in self.trades_today if t.get("reason")]
                 for t in closed:
@@ -909,7 +964,7 @@ class LastHopeTradingEngine:
 
             # Sync SL if Breakeven triggered (engine is authoritative for BE)
             # FULL10 v6: NO BE — this block is legacy44-only
-            if not self.full10 and self.engine.active_trade:
+            if not self.points_mode and self.engine.active_trade:
                 if self.engine.active_trade.get("be_done") and not pos.get("be_notified"):
                     pos["be_notified"] = True
                     pos["sl"] = self.engine.active_trade["sl"]
@@ -950,7 +1005,7 @@ class LastHopeTradingEngine:
         # contract) is authoritative; this per-tick arming is REMOVED (it
         # armed on intra-minute noise and stopped trades the backtest kept).
         # FULL10 v6: NO BE — legacy44-only.
-        if not self.full10 and pos.get("be_done") and not pos.get("be_notified"):
+        if not self.points_mode and pos.get("be_done") and not pos.get("be_notified"):
             pos["be_notified"] = True
             asyncio.create_task(
                 self.discord.notify_breakeven_locked(
@@ -966,7 +1021,7 @@ class LastHopeTradingEngine:
             reason = "STOP_LOSS"
         elif ltp >= pos["target"]:
             reason = "TARGET"
-        elif minute_of(now) >= SESSION_END_MIN:
+        elif minute_of(now) >= self.session_end_min:
             reason = "EOD"
 
         if not reason:
@@ -1091,7 +1146,7 @@ class LastHopeTradingEngine:
         alternate buffer redraws in place (the proven Aug-25 flicker fix)."""
         now = ist_now()
         time_str = now.strftime("%H:%M:%S")
-        sess_active = SESSION_START_MIN <= minute_of(now) < SESSION_END_MIN
+        sess_active = SESSION_START_MIN <= minute_of(now) < self.session_end_min
         mode = "LIVE BROKER" if self.live_orders else "PAPER SIM"
         net_rs = sum(float(t.get("rs", 0.0)) for t in self.trades_today)
         net_pts = sum(float(t.get("pts", 0.0)) for t in self.trades_today)
@@ -1410,8 +1465,8 @@ class LastHopeTradingEngine:
         self._wins_today = 0
         self._eod_done = False
         self.risk.reset_day()
-        # Full10: daily circuit breaker resets with the day
-        if self.full10:
+        # Full10/ATR16K: daily circuit breaker resets with the day
+        if self.points_mode:
             self.engine._day_key = f"{now:%Y-%m-%d}"
             self.engine._day_cum_pts = 0.0
             self.engine._day_halted = False
@@ -1802,3 +1857,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+

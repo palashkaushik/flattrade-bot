@@ -299,7 +299,7 @@ class TradeExecutor:
                 elif ltp <= float(tp_level):
                     exit_reason = "TARGET"
             if exit_reason:
-                if now_min >= 15 * 60:
+                if now_min >= int(self.position.get("eod_min", 15 * 60)):
                     exit_reason = "EOD"
                 elif dry_run:
                     return {"exit_reason": exit_reason}
@@ -317,7 +317,7 @@ class TradeExecutor:
             elif ltp >= self.position["target"]:
                 exit_reason = "TARGET"
 
-        if not exit_reason and now_min >= 15 * 60:
+        if not exit_reason and now_min >= int(self.position.get("eod_min", 15 * 60)):
             exit_reason = "EOD"
 
         if not exit_reason:
