@@ -348,6 +348,8 @@ class ATR16KContractState:
                 "tf": "1m",
                 "level": nm,
                 "level_px": round(float(lvl), 2),
+                "w_min": c["w_min"],
+                "atm_w": atm,
                 "entry": round(entry, 2),
                 "dist": round(entry - sl, 2),
                 "sl": round(sl, 2),
