@@ -125,6 +125,22 @@ class FlattradeWebSocketFeed:
                 pass
 
     # ------------------------------------------------------------ subscribe
+    def force_reconnect(self):
+        """Force the current socket closed so _run_forever reconnects.
+
+        Used by the runner's per-instrument data-stall guard: the global
+        'no frame at all' watchdog cannot see option subscriptions dying
+        while spot frames keep flowing (the 2026-10-29 morning failure).
+        """
+        ws = self._ws
+        if ws is None:
+            return
+        try:
+            ws.keep_running = False
+            ws.close()
+        except Exception:
+            pass
+
     def subscribe(self, exchange: str, token: str):
         key = f"{exchange}|{token}"
         with self._lock:

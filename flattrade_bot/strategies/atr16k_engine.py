@@ -19,10 +19,13 @@ risk and the broker integration stay untouched.
 """
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 # ---- strategy constants (identical to the validated build) ----
 THR = 5.0            # close-zigzag threshold
@@ -33,13 +36,33 @@ ATR_LEN = 14
 ATR_MULT = 1.5       # SL = level - 1.5 * ATR(14, 1m)
 C_EXT = 1            # c-window extended +1 bar past the c confirmation
 SL_GRACE = 1.0       # reference stop fires at low <= SL - 1
+# Overlapping waves: allowed (each wave is its own a-b-c). Overlapping TRADES
+# are still impossible — one position at a time discards a signal that arrives
+# while a trade is open.
+ALLOW_OVERLAP = os.getenv("ATR16K_ALLOW_OVERLAP", "0") == "1"
+# Carry-across: pivots/waves include the previous session's bars, so a wave may
+# start on the prior day and trigger today (7-session test: +Rs 2,025 vs same-day).
+CARRY = os.getenv("ATR16K_CARRY", "1") == "1"
+# Twin-candle fallback (engulf-first): consecutive opposite-colour candles whose
+# low OR high match within this tolerance, level touched anywhere in the bar.
+TWIN_TOL = float(os.getenv("ATR16K_TWIN_TOL", "0.75"))
+# Level test mode:
+#   open      = the TRIGGER bar's open >= level (validated default)
+#   close     = the trigger bar's close >= level (discretionary variant;
+#               8-day test 2026-10-21..28: +37.20 pts / -Rs 1,518)
+#   prev_open = the PREVIOUS bar's open >= level (price was above the level
+#               before the trigger bar tested it)
+LEVEL_MODE = os.getenv("ATR16K_LEVEL_MODE", "open").strip().lower()
 
 SESSION_START_MIN = 555      # 09:15
 ENTRY_END_MIN = 915          # 15:15 (backtest entry cutoff)
 DAY_END_MIN = 930            # 15:30
+# TEMPORARY DIAGNOSTIC (one session): log every bar that falls inside an open
+# a/b/c window — OHLC, pattern, twin, levels inside, open>=level, ATM/strike gate.
+BAR_TRACE = os.getenv("ATR16K_BAR_TRACE", "1") == "1"
 
-# Daily cap — the validated build had none; configurable, default off.
-LOSS_CAP = float(os.getenv("ATR16K_LOSS_CAP", "inf"))
+# Daily cap - the validated build had none; configurable, default off.
+LOSS_CAP = float(os.getenv("ATR16K_LOSS_CAP", "40"))
 PROFIT_CAP = float(os.getenv("ATR16K_PROFIT_CAP", "inf"))
 
 
@@ -163,6 +186,19 @@ def pat_any(bd: List[dict], i: int) -> Optional[str]:
     if cl >= pl and ch <= ph and (ch - cl) < (ph - pl):
         return "harami"
     return None
+
+
+def twin_candles(bd: List[dict], i: int, tol: float = TWIN_TOL) -> bool:
+    if i < 1:
+        return False
+    o, c = bd[i]["o"], bd[i]["c"]
+    po, pc = bd[i - 1]["o"], bd[i - 1]["c"]
+    red, green = c < o, c > o
+    pred, pgreen = pc < po, pc > po
+    if not ((red and pgreen) or (green and pred)):
+        return False
+    return (abs(bd[i]["l"] - bd[i - 1]["l"]) <= tol
+            or abs(bd[i]["h"] - bd[i - 1]["h"]) <= tol)
 
 
 class _Val:
@@ -311,13 +347,25 @@ class ATR16KContractState:
         if not self.day_levels:
             self.set_day_levels(bar.high, bar.low, bar.close)
         self._compute()
-        j = len(self.bars) - 1
-        b = self.bars[j]
+        j = len(self._bd) - 1
+        ei = len(self.bars) - 1
+        b = self.bars[ei]
         if b.minute > ENTRY_END_MIN:
             return None
         kind = pat_any(self._bd, j)
+        _any_touch = False
         if not kind:
-            return None
+            # engulf-first fallback: twin candles, level touched anywhere in the bar
+            if twin_candles(self._bd, j):
+                kind, _any_touch = "twin", True
+            else:
+                return None
+
+        if BAR_TRACE and self.ok_ctx:
+            try:
+                self._trace_bar(b, j, kind, _any_touch)
+            except Exception:      # diagnostics must never affect trading
+                pass
 
         for c in self.ok_ctx:
             if c["fired"] or not (c["b_conf"] + 1 <= j <= c["c_conf"]):
@@ -329,16 +377,34 @@ class ATR16KContractState:
                 continue
             if self.side == "PE" and self.strike != atm + 100:
                 continue
-            cd = [(nm, v) for nm, v in self._levels.items()
-                  if b.low <= v <= b.high and b.open >= v]
+            cd = []
+            for nm, v in self._levels.items():
+                if not (b.low <= v <= b.high):
+                    continue
+                if _any_touch:
+                    ok = True
+                elif LEVEL_MODE == "prev_open":
+                    ok = self._bd[j - 1]["o"] >= v
+                elif LEVEL_MODE == "open_or_prev":
+                    ok = (b.open >= v) or (self._bd[j - 1]["o"] >= v)
+                elif LEVEL_MODE == "open_and_prev":
+                    ok = (b.open >= v) and (self._bd[j - 1]["o"] >= v)
+                elif LEVEL_MODE == "close":
+                    ok = b.close >= v
+                elif LEVEL_MODE == "none":
+                    ok = True          # level merely inside the bar
+                else:
+                    ok = b.open >= v
+                if ok:
+                    cd.append((nm, v))
             if not cd:
                 continue
             nm, lvl = max(cd, key=lambda z: z[1])
             entry = float(b.close)
-            atr = float(self._atr[j])
+            atr = float(self._atr[ei])
             sl = lvl - ATR_MULT * atr
             tp = lvl + TP_MULT * (b.high - b.low)
-            self.fired_waves.add(c["w0"])
+            self.fired_waves.add((c["w_day"], c["w_min"]))
             return {
                 "side": self.side,
                 "symbol": self.symbol,
@@ -360,6 +426,31 @@ class ATR16KContractState:
                 "timestamp": getattr(b, "timestamp", None),
             }
         return None
+
+    # ---- diagnostics (temporary) ----
+    def _trace_bar(self, b, j: int, kind: Optional[str], any_touch: bool):
+        """One line per bar that sits inside an open a/b/c window."""
+        hm = f"{b.minute // 60:02d}:{b.minute % 60:02d}"
+        twin = twin_candles(self._bd, j)
+        for c in self.ok_ctx:
+            if not (c["b_conf"] + 1 <= j <= c["c_conf"]):
+                continue
+            inside = []
+            for nm, v in self._levels.items():
+                if b.low <= v <= b.high:
+                    inside.append(f"{nm}={v:.2f}(open>={'Y' if b.open >= v else 'N'})")
+            atm = c["atm"]
+            strike_ok = bool(atm is not None and (
+                (self.side == "CE" and self.strike == atm - 100) or
+                (self.side == "PE" and self.strike == atm + 100)))
+            wm = f"{c['w_min'] // 60:02d}:{c['w_min'] % 60:02d}"
+            logger.info(
+                "BARTRACE %s %s O%.2f H%.2f L%.2f C%.2f pat=%s twin=%s any=%s | "
+                "ctx %s %s b%d..c%d atm=%s strike_ok=%s | levels: %s",
+                self.symbol, hm, b.open, b.high, b.low, b.close, kind or "-",
+                int(bool(twin)), int(bool(any_touch)), c["w_day"], wm,
+                c["b_conf"], c["c_conf"], atm, int(strike_ok),
+                ", ".join(inside) if inside else "none")
 
     # ---- internals ----
     def _compute(self):
@@ -405,10 +496,31 @@ class ATR16KContractState:
         self.vwap = _Val(vw[-1])
         self.latest_atr = float(self._atr[-1])
 
-        bd = [{"t": b.minute, "o": b.open, "h": b.high, "l": b.low, "c": b.close,
-               "min": b.minute} for b in self.bars]
-        self._bd = bd
-        pv_ = refine(bd, swings(bd, THR))
+        # ---- pivot/wave series: previous session + today (carry-across) ----
+        prior_bars: List[Any] = []
+        if CARRY and self.seeded:
+            by_day: Dict[Any, List[Any]] = {}
+            for x in self.seeded:
+                _d = getattr(x, "timestamp", None)
+                _d = _d.date() if _d is not None else None
+                by_day.setdefault(_d, []).append(x)
+            if by_day:
+                last_day = max(by_day, key=lambda d: (d is None, d))
+                prior_bars = [x for x in by_day[last_day][-400:] if x.minute <= 930]
+        comb: List[dict] = []
+        for x in prior_bars:
+            _d = getattr(x, "timestamp", None)
+            comb.append({"t": x.minute, "o": x.open, "h": x.high, "l": x.low,
+                         "c": x.close, "min": x.minute,
+                         "day": _d.date() if _d is not None else None, "src": "P"})
+        for x in self.bars:
+            _d = getattr(x, "timestamp", None)
+            comb.append({"t": x.minute, "o": x.open, "h": x.high, "l": x.low,
+                         "c": x.close, "min": x.minute,
+                         "day": _d.date() if _d is not None else None, "src": "T"})
+        self._bd = comb
+        self._t0 = len(prior_bars)
+        pv_ = refine(comb, swings(comb, THR))
         NP = len(pv_)
         waves = []
         for i0 in range(NP - 5):
@@ -433,15 +545,9 @@ class ATR16KContractState:
             if found:
                 waves.append((i0, found[0], [pv_[q] for q in found[0]]))
 
-        nonlap = []
-        last_end = -1
-        for w0, idxs, w in waves:
-            if w0 > last_end:
-                nonlap.append((w0, idxs, w)); last_end = idxs[-1]
-
         ctx: List[dict] = []
-        j = n - 1
-        for w0, idxs, w in nonlap:
+        j = len(comb) - 1
+        for w0, idxs, w in waves:
             last = idxs[-1]
             ai = next((q for q in range(last + 1, NP) if pv_[q][1] == "L"), None)
             if ai is None:
@@ -451,14 +557,26 @@ class ATR16KContractState:
                 continue
             b_conf = pv_[bi][4]
             ci = next((q for q in range(bi + 1, NP) if pv_[q][1] == "L"), None)
-            c_conf = min((pv_[ci][4] if ci is not None else n - 1) + C_EXT, n - 1)
-            w_min = bd[pv_[idxs[0]][3]]["min"]
-            atm = self.atm_fn(w_min) if self.atm_fn else None
-            ctx.append({"w0": w0, "b_conf": b_conf, "c_conf": c_conf,
-                        "w_min": w_min, "atm": atm,
-                        "fired": w0 in self.fired_waves})
-        self.ok_ctx = ctx
-        self._ctx = [c for c in ctx if c["c_conf"] >= j]
+            c_conf = min((pv_[ci][4] if ci is not None else j) + C_EXT, j)
+            if c_conf < self._t0:
+                continue          # window closed before today — cannot trade today
+            w_bar = comb[pv_[idxs[0]][3]]
+            w_day, w_min = w_bar["day"], w_bar["min"]
+            atm = self.atm_fn(w_day, w_min) if self.atm_fn else None
+            ctx.append({"w0": w0, "end": last, "b_conf": b_conf, "c_conf": c_conf,
+                        "w_min": w_min, "w_day": w_day, "atm": atm,
+                        "fired": (w_day, w_min) in self.fired_waves})
+
+        # non-overlap priority over the windows that can still trade today
+        if ALLOW_OVERLAP:
+            kept = ctx
+        else:
+            kept, last_end = [], -1
+            for c in ctx:
+                if c["w0"] > last_end:
+                    kept.append(c); last_end = c["end"]
+        self.ok_ctx = kept
+        self._ctx = [c for c in kept if c["c_conf"] >= j]
 
     # ---- dashboard compatibility ----
     @property
@@ -478,6 +596,7 @@ class ATR16KEngine:
         self.spot_price: Optional[float] = None
         self.active_trade: Optional[Dict[str, Any]] = None
         self._atm_by_min: Dict[int, int] = {}
+        self.index_hist: Dict[Any, Dict[int, float]] = {}
         self._last_minute: int = -1
         self._last_exit_min: int = -1
         self._day_key: Optional[str] = None
@@ -495,9 +614,19 @@ class ATR16KEngine:
     def set_spot_price(self, spot: float):
         self.spot_price = float(spot)
 
-    def _atm_at(self, minute: int) -> Optional[int]:
+    def _atm_at(self, day, minute: int) -> Optional[int]:
+        d = self.index_hist.get(day)
+        if d:
+            ks = [k for k in d if k <= minute]
+            if ks:
+                return int(round(d[max(ks)] / 50.0) * 50)
         ks = [m for m in self._atm_by_min if m <= minute]
         return self._atm_by_min[max(ks)] if ks else None
+
+    def set_index_history(self, hist: Dict[Any, Dict[int, float]]):
+        """{date: {minute: spot}} for the prior days — day-aware ATM at the
+        wave start (carry-across waves start on the previous session)."""
+        self.index_hist = hist
 
     def desired_pairs(self, spot: float) -> List[Tuple[str, int]]:
         """Contract ladder the strategy may need: current 2nd ITM + watches +
@@ -558,3 +687,6 @@ class ATR16KEngine:
         if minute <= self._last_exit_min:
             return None
         return sig
+
+
+

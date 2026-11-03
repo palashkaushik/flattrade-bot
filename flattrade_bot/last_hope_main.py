@@ -186,6 +186,10 @@ class LastHopeTradingEngine:
         self._contract_task: Optional[asyncio.Task] = None
         self._exit_task: Optional[asyncio.Task] = None
         self._entering: bool = False
+        # per-instrument data-stall guard (option ticks, not just "any frame")
+        self._last_tick_mono: float = 0.0
+        self._tick_stall_count: int = 0
+        self._last_stall_alert: float = 0.0
         self._dash_lines_drawn: int = 0
         self._alt_screen_on: bool = False
 
@@ -237,6 +241,7 @@ class LastHopeTradingEngine:
                 logger.warning(f"Initial spot quote failed: {e}")
 
             await self.ensure_contracts(force=True)
+            await self._warmup_index()
 
         # Start Discord retry loop (retries failed notifications every 30s)
         self.discord.start_retry_loop()
@@ -260,6 +265,29 @@ class LastHopeTradingEngine:
                                     ("Flattrade Full10 Bot" if self.full10 else "Flattrade Last Hope Bot"))},
             })
         )
+
+    async def _warmup_index(self):
+        """Load NSE index 1m history for day-aware ATM (carry-across waves)."""
+        if not self.history.auth_token or not hasattr(self.engine, "set_index_history"):
+            return
+        try:
+            rows = await self.history.fetch_historical_candles(
+                token="26000", exchange="NSE", interval="1", days_back=5
+            )
+            hist: Dict[Any, Dict[int, float]] = {}
+            for r in rows or []:
+                try:
+                    dt = datetime.strptime(str(r["time"]), "%d-%m-%Y %H:%M:%S")
+                except Exception:
+                    continue
+                hist.setdefault(dt.date(), {})[dt.hour * 60 + dt.minute] = float(
+                    r.get("close", r.get("intc", 0.0)))
+            if hist:
+                self.engine.set_index_history(hist)
+                logger.info("Index history loaded: %d days (%s .. %s)",
+                            len(hist), min(hist), max(hist))
+        except Exception as e:
+            logger.warning("Index history warmup failed: %s", e)
 
     async def _warmup_contract(self, contract_state: OptionContractState, token: str, symbol: str, today_str: str, now: datetime):
         """Asynchronously warms up historical candles and S/R levels without blocking quote polling."""
@@ -706,6 +734,16 @@ class LastHopeTradingEngine:
         return res
 
     async def _try_enter(self, sig: Dict[str, Any]):
+        # Log EVERY signal before any risk/position/order gate: on zero-funds
+        # days the order is rejected but the signal must still be auditable.
+        logger.info(
+            "📣 SIGNAL %s %s @ %.2f | %s=%s | SL %.2f TP %.2f | "
+            "wave %s (ATM %s) | risk %.2f tp %.2f",
+            sig.get("side"), sig.get("symbol"), float(sig.get("entry", 0.0)),
+            sig.get("level"), sig.get("level_px"), float(sig.get("sl", 0.0)),
+            float(sig.get("tp", 0.0)), sig.get("w_min"), sig.get("atm_w"),
+            float(sig.get("sl_points", 0.0)), float(sig.get("tp_points", 0.0)),
+        )
         # Re-entrancy guard: while one entry is confirming at the broker, ignore
         # all other signals (this is what caused duplicate live positions).
         if self._entering:
@@ -716,6 +754,11 @@ class LastHopeTradingEngine:
 
         now = ist_now()
         cur_min = minute_of(now)
+        _day_key = f"{now:%Y-%m-%d}"
+        if getattr(self.engine, "entries_halted", lambda d: False)(_day_key):
+            logger.info("Entry blocked: day cap reached (%.1f pts)",
+                        getattr(self.engine, "_day_cum_pts", 0.0))
+            return
         can, reason = self.risk.can_open_trade(cur_min, 0)
         if not can:
             logger.info("Entry blocked by risk: %s", reason)
@@ -1566,18 +1609,21 @@ class LastHopeTradingEngine:
         if self.ws_feed.connected:
             self.ws_feed.subscribe("NSE", "26000")
 
-        # 1.5 — SIGNAL GATE: only the CURRENT 2nd-ITM pair (CE_SPEC/PE_SPEC)
-        # may open trades. Watch pairs (+/-50 rollover) are warm-only — the
-        # 11:20 Sep-2 incident fired 6 entries in 1 second across ALL
-        # registered strikes. Backtest semantics: trade only the active pair.
-        # (2026-10-15: restored per user — previous live config.)
-        spec_keys: set = set()
+        # 1.5 — SIGNAL GATE: only instruments the engine can legitimately signal on.
+        # The ATR16K engine's own strike gate (2nd ITM at the WAVE START) is the
+        # authority; this set only excludes strikes outside the ladder. It MUST
+        # come from desired_pairs(), which contains the current 2nd ITM AND every
+        # live wave's 2nd ITM — the old desired_strikes() call did not exist on
+        # this engine, raised AttributeError, and the except below emptied the
+        # set, silently discarding every signal.
+        spec_keys = None
         try:
-            if self.spot_price:
-                _d = self.engine.desired_strikes(self.spot_price)
-                spec_keys = {f"CE:{_d['CE_SPEC']}", f"PE:{_d['PE_SPEC']}"}
-        except Exception:
-            spec_keys = set()
+            if self.spot_price and hasattr(self.engine, "desired_pairs"):
+                spec_keys = {f"{side}:{strike}"
+                             for side, strike in self.engine.desired_pairs(self.spot_price)}
+        except Exception as exc:
+            logger.warning("Signal gate fallback (%s) — accepting engine signal", exc)
+            spec_keys = None
 
         # Process WS-fresh option ticks first (zero REST cost). Deterministic
         # order = poll_keys (sorted).
@@ -1590,9 +1636,10 @@ class LastHopeTradingEngine:
             opt_ltp = self.ws_feed.last_ltp("NFO", cs.token)
             if opt_ltp and opt_ltp > 0:
                 self._last_ltp[key] = opt_ltp
+                self._last_tick_mono = time.monotonic()
                 cum_v = self.ws_feed.last_cum_volume("NFO", cs.token)
                 sig = self.engine.push_tick(key, opt_ltp, now, cum_volume=cum_v)
-                if sig and not self._has_position() and key in spec_keys:
+                if sig and not self._has_position() and (spec_keys is None or key in spec_keys):
                     await self._try_enter(sig)
 
         # REST fallback: ONLY stale/unsubscribed instruments (+ spot if stale)
@@ -1639,10 +1686,46 @@ class LastHopeTradingEngine:
                     self._broker_status = "LIVE CONNECTED (REST)"
                 else:
                     self._last_ltp[label] = ltp_val
+                    self._last_tick_mono = time.monotonic()
                     cum_v = float(result.get("v", 0) or 0) or None
                     sig = self.engine.push_tick(label, ltp_val, now, cum_volume=cum_v)
-                    if sig and not self._has_position() and label in spec_keys:
+                    if sig and not self._has_position() and (spec_keys is None or label in spec_keys):
                         await self._try_enter(sig)
+
+        # 2b. PER-INSTRUMENT DATA-STALL GUARD. The WS "no frame at all" watchdog
+        # cannot detect option subscriptions dying while spot frames continue —
+        # the 2026-10-29 failure: last option tick before 09:15, no reconnect
+        # until 09:52, zero trades all morning. If no option tick arrives for
+        # 90s inside the session, force the socket closed (run_forever
+        # reconnects) and alert at most once every 5 minutes.
+        cur_min = minute_of(now)
+        if SESSION_START_MIN <= cur_min <= 915 and poll_keys:
+            if self._last_tick_mono == 0.0:
+                self._last_tick_mono = time.monotonic()
+            stall = time.monotonic() - self._last_tick_mono
+            if stall > 90.0:
+                self._tick_stall_count += 1
+                logger.warning(
+                    "🚨 DATA STALL: no option tick for %.0fs (stall #%d) — forcing WS reconnect",
+                    stall, self._tick_stall_count)
+                try:
+                    self.ws_feed.force_reconnect()
+                except Exception as e:
+                    logger.warning("force_reconnect failed: %s", e)
+                self._last_tick_mono = time.monotonic()
+                if time.monotonic() - self._last_stall_alert > 300:
+                    self._last_stall_alert = time.monotonic()
+                    asyncio.create_task(self.discord._post_embed({
+                        "title": "⚠️ FLATTRADE DATA STALL — forcing WS reconnect",
+                        "color": 0xE67E22,
+                        "fields": [
+                            {"name": "Stall", "value": f"{stall:.0f}s without an option tick", "inline": True},
+                            {"name": "Time", "value": f"{now:%H:%M:%S} IST", "inline": True},
+                        ],
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }))
+            else:
+                self._tick_stall_count = 0
 
         # 3. Check Exits (SL, TP, Breakeven, EOD)
         await self._manage_exit()

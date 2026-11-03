@@ -250,8 +250,41 @@ STRATEGY_MODE=atr16k      # default remains full10
 | Entry window | 09:15–15:15 | `b_conf+1 … c_conf+1` |
 | EOD | 15:16 bar close (`eod_min` per position) | reference exits at the first bar with minute > 915 |
 | Breakeven | none | reference has no BE |
-| Daily cap | none by default (`ATR16K_LOSS_CAP` / `ATR16K_PROFIT_CAP` env) | the validated build had no cap |
+| Daily cap | **−40 points** (`ATR16K_LOSS_CAP=40`; profit cap off) | day-cumulative closed points; once hit, no new entries for the session |
 | Position rule | one at a time; entry minute ≤ previous exit minute → dropped | reference day-level non-overlap filter |
+
+### Signal-gate fix (3 Nov 2026, evening)
+
+Every engine signal was being discarded by the runner before `_try_enter`, so no
+`📣 SIGNAL` line was ever written and no order could be placed. Two causes:
+
+1. The gate called `engine.desired_strikes(spot)`, a method that exists on the
+   Full10/last-hope engines but **not** on `ATR16KEngine`. The call raised
+   `AttributeError`; the surrounding `except Exception` swallowed it and set
+   `spec_keys = set()`, after which `key in spec_keys` was always false.
+2. Even with the method present, the gate compared the signal's contract with
+   the **current** 2nd ITM, while the strategy trades the 2nd ITM **at the wave
+   start**. All three missed signals (3 Nov C23500, 2 Nov P23150, 2 Nov P23450)
+   were wave-start strikes and failed that comparison.
+
+Fixed: the gate now comes from `desired_pairs(spot)` — the current 2nd ITM plus
+every live wave's 2nd ITM — and an exception no longer empties the set; it logs a
+warning and accepts the engine's signal (the engine's own strike gate is the
+authority). Verified on the three missed cases: engine fires and the gate accepts
+all three (`fire=True, in_gate=True`).
+
+### Context-ordering fix (2 Nov 2026)The live engine used to apply the non-overlap filter **before** building the a/b/c
+windows. A carried wave whose window had already closed on the prior session
+therefore survived and shadowed a later wave whose window was still open — the
+bot missed the 09:29 carried-wave signal on P23150 on 2 Nov. The engine now:
+
+1. builds a context for **every** valid wave,
+2. drops contexts whose `c_conf` is before today's first bar (`c_conf < t0`),
+3. applies the non-overlap priority only to the survivors.
+
+This is exactly the reference order in `carry9.py`. After the fix the live engine
+class reproduces 2 Nov bar-for-bar: `09:29 P23150 harami fibS3 55.88 entry 57.35`
+and `12:02 P23450 twin EMA20 186.68 entry 189.15`.
 
 ### Parity evidence
 
