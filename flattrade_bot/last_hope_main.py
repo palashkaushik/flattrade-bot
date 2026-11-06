@@ -289,6 +289,74 @@ class LastHopeTradingEngine:
         except Exception as e:
             logger.warning("Index history warmup failed: %s", e)
 
+    def _make_bar_sink(self, cs):
+        """Record every completed live bar to logs/bars_YYYY-MM-DD.csv.
+
+        The replay must run on the bars the engine actually trades: TPSeries
+        1m opens are not continuous with the prior close (0.35-1.45 gaps) and
+        flip harami/engulf patterns. This file is that ground truth.
+        """
+        def sink(bar):
+            try:
+                ts = getattr(bar, "timestamp", None)
+                day = ts.strftime("%Y-%m-%d") if ts is not None else ist_now().strftime("%Y-%m-%d")
+                path = os.path.join("logs", f"bars_{day}.csv")
+                new = not os.path.exists(path)
+                with open(path, "a", encoding="utf-8") as fh:
+                    if new:
+                        fh.write("date,time,symbol,open,high,low,close,volume\n")
+                    fh.write(f"{day},{bar.minute // 60:02d}:{bar.minute % 60:02d}:00,{cs.symbol},"
+                             f"{bar.open},{bar.high},{bar.low},{bar.close},{bar.volume}\n")
+            except Exception:
+                pass
+        return sink
+
+    async def _resync_today_bars(self, key: str):
+        """Re-anchor today's bars from the exchange after a park/restore.
+
+        A parked contract is unsubscribed, so those minutes have no tick bars
+        and the session VWAP/EMA start mid-session. Exchange 1m bars replace
+        the same minutes and fill the gap (engine.merge_today_bars).
+        """
+        cs = self.engine.contracts.get(key)
+        if cs is None or not getattr(cs, "token", None) or not hasattr(cs, "merge_today_bars"):
+            return
+        try:
+            rows = await self.history.fetch_historical_candles(
+                token=cs.token, exchange="NFO", interval="1", days_back=2)
+        except Exception as e:
+            logger.debug("Resync fetch failed for %s: %s", key, e)
+            return
+        if not rows:
+            return
+        now = ist_now()
+        today_str = now.strftime("%d-%m-%Y")
+        cur_m = minute_of(now)
+        bars = []
+        for r in rows:
+            t = str(r.get("time", ""))
+            if not t.startswith(today_str):
+                continue
+            try:
+                dt = datetime.strptime(t, "%d-%m-%Y %H:%M:%S")
+            except ValueError:
+                continue
+            m = dt.hour * 60 + dt.minute
+            if m >= cur_m:
+                continue
+            o = float(r.get("open", r.get("into", 0.0)))
+            h = float(r.get("high", r.get("inth", 0.0)))
+            l = float(r.get("low", r.get("intl", 0.0)))
+            c = float(r.get("close", r.get("intc", 0.0)))
+            v = float(r.get("volume", r.get("intv", 0.0)))
+            if h >= l > 0:
+                bars.append(Bar1m(minute=m, open=o, high=h, low=l, close=c,
+                                  timestamp=dt, volume=v))
+        if bars:
+            cs.merge_today_bars(bars)
+            logger.info("♻️ Resynced %d today bars for %s (VWAP re-anchored)",
+                        len(bars), key)
+
     async def _warmup_contract(self, contract_state: OptionContractState, token: str, symbol: str, today_str: str, now: datetime):
         """Asynchronously warms up historical candles and S/R levels without blocking quote polling."""
         try:
@@ -613,7 +681,14 @@ class LastHopeTradingEngine:
                 parked = getattr(self, "_parked_contracts", {}).pop(key, None)
                 if parked is not None and parked.session_date == today_str and parked.seed_complete:
                     self.engine.contracts[key] = parked
+                    parked.bar_sink = self._make_bar_sink(parked)
                     logger.info("♻️ Restored parked contract %s (seeded state intact)", key)
+                    # Re-anchor today's bars: the parked minutes are missing and
+                    # would otherwise distort VWAP/EMA (see merge_today_bars).
+                    try:
+                        asyncio.create_task(self._resync_today_bars(key))
+                    except Exception:
+                        pass
                     continue
 
                 contract_state = self.engine.register_contract(
@@ -623,6 +698,7 @@ class LastHopeTradingEngine:
                     side=side,
                     strike=strike,
                 )
+                contract_state.bar_sink = self._make_bar_sink(contract_state)
                 # Per-day cold start (backtest parity): fresh indicators, then
                 # warmup replays today's completed bars only. SAME-DAY
                 # RE-REGISTRATION GUARD: when spot hovers on a ±50 boundary
@@ -1153,8 +1229,13 @@ class LastHopeTradingEngine:
         if not is_session_expired_response(response):
             return False
         now_ts = time.time()
-        if now_ts - getattr(self, "_last_token_renew", 0.0) < 60:
+        # Backoff guard: arm on EVERY attempt (success or failure). The old code
+        # only set _last_token_renew on success, so a failing credential retried
+        # every loop tick — 107k attempts on 2026-11-04 got the account blocked.
+        wait = getattr(self, "_auth_backoff", 60)
+        if now_ts - getattr(self, "_last_token_attempt", 0.0) < wait:
             return False
+        self._last_token_attempt = now_ts
         logger.warning("Session expired. Renewing token via REST API...")
         try:
             from flattrade_bot.broker.auto_login import automated_flattrade_login_rest
@@ -1174,12 +1255,19 @@ class LastHopeTradingEngine:
                 self.history.set_token(new_token)
                 self.ws_feed.set_token(new_token)  # WS reconnects with the new token
                 self._last_token_renew = time.time()
+                self._auth_backoff = 60
+                self._auth_fail_count = 0
                 logger.info("Token renewed successfully.")
                 return True
-            else:
-                logger.error("Token renewal returned empty — will retry in 60s")
+            self._auth_fail_count = getattr(self, "_auth_fail_count", 0) + 1
+            self._auth_backoff = min(60 * (2 ** (self._auth_fail_count - 1)), 1800)
+            logger.error("Token renewal returned empty (attempt %d) — next try in %ds",
+                         self._auth_fail_count, self._auth_backoff)
         except Exception as e:
-            logger.error(f"Token renewal failed: {e} — will retry in 60s")
+            self._auth_fail_count = getattr(self, "_auth_fail_count", 0) + 1
+            self._auth_backoff = min(60 * (2 ** (self._auth_fail_count - 1)), 1800)
+            logger.error("Token renewal failed: %s (attempt %d) — next try in %ds",
+                         e, self._auth_fail_count, self._auth_backoff)
         return False
 
     def render_dashboard(self):

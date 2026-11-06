@@ -247,7 +247,12 @@ STRATEGY_MODE=atr16k      # default remains full10
 | Warmup | 10-day fetch → 5 prior sessions, last 2,000 bars (1,925 observed) | reference seeds up to 2,000 prior bars |
 | Prior-day close (CPR/BC/TC) | **15:32 print** | post-close prints 15:33–15:39 differ by up to 25 points (27 Oct 03NOV26 C22450: 395.00 vs 370.10) |
 | Contract ladder | CE ATM−50…−300, PE ATM+50…+300 (12) + every live wave's 2nd ITM | the 2nd ITM is fixed at the **wave start**, not at entry |
-| Entry window | 09:15–15:15 | `b_conf+1 … c_conf+1` |
+| Entry window | 09:15–15:00 | `b_conf+1 … c_conf+1`, entry cutoff 15:00 |
+| Stop | **1.1 × ATR**, hard cap **20 pts**, minimum **3 pts** (re-anchored) | level-based stop can land at/above the entry when the trigger closes through the level |
+| Target | **3.5 × trigger range** | tuned on the 12-session book |
+| Wave validity | **correction leg (4>2>0)** | impulse condition 5>3>1 dropped (more 2nd-ITM setups, same DD) |
+| Levels | statics + EMA20/200 3m+5m + session VWAP + ST 3m + **PDVWAP** + **virgin CPR/BC/TC** | PDVWAP = previous day's closing VWAP (volume-weighted hlc3) |
+| Live bars | `logs/bars_YYYY-MM-DD.csv` (one row per completed bar) | replay must run on the bars the bot trades, not TPSeries |
 | EOD | 15:16 bar close (`eod_min` per position) | reference exits at the first bar with minute > 915 |
 | Breakeven | none | reference has no BE |
 | Daily cap | **−40 points** (`ATR16K_LOSS_CAP=40`; profit cap off) | day-cumulative closed points; once hit, no new entries for the session |

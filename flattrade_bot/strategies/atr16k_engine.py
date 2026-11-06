@@ -30,10 +30,17 @@ logger = logging.getLogger(__name__)
 # ---- strategy constants (identical to the validated build) ----
 THR = 5.0            # close-zigzag threshold
 BUF = 1.0            # wave validity buffer
+WAVE_MODE = os.getenv("ATR16K_WAVE_MODE", "correction").strip().lower()
 SKIP = 4             # pivot skip budget
-TP_MULT = 3.0        # TP = level + 3 * trigger range
+TP_MULT = 3.5        # TP = level + 3.5 * trigger range
 ATR_LEN = 14
-ATR_MULT = 1.5       # SL = level - 1.5 * ATR(14, 1m)
+ATR_MULT = 1.1       # SL = level - 1.1 * ATR(14, 1m)
+# Hard cap on the per-trade stop distance (points of premium). 0 = disabled.
+MAX_SL_POINTS = float(os.getenv("ATR16K_MAX_SL", "20"))
+# Minimum stop distance: when the trigger bar closes through the level, the
+# level-based stop can land at or even ABOVE the entry (a 0.14-pt stop, or a
+# fake win). Re-anchor it to at least this far below the entry.
+MIN_RISK_POINTS = float(os.getenv("ATR16K_MIN_RISK", "3"))
 C_EXT = 1            # c-window extended +1 bar past the c confirmation
 SL_GRACE = 1.0       # reference stop fires at low <= SL - 1
 # Overlapping waves: allowed (each wave is its own a-b-c). Overlapping TRADES
@@ -55,7 +62,7 @@ TWIN_TOL = float(os.getenv("ATR16K_TWIN_TOL", "0.75"))
 LEVEL_MODE = os.getenv("ATR16K_LEVEL_MODE", "open").strip().lower()
 
 SESSION_START_MIN = 555      # 09:15
-ENTRY_END_MIN = 915          # 15:15 (backtest entry cutoff)
+ENTRY_END_MIN = 900          # 15:00 (backtest entry cutoff)
 DAY_END_MIN = 930            # 15:30
 # TEMPORARY DIAGNOSTIC (one session): log every bar that falls inside an open
 # a/b/c window — OHLC, pattern, twin, levels inside, open>=level, ATM/strike gate.
@@ -247,6 +254,7 @@ class ATR16KContractState:
     # compatibility attributes for the dashboard (read-only in the UI)
     virgin: Dict[str, float] = field(default_factory=dict)
     pdvwap: Optional[float] = None
+    bar_sink: Optional[Callable[[Any], None]] = None
     anchor_bar: int = -10**9
     flag_armed: bool = False
     super_armed: bool = False
@@ -305,6 +313,19 @@ class ATR16KContractState:
         self._seeding = False
         self.seed_complete = True
 
+    def merge_today_bars(self, bars: List[Any]):
+        """Re-anchor today's bars with exchange bars (by minute).
+
+        A parked/restored contract misses the minutes it was unsubscribed, so
+        its session VWAP/EMA would start mid-session (observed: P24700 VWAP
+        356.66 vs the true 371.65 on 2026-11-05). Exchange bars replace the
+        same-minute tick bars and fill the gaps; live-only minutes are kept.
+        """
+        by_min = {b.minute: b for b in self.bars}
+        for b in bars:
+            by_min[b.minute] = b
+        self.bars = [by_min[m] for m in sorted(by_min)]
+
     # ---- live tick path ----
     def push_tick(self, ltp: float, dt: datetime,
                   cum_volume: Optional[float] = None) -> Optional[Dict[str, Any]]:
@@ -333,6 +354,12 @@ class ATR16KContractState:
         bar.open, bar.high, bar.low, bar.close = self.cur_open, self.cur_high, self.cur_low, self.cur_close
         bar.timestamp = dt
         bar.volume = bar_vol
+
+        if self.bar_sink is not None:
+            try:
+                self.bar_sink(bar)
+            except Exception:
+                pass
 
         self.current_min = minute
         self.cur_open = self.cur_high = self.cur_low = self.cur_close = ltp
@@ -403,6 +430,10 @@ class ATR16KContractState:
             entry = float(b.close)
             atr = float(self._atr[ei])
             sl = lvl - ATR_MULT * atr
+            if MAX_SL_POINTS > 0 and entry - sl > MAX_SL_POINTS:
+                sl = entry - MAX_SL_POINTS
+            if MIN_RISK_POINTS > 0 and entry - sl < MIN_RISK_POINTS:
+                sl = entry - MIN_RISK_POINTS
             tp = lvl + TP_MULT * (b.high - b.low)
             self.fired_waves.add((c["w_day"], c["w_min"]))
             return {
@@ -490,6 +521,18 @@ class ATR16KContractState:
         lv["VWAP"] = vw[-1]
         if stl[-1] is not None:
             lv["ST"] = stl[-1]
+        # Previous-day closing VWAP and virgin CPR/BC/TC (computed by the runner;
+        # previously display-only, now part of the signal level set).
+        if self.pdvwap:
+            try:
+                lv["PDVWAP"] = float(self.pdvwap)
+            except (TypeError, ValueError):
+                pass
+        for _nm, _v in (self.virgin or {}).items():
+            try:
+                lv[_nm] = float(_v)
+            except (TypeError, ValueError):
+                pass
         self._levels = lv
         self.ema20 = _Val(e20_5[-1])
         self.ema200 = _Val(e200_3[-1])
@@ -532,7 +575,8 @@ class ATR16KContractState:
                 if len(chosen) == 6:
                     w = [pv_[q] for q in chosen]
                     a0, a1, a2, a3, a4, a5 = (p[2] for p in w)
-                    if a5 > a3 - BUF and a3 > a1 - BUF and a4 > a2 - BUF and a2 > a0 - BUF:
+                    if ((a4 > a2 - BUF and a2 > a0 - BUF) if WAVE_MODE == "correction"
+                            else (a5 > a3 - BUF and a3 > a1 - BUF)):
                         found.append(list(chosen))
                     return
                 for q in range(pos, min(NP, pos + 1 + budget)):
