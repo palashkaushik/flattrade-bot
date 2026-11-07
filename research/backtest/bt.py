@@ -297,14 +297,21 @@ def evaluate(ctx, cap=DAY_CAP):
 def run_days(data, days, nearest_map):
     all_days = []
     for d in days:
-        kept = []
+        sigs = []
         for c in precompute(data, d, nearest_map.get(d, "")):
-            kept.extend(evaluate([c]))
+            sigs.extend(evaluate([c], cap=float("inf")))
         kept, last_exit = [], -1
-        for s in sorted(kept, key=lambda x: x["j"]):
+        for s in sorted(sigs, key=lambda x: x["j"]):
             if s["j"] <= last_exit:
                 continue
             kept.append(s); last_exit = s["exit"]
+        if DAY_CAP != float("inf"):
+            out, cum = [], 0.0
+            for s in kept:
+                if cum <= -DAY_CAP:
+                    break
+                out.append(s); cum += s["pts"]
+            kept = out
         all_days.append((d, kept))
     return all_days
 
