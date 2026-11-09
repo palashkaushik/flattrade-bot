@@ -119,11 +119,12 @@ def short():
     data = bt.Data()
     days = [d for d in data.days if "2026-11-04" <= d <= "2026-11-09"]
     nm = nearest_map(data)
+    ctxs = {d: bt.precompute(data, d, nm.get(d, "")) for d in days}
     rows = []
     for cfg in CONFIGS:
         allt = []
         for d in days:
-            allt.extend(take(cfg, bt.precompute(data, d, nm.get(d, ""))))
+            allt.extend(take(cfg, ctxs[d]))
         rows.append((cfg[0], stats(allt)))
     rows.sort(key=lambda r: -(r[1]["cal"] if r[1] else -1))
     print_table(f"short window {days[0]} .. {days[-1]} ({len(days)} sessions)", rows)
