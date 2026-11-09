@@ -30,11 +30,11 @@ logger = logging.getLogger(__name__)
 # ---- strategy constants (identical to the validated build) ----
 THR = 5.0            # close-zigzag threshold
 BUF = 1.0            # wave validity buffer
-WAVE_MODE = os.getenv("ATR16K_WAVE_MODE", "correction").strip().lower()
+WAVE_MODE = os.getenv("ATR16K_WAVE_MODE", "full").strip().lower()
 SKIP = 4             # pivot skip budget
 TP_MULT = 3.5        # TP = level + 3.5 * trigger range
 ATR_LEN = 14
-ATR_MULT = 1.1       # SL = level - 1.1 * ATR(14, 1m)
+ATR_MULT = 1.2       # SL = level - 1.2 * ATR(14, 1m)
 # Hard cap on the per-trade stop distance (points of premium). 0 = disabled.
 MAX_SL_POINTS = float(os.getenv("ATR16K_MAX_SL", "20"))
 # Minimum stop distance: when the trigger bar closes through the level, the
@@ -731,6 +731,7 @@ class ATR16KEngine:
         if minute <= self._last_exit_min:
             return None
         return sig
+
 
 
 

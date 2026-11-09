@@ -23,8 +23,10 @@ os.environ["FT_TOKEN"] = tok
 import fetch_day  # noqa: E402
 
 os.makedirs("/home/ubuntu/FT_DATA", exist_ok=True)
-for day, tag in (("2026-11-04", "nov04"), ("2026-11-05", "nov05"), ("2026-11-06", "nov06")):
+for day, tag in (("2026-10-30", "oct30"), ("2026-11-02", "nov02"), ("2026-11-03", "nov03"), ("2026-11-04", "nov04"), ("2026-11-05", "nov05"), ("2026-11-06", "nov06"), ("2026-11-09", "nov09")):
     fetch_day.main(day, "NIFTY09NOV26",
                    f"/home/ubuntu/FT_DATA/{tag}_options.csv",
                    f"/home/ubuntu/FT_DATA/{tag}_index.csv")
 print("done")
+
+
