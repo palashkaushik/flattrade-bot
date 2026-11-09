@@ -261,39 +261,33 @@ def evaluate(ctx, cap=DAY_CAP):
                 if ti < 0 or ti >= len(rows) or rows[ti]["min"] > ENTRY_END:
                     break
                 b, p = comb[gj], comb[gj - 1]
+                touched = None
+                for (q, lo, hi) in c.get("obs", []):
+                    if q >= gj:
+                        continue
+                    if b["l"] <= hi and b["h"] >= lo:
+                        mid = (lo + hi) / 2.0
+                        dist = abs(b["c"] - mid)
+                        if touched is None or dist < touched[0]:
+                            touched = (dist, lo, hi)
+                _pat = pat_any(comb, gj)
+                _tw = twin_candles(comb, gj, TWIN_TOL)
                 if TRIGGER_MODE == "ob":
-                    # order-block trigger: the bar must touch the nearest
-                    # single-candle OB formed before it, and close above a level
-                    touched = None
-                    for (q, lo, hi) in c.get("obs", []):
-                        if q >= gj:
-                            continue
-                        if b["l"] <= hi and b["h"] >= lo:
-                            mid = (lo + hi) / 2.0
-                            dist = abs(b["c"] - mid)
-                            if touched is None or dist < touched[0]:
-                                touched = (dist, lo, hi)
                     if touched is None:
                         continue
-                    any_touch = False
-                else:
-                    if not pat_any(comb, gj) and not twin_candles(comb, gj, TWIN_TOL):
+                elif TRIGGER_MODE == "union":
+                    if not _pat and not _tw and touched is None:
                         continue
-                    any_touch = not pat_any(comb, gj)
+                else:
+                    if not _pat and not _tw:
+                        continue
+                any_touch = (not _pat) and bool(_tw)
                 lv = dict(c["base"])
                 for nm, arr in c["per_ti"].items():
                     if arr[ti] is not None:
                         lv[nm] = arr[ti]
-                if TRIGGER_MODE == "ob":
-                    # nearest SR level ABOVE the bar; the close must reclaim it
-                    above = [(nm, v) for nm, v in lv.items() if v > b["l"]]
-                    if not above:
-                        continue
-                    nm, v = min(above, key=lambda z: z[1])
-                    if b["c"] < v:
-                        continue
-                else:
-                    cd = []
+                cd = []
+                if TRIGGER_MODE != "ob" and (_pat or _tw):
                     for nm, v in lv.items():
                         if any_touch:
                             ok = b["l"] <= v <= b["h"]
@@ -301,9 +295,16 @@ def evaluate(ctx, cap=DAY_CAP):
                             ok = b["l"] <= v <= b["h"] and b["o"] >= v
                         if ok:
                             cd.append((nm, v))
-                    if not cd:
-                        continue
-                    nm, v = max(cd, key=lambda z: z[1])
+                if not cd and TRIGGER_MODE != "pattern" and touched is not None:
+                    # nearest SR level ABOVE the bar; the close must reclaim it
+                    above = [(nm, v) for nm, v in lv.items() if v > b["l"]]
+                    if above:
+                        _nm, _v = min(above, key=lambda z: z[1])
+                        if b["c"] >= _v:
+                            cd = [(_nm, _v)]
+                if not cd:
+                    continue
+                nm, v = max(cd, key=lambda z: z[1])
                 entry = b["c"]
                 sl = v - SL_ATR * c["atrs"][ti]
                 if entry - sl > MAX_SL:
