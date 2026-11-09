@@ -27,11 +27,11 @@ from flattrade_bot.strategies.atr16k_engine import (  # noqa: E402
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 PAT = re.compile(r"^NIFTY(\d{2}[A-Z]{3}\d{2})(\d+)(CE|PE)$")
 BUF, SKIP = 1.0, 4
-WAVE_MODE = "correction"
+WAVE_MODE = "full"
 LOT, FEE = 65, 45
 
 # rule
-SL_ATR, TP_MULT, MAX_SL, MIN_RISK = 1.1, 3.5, 20.0, 3.0
+SL_ATR, TP_MULT, MAX_SL, MIN_RISK = 1.2, 3.5, 20.0, 3.0
 ENTRY_END, DAY_CAP = 900, 40.0
 TWIN_TOL = 0.75
 
@@ -328,3 +328,4 @@ def summarise(all_days):
     return {"trades": len(seq), "wr": round(wr, 1), "pts": tp,
             "rs": round(tp * LOT - len(seq) * FEE), "dd": round(dd, 2),
             "calmar": round(cal, 2) if cal else None}
+
