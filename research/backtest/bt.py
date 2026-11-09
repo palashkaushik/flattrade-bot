@@ -323,7 +323,7 @@ def evaluate(ctx, cap=DAY_CAP):
                 if res is None:
                     res = (rows[-1]["c"] - entry, rows[-1]["min"], "EOD")
                 sigs.append({"j": rows[ti]["min"], "sym": c["sym"], "nm": nm, "entry": entry,
-                             "sl": round(sl, 2), "risk": round(entry - sl, 2),
+                             "sl": round(sl, 2), "risk": round(entry - sl, 2), "tp": round(tp, 2), "tp_pts": round(tp - entry, 2),
                              "exit": res[1], "pts": round(res[0], 2), "why": res[2]})
                 break
     kept, last_exit = [], -1
@@ -375,6 +375,7 @@ def summarise(all_days):
     return {"trades": len(seq), "wr": round(wr, 1), "pts": tp,
             "rs": round(tp * LOT - len(seq) * FEE), "dd": round(dd, 2),
             "calmar": round(cal, 2) if cal else None}
+
 
 
 
