@@ -278,6 +278,15 @@ def evaluate(ctx, cap=DAY_CAP):
                 elif TRIGGER_MODE == "union":
                     if not _pat and not _tw and touched is None:
                         continue
+                elif TRIGGER_MODE == "engulf":
+                    if _pat != "engulf":
+                        continue
+                elif TRIGGER_MODE == "harami":
+                    if _pat != "harami":
+                        continue
+                elif TRIGGER_MODE == "twin":
+                    if not _tw:
+                        continue
                 else:
                     if not _pat and not _tw:
                         continue
@@ -295,7 +304,7 @@ def evaluate(ctx, cap=DAY_CAP):
                             ok = b["l"] <= v <= b["h"] and b["o"] >= v
                         if ok:
                             cd.append((nm, v))
-                if not cd and TRIGGER_MODE != "pattern" and touched is not None:
+                if not cd and TRIGGER_MODE in ("ob", "union") and touched is not None:
                     # nearest SR level ABOVE the bar; the close must reclaim it
                     above = [(nm, v) for nm, v in lv.items() if v > b["l"]]
                     if above:
