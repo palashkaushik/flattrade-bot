@@ -46,3 +46,6 @@ Thumbs.db
 # Runtime and Scratch
 logs/
 scratch/
+
+# Logs can capture credentials (bot.log leaked the API key)
+logs/
