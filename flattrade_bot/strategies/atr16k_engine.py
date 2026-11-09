@@ -31,10 +31,13 @@ logger = logging.getLogger(__name__)
 THR = 5.0            # close-zigzag threshold
 BUF = 1.0            # wave validity buffer
 WAVE_MODE = os.getenv("ATR16K_WAVE_MODE", "full").strip().lower()
+# Trigger: "pattern" = engulf/harami/twin; "ob" = order-block touch +
+# close above the nearest SR level above the bar (deployed 2026-11-09).
+TRIGGER_MODE = os.getenv("ATR16K_TRIGGER", "ob").strip().lower()
 SKIP = 4             # pivot skip budget
-TP_MULT = 3.5        # TP = level + 3.5 * trigger range
+TP_MULT = 5.0        # TP = level + 5.0 * trigger range
 ATR_LEN = 14
-ATR_MULT = 1.2       # SL = level - 1.2 * ATR(14, 1m)
+ATR_MULT = 1.0       # SL = level - 1.0 * ATR(14, 1m)
 # Hard cap on the per-trade stop distance (points of premium). 0 = disabled.
 MAX_SL_POINTS = float(os.getenv("ATR16K_MAX_SL", "20"))
 # Minimum stop distance: when the trigger bar closes through the level, the
@@ -379,14 +382,30 @@ class ATR16KContractState:
         b = self.bars[ei]
         if b.minute > ENTRY_END_MIN:
             return None
-        kind = pat_any(self._bd, j)
-        _any_touch = False
-        if not kind:
-            # engulf-first fallback: twin candles, level touched anywhere in the bar
-            if twin_candles(self._bd, j):
-                kind, _any_touch = "twin", True
-            else:
+        if TRIGGER_MODE == "ob":
+            # order-block trigger: bar touches the nearest single-candle OB
+            # formed before it, and closes above the nearest level above it
+            touched = None
+            for (_q, _lo, _hi) in getattr(self, "_obs", []):
+                if _q >= j:
+                    continue
+                if b.low <= _hi and b.high >= _lo:
+                    _mid = (_lo + _hi) / 2.0
+                    _d = abs(b.close - _mid)
+                    if touched is None or _d < touched[0]:
+                        touched = (_d, _lo, _hi)
+            if touched is None:
                 return None
+            kind, _any_touch = "ob", False
+        else:
+            kind = pat_any(self._bd, j)
+            _any_touch = False
+            if not kind:
+                # engulf-first fallback: twin candles, level touched anywhere in the bar
+                if twin_candles(self._bd, j):
+                    kind, _any_touch = "twin", True
+                else:
+                    return None
 
         if BAR_TRACE and self.ok_ctx:
             try:
@@ -404,29 +423,38 @@ class ATR16KContractState:
                 continue
             if self.side == "PE" and self.strike != atm + 100:
                 continue
-            cd = []
-            for nm, v in self._levels.items():
-                if not (b.low <= v <= b.high):
+            if TRIGGER_MODE == "ob":
+                # nearest SR level ABOVE the bar; the close must reclaim it
+                above = [(nm_, v_) for nm_, v_ in self._levels.items() if v_ > b.low]
+                if not above:
                     continue
-                if _any_touch:
-                    ok = True
-                elif LEVEL_MODE == "prev_open":
-                    ok = self._bd[j - 1]["o"] >= v
-                elif LEVEL_MODE == "open_or_prev":
-                    ok = (b.open >= v) or (self._bd[j - 1]["o"] >= v)
-                elif LEVEL_MODE == "open_and_prev":
-                    ok = (b.open >= v) and (self._bd[j - 1]["o"] >= v)
-                elif LEVEL_MODE == "close":
-                    ok = b.close >= v
-                elif LEVEL_MODE == "none":
-                    ok = True          # level merely inside the bar
-                else:
-                    ok = b.open >= v
-                if ok:
-                    cd.append((nm, v))
-            if not cd:
-                continue
-            nm, lvl = max(cd, key=lambda z: z[1])
+                nm, lvl = min(above, key=lambda z: z[1])
+                if b.close < lvl:
+                    continue
+            else:
+                cd = []
+                for nm, v in self._levels.items():
+                    if not (b.low <= v <= b.high):
+                        continue
+                    if _any_touch:
+                        ok = True
+                    elif LEVEL_MODE == "prev_open":
+                        ok = self._bd[j - 1]["o"] >= v
+                    elif LEVEL_MODE == "open_or_prev":
+                        ok = (b.open >= v) or (self._bd[j - 1]["o"] >= v)
+                    elif LEVEL_MODE == "open_and_prev":
+                        ok = (b.open >= v) and (self._bd[j - 1]["o"] >= v)
+                    elif LEVEL_MODE == "close":
+                        ok = b.close >= v
+                    elif LEVEL_MODE == "none":
+                        ok = True          # level merely inside the bar
+                    else:
+                        ok = b.open >= v
+                    if ok:
+                        cd.append((nm, v))
+                if not cd:
+                    continue
+                nm, lvl = max(cd, key=lambda z: z[1])
             entry = float(b.close)
             atr = float(self._atr[ei])
             sl = lvl - ATR_MULT * atr
@@ -564,6 +592,20 @@ class ATR16KContractState:
         self._bd = comb
         self._t0 = len(prior_bars)
         pv_ = refine(comb, swings(comb, THR))
+        # ---- single-candle order blocks: last opposite candle before each
+        # impulse pivot leg; zone = that candle's H/L (mirrors the backtest).
+        _obs = []
+        for _i in range(len(pv_) - 1):
+            _a, _b2 = pv_[_i], pv_[_i + 1]
+            if _a[1] == "L" and _b2[1] == "H":
+                for _q in range(_a[3], max(-1, _a[3] - 6), -1):
+                    if 0 <= _q < len(comb) and comb[_q]["c"] < comb[_q]["o"]:
+                        _obs.append((_q, comb[_q]["l"], comb[_q]["h"])); break
+            elif _a[1] == "H" and _b2[1] == "L":
+                for _q in range(_a[3], max(-1, _a[3] - 6), -1):
+                    if 0 <= _q < len(comb) and comb[_q]["c"] > comb[_q]["o"]:
+                        _obs.append((_q, comb[_q]["l"], comb[_q]["h"])); break
+        self._obs = _obs
         NP = len(pv_)
         waves = []
         for i0 in range(NP - 5):
@@ -731,6 +773,8 @@ class ATR16KEngine:
         if minute <= self._last_exit_min:
             return None
         return sig
+
+
 
 
 
