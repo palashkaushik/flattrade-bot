@@ -272,7 +272,7 @@ def evaluate(ctx, cap=DAY_CAP):
                             touched = (dist, lo, hi)
                 _pat = pat_any(comb, gj)
                 _tw = twin_candles(comb, gj, TWIN_TOL)
-                if TRIGGER_MODE == "ob":
+                if TRIGGER_MODE in ("ob", "obonly"):
                     if touched is None:
                         continue
                 elif TRIGGER_MODE == "union":
@@ -287,6 +287,9 @@ def evaluate(ctx, cap=DAY_CAP):
                 elif TRIGGER_MODE == "twin":
                     if not _tw:
                         continue
+                elif TRIGGER_MODE == "pat2":
+                    if not _pat:
+                        continue
                 else:
                     if not _pat and not _tw:
                         continue
@@ -296,7 +299,11 @@ def evaluate(ctx, cap=DAY_CAP):
                     if arr[ti] is not None:
                         lv[nm] = arr[ti]
                 cd = []
-                if TRIGGER_MODE != "ob" and (_pat or _tw):
+                if TRIGGER_MODE == "obonly":
+                    # pure order-block trigger: the touched zone itself is the
+                    # anchor (no SR level required); mid of the block.
+                    cd = [("OB", (touched[1] + touched[2]) / 2.0)]
+                elif TRIGGER_MODE != "ob" and (_pat or _tw):
                     for nm, v in lv.items():
                         if any_touch:
                             ok = b["l"] <= v <= b["h"]

@@ -19,7 +19,11 @@ import sixyear_par as S  # noqa: E402
 import bt  # noqa: E402
 
 CONTROL = os.environ.get("SIXTRIG_CONTROL", "0") == "1"
+RUN2 = os.environ.get("SIXTRIG_RUN2", "0") == "1"
+OBONLY = os.environ.get("SIXTRIG_OBONLY", "0") == "1"
 CHECK = os.path.join(HERE, "sixyear_days_trig_ctrl.jsonl" if CONTROL
+                     else "sixyear_days_trig2.jsonl" if RUN2
+                     else "sixyear_days_obonly.jsonl" if OBONLY
                      else "sixyear_days_trig.jsonl")
 WORKERS = int(os.environ.get("SY_WORKERS", "10"))
 
@@ -30,6 +34,13 @@ CONFIGS = [
     ("harami only", "harami", 1.0, 5.0, 20),
     ("twin only", "twin", 1.0, 5.0, 20),
 ]
+if RUN2:
+    CONFIGS = [
+        ("engulf+harami (no twin)", "pat2", 1.0, 5.0, 20),
+        ("union (pattern then OB)", "union", 1.0, 5.0, 20),
+    ]
+if OBONLY:
+    CONFIGS = [("ob only (no SR)", "obonly", 1.0, 5.0, 20)]
 if CONTROL:
     CONFIGS.append(("ob control", "ob", 1.0, 5.0, 20))
 

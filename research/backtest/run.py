@@ -11,6 +11,13 @@ from datetime import datetime
 
 import bt
 
+bt.TRIGGER_MODE = os.environ.get("BT_TRIGGER", bt.TRIGGER_MODE)
+bt.SL_ATR = float(os.environ.get("BT_SL", bt.SL_ATR))
+bt.TP_MULT = float(os.environ.get("BT_TP", bt.TP_MULT))
+bt.MAX_SL = float(os.environ.get("BT_MAXSL", bt.MAX_SL))
+bt.MIN_RISK = float(os.environ.get("BT_MINRISK", bt.MIN_RISK))
+bt.DAY_CAP = float(os.environ.get("BT_DAYCAP", bt.DAY_CAP))
+
 EXP = re.compile(r"^NIFTY(\d{2}[A-Z]{3}\d{2})")
 
 
