@@ -29,6 +29,7 @@ PAT = re.compile(r"^NIFTY(\d{2}[A-Z]{3}\d{2})(\d+)(CE|PE)$")
 BUF, SKIP = 1.0, 4
 WAVE_MODE = "full"
 EXTRA_EMAS = False
+TRIGGER_MODE = "pattern"   # "pattern" = engulf/harami/twin (live), "ob" = order block
 LOT, FEE = 65, 45
 
 # rule
@@ -219,6 +220,19 @@ def precompute(data: Data, day, nearest):
 
         rows = [{"min": int(r.min), "o": float(r.open), "h": float(r.high),
                  "l": float(r.low), "c": float(r.close)} for r in gt.itertuples()]
+        # ---- single-candle order blocks: the last opposite candle before each
+        # impulse leg (leg = consecutive pivot pair). Zone = that candle's H/L.
+        obs = []
+        for _i in range(len(pv) - 1):
+            _a, _b2 = pv[_i], pv[_i + 1]
+            if _a[1] == "L" and _b2[1] == "H":          # up leg -> last red candle
+                for q in range(_a[3], max(-1, _a[3] - 6), -1):
+                    if 0 <= q < len(comb) and comb[q]["c"] < comb[q]["o"]:
+                        obs.append((q, comb[q]["l"], comb[q]["h"])); break
+            elif _a[1] == "H" and _b2[1] == "L":        # down leg -> last green candle
+                for q in range(_a[3], max(-1, _a[3] - 6), -1):
+                    if 0 <= q < len(comb) and comb[q]["c"] > comb[q]["o"]:
+                        obs.append((q, comb[q]["l"], comb[q]["h"])); break
         cinfo = []
         for i0, idxs, bc, cc in nonlap:
             wbar = comb[pv[idxs[0]][3]]
@@ -232,7 +246,8 @@ def precompute(data: Data, day, nearest):
             cinfo.append({"bc": bc, "cc": cc, "w_day": wbar["day"], "w_min": wbar["t"], "atm": atm})
         if cinfo:
             out.append({"day": day, "sym": sym, "rows": rows, "t0": t0, "comb": comb,
-                        "ctxs": cinfo, "base": base, "per_ti": per_ti, "atrs": atrs})
+                        "ctxs": cinfo, "obs": obs, "base": base, "per_ti": per_ti,
+                        "atrs": atrs})
     return out
 
 
@@ -246,24 +261,49 @@ def evaluate(ctx, cap=DAY_CAP):
                 if ti < 0 or ti >= len(rows) or rows[ti]["min"] > ENTRY_END:
                     break
                 b, p = comb[gj], comb[gj - 1]
-                if not pat_any(comb, gj) and not twin_candles(comb, gj, TWIN_TOL):
-                    continue
-                any_touch = not pat_any(comb, gj)
+                if TRIGGER_MODE == "ob":
+                    # order-block trigger: the bar must touch the nearest
+                    # single-candle OB formed before it, and close above a level
+                    touched = None
+                    for (q, lo, hi) in c.get("obs", []):
+                        if q >= gj:
+                            continue
+                        if b["l"] <= hi and b["h"] >= lo:
+                            mid = (lo + hi) / 2.0
+                            dist = abs(b["c"] - mid)
+                            if touched is None or dist < touched[0]:
+                                touched = (dist, lo, hi)
+                    if touched is None:
+                        continue
+                    any_touch = False
+                else:
+                    if not pat_any(comb, gj) and not twin_candles(comb, gj, TWIN_TOL):
+                        continue
+                    any_touch = not pat_any(comb, gj)
                 lv = dict(c["base"])
                 for nm, arr in c["per_ti"].items():
                     if arr[ti] is not None:
                         lv[nm] = arr[ti]
-                cd = []
-                for nm, v in lv.items():
-                    if any_touch:
-                        ok = b["l"] <= v <= b["h"]
-                    else:
-                        ok = b["l"] <= v <= b["h"] and b["o"] >= v
-                    if ok:
-                        cd.append((nm, v))
-                if not cd:
-                    continue
-                nm, v = max(cd, key=lambda z: z[1])
+                if TRIGGER_MODE == "ob":
+                    # nearest SR level ABOVE the bar; the close must reclaim it
+                    above = [(nm, v) for nm, v in lv.items() if v > b["l"]]
+                    if not above:
+                        continue
+                    nm, v = min(above, key=lambda z: z[1])
+                    if b["c"] < v:
+                        continue
+                else:
+                    cd = []
+                    for nm, v in lv.items():
+                        if any_touch:
+                            ok = b["l"] <= v <= b["h"]
+                        else:
+                            ok = b["l"] <= v <= b["h"] and b["o"] >= v
+                        if ok:
+                            cd.append((nm, v))
+                    if not cd:
+                        continue
+                    nm, v = max(cd, key=lambda z: z[1])
                 entry = b["c"]
                 sl = v - SL_ATR * c["atrs"][ti]
                 if entry - sl > MAX_SL:
@@ -334,5 +374,7 @@ def summarise(all_days):
     return {"trades": len(seq), "wr": round(wr, 1), "pts": tp,
             "rs": round(tp * LOT - len(seq) * FEE), "dd": round(dd, 2),
             "calmar": round(cal, 2) if cal else None}
+
+
 
 
