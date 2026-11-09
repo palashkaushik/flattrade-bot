@@ -49,3 +49,9 @@ scratch/
 
 # Logs can capture credentials (bot.log leaked the API key)
 logs/
+
+# backtest run artifacts
+research/backtest/sixyear_days.jsonl
+research/backtest/*.log
+research/backtest/*.err
+
