@@ -34,6 +34,8 @@ LOT, FEE = 65, 45
 
 # rule
 SL_ATR, TP_MULT, MAX_SL, MIN_RISK = 1.2, 3.5, 20.0, 3.0
+SL_FROM_ENTRY = False   # True: stop = entry - SL_ATR*ATR (pure volatility stop)
+TP_FROM_ENTRY = False   # True: target = entry + TP_MULT*ATR (ATR bracket)
 ENTRY_END, DAY_CAP = 900, 40.0
 TWIN_TOL = 0.75
 
@@ -322,12 +324,18 @@ def evaluate(ctx, cap=DAY_CAP):
                     continue
                 nm, v = max(cd, key=lambda z: z[1])
                 entry = b["c"]
-                sl = v - SL_ATR * c["atrs"][ti]
+                if SL_FROM_ENTRY:
+                    sl = entry - SL_ATR * c["atrs"][ti]
+                else:
+                    sl = v - SL_ATR * c["atrs"][ti]
                 if entry - sl > MAX_SL:
                     sl = entry - MAX_SL
                 if entry - sl < MIN_RISK:
                     sl = entry - MIN_RISK
-                tp = v + TP_MULT * (b["h"] - b["l"])
+                if TP_FROM_ENTRY:
+                    tp = entry + TP_MULT * c["atrs"][ti]
+                else:
+                    tp = v + TP_MULT * (b["h"] - b["l"])
                 res = None
                 for k2 in range(ti + 1, len(rows)):
                     if rows[k2]["min"] > 915:
