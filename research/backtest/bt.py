@@ -28,6 +28,7 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 PAT = re.compile(r"^NIFTY(\d{2}[A-Z]{3}\d{2})(\d+)(CE|PE)$")
 BUF, SKIP = 1.0, 4
 WAVE_MODE = "full"
+EXTRA_EMAS = False
 LOT, FEE = 65, 45
 
 # rule
@@ -201,6 +202,11 @@ def precompute(data: Data, day, nearest):
         per_ti = {"EMA20": ema_tf(HC, HM, 5, 20)[k:], "EMA20_3": ema_tf(HC, HM, 3, 20)[k:],
                   "EMA200": ema_tf(HC, HM, 3, 200)[k:], "EMA200_5": ema_tf(HC, HM, 5, 200)[k:],
                   "ST": st_map(HH, HL, HC, HM)[k:]}
+        if EXTRA_EMAS:
+            per_ti.update({
+                "EMA20_1": ema_tf(HC, HM, 1, 20)[k:], "EMA200_1": ema_tf(HC, HM, 1, 200)[k:],
+                "EMA20_2": ema_tf(HC, HM, 2, 20)[k:], "EMA200_2": ema_tf(HC, HM, 2, 200)[k:],
+            })
         atrs = atr_series(gt.high.tolist(), gt.low.tolist(), gt.close.tolist())
         pvs = vv = 0.0
         vw = []
@@ -328,4 +334,5 @@ def summarise(all_days):
     return {"trades": len(seq), "wr": round(wr, 1), "pts": tp,
             "rs": round(tp * LOT - len(seq) * FEE), "dd": round(dd, 2),
             "calmar": round(cal, 2) if cal else None}
+
 
