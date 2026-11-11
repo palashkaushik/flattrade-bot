@@ -33,11 +33,11 @@ BUF = 1.0            # wave validity buffer
 WAVE_MODE = os.getenv("ATR16K_WAVE_MODE", "full").strip().lower()
 # Trigger: "pattern" = engulf/harami/twin; "ob" = order-block touch +
 # close above the nearest SR level above the bar (deployed 2026-11-09).
-TRIGGER_MODE = os.getenv("ATR16K_TRIGGER", "ob").strip().lower()
+TRIGGER_MODE = os.getenv("ATR16K_TRIGGER", "pattern").strip().lower()
 SKIP = 4             # pivot skip budget
-TP_MULT = 5.0        # TP = level + 5.0 * trigger range
+TP_MULT = 3.5        # TP = level + 3.5 * trigger range
 ATR_LEN = 14
-ATR_MULT = 1.0       # SL = level - 1.0 * ATR(14, 1m)
+ATR_MULT = 1.2       # SL = level - 1.2 * ATR(14, 1m)
 # Hard cap on the per-trade stop distance (points of premium). 0 = disabled.
 MAX_SL_POINTS = float(os.getenv("ATR16K_MAX_SL", "20"))
 # Minimum stop distance: when the trigger bar closes through the level, the
